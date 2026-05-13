@@ -47,7 +47,12 @@ INSTALLED_APPS = [
     'debug_toolbar',
 
     # Apps
-    'samples'
+    'rest_framework',
+    'corsheaders',
+    'samples',
+    'locations',
+    'qc',
+    'inventory',
 ]
 
 MIDDLEWARE = [

@@ -1,7 +1,5 @@
 from django.db import models
 
-# Create your models here.
-
 
 from django.db import models
 from django.utils.translation import gettext_lazy as _
@@ -107,12 +105,16 @@ class Sample(models.Model):
         
     )
 
-    location = models.ForeignKey(
+    '''
+    location does not exist 
+        location = models.ForeignKey(
         'locations.Location',
         on_delete=models.PROTECT,
         null=True,
         blank=True
     )
+    '''
+
    
     
     date_received = models.DateField()
@@ -144,7 +146,7 @@ class Sample(models.Model):
 
     # TODO automatique to lab format name? : Study-Cohort-TissueType-CaseNo-SpecimenType-SpecimenNo-SampleType-SampleExtractionNo : ACC-PanCancer-FFPE-380-N-1-DNA-1
 
-    sample_name = models.CharField(max_length=255, unique=True)
+    sample_name = models.CharField(max_length=255, unique=True, default='ACC-PanCancer-FFPE-380-N-1-DNA-1')
 
     def __str__(self):
         return self.sample_name
