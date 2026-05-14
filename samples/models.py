@@ -4,13 +4,11 @@ from django.db import models
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 
+from locations.models import Loaction
+
 # Model for : Client, Case, Specimen, Samples and Projects
 
-
-
 #TODO Look at all the on_delete behaviors for good implementation in the lab
-
-
 
 class Client(models.Model):
     client_id = models.AutoField(primary_key=True)
@@ -104,24 +102,19 @@ class Sample(models.Model):
         related_name='re_extraction',
         
     )
-
-    '''
-    location does not exist 
-        location = models.ForeignKey(
-        'locations.Location',
+    
+    location = models.ForeignKey(
+        Loaction,
         on_delete=models.PROTECT,
         null=True,
         blank=True
     )
-    '''
 
-   
-    
     date_received = models.DateField()
 
     volume_received = models.FloatField()
 
-    # Sample Type 
+    # Sample Type choices  
     DNA = 'DNA'
     RNA = 'RNA'
 

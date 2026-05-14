@@ -9,6 +9,8 @@ class SampleQCBatch(models.Model):
 
     batch_name = models.CharField(max_length=255)
     date_batched = models.DateField()
+
+    #TODO create lab users
     created_by = models.CharField(max_length=255)
  
     # ManyToMany to Sample through the explicit junction table BatchSample.
@@ -106,9 +108,6 @@ class SampleQC(models.Model):
         null=True, blank=True,
     )
  
-    nanodrop_260_280 = models.FloatField(
-        null=True, blank=True,
-    )
     nanodrop_260_230 = models.FloatField(
         null=True, blank=True,
     )

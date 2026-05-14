@@ -3,7 +3,7 @@ from django.utils.translation import gettext_lazy as _
 
 # Models for : Location and Temp_logs
 
-class Loaction(models.Model):
+class Location(models.Model):
 
     # Location ID automatique with djangos
 
@@ -56,7 +56,7 @@ class Loaction(models.Model):
 # TODO Decimal places for the lab machines
 class Temp_Logs(models.Model):
 
-    location = models.ForeignKey(Loaction, on_delete=models.PROTECT)
+    location = models.ForeignKey(Location, on_delete=models.PROTECT)
 
     dateLogged = models.DateTimeField( auto_now_add=True)
 
