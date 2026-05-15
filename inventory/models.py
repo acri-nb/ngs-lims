@@ -174,7 +174,7 @@ class TempLog(models.Model):
     location = models.ForeignKey(
         Location,
         on_delete=models.PROTECT,       # keep historical logs even if location is renamed
-        related_name='temp_logs'
+        related_name='templogs'
     )
 
     date_logged = models.DateField()

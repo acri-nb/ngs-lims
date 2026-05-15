@@ -4,7 +4,7 @@ from django.db import models
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 
-from locations.models import Loaction
+from locations.models import Location
 
 # Model for : Client, Case, Specimen, Samples and Projects
 
@@ -104,7 +104,7 @@ class Sample(models.Model):
     )
     
     location = models.ForeignKey(
-        Loaction,
+        Location,
         on_delete=models.PROTECT,
         null=True,
         blank=True
