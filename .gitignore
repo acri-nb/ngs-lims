@@ -1,6 +1,13 @@
-# .gitignore
-*.sqlite3
-.env
+#.gitignore
 __pycache__/
 *.pyc
+*.pyo
+
+
+*.sqlite3
+.env
+db.sqlite3
+
+
 venv/
+env/
