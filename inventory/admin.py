@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.utils.html import format_html
 
-from .models import Supplier, Product, ProductSupplier, InventoryReceipt, Inventory, TempLog
+from .models import Supplier, Product, ProductSupplier, InventoryReceipt, Inventory
 
 
 
@@ -133,29 +133,3 @@ class InventoryAdmin(admin.ModelAdmin):
     @admin.display(description='Lot Number')
     def lot_number(self, obj):
         return obj.receipt.lot_number
-
-
-@admin.register(TempLog)
-class TempLogAdmin(admin.ModelAdmin):
-    list_display = [
-        'location', 'date_logged',
-        'current_temp_c', 'max_temp_c', 'min_temp_c',
-        'max_humidity', 'min_humidity'
-    ]
-    search_fields = ['location__locationName']
-    list_filter = ['location']
-    ordering = ['-date_logged']
-    autocomplete_fields = ['location']
-
-    fieldsets = (
-        ('Location & Date', {
-            'fields': ('location', 'date_logged')
-        }),
-        ('Temperature (°C)', {
-            'fields': ('current_temp_c', 'max_temp_c', 'min_temp_c')
-        }),
-        ('Humidity — Rooms only', {
-            'fields': ('max_humidity', 'min_humidity'),
-            'classes': ('collapse',),
-        }),
-    )

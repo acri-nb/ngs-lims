@@ -47,6 +47,10 @@ class Project(models.Model):
     def __str__(self):
         return self.project_name
 
+class SpecimenName(models.Model):
+
+    specimen_name = models.CharField(max_length=255, primary_key=True)
+
 
 class Specimen(models.Model):
 
@@ -58,7 +62,7 @@ class Specimen(models.Model):
         related_name="specimens"
     )
 
-    specimen_name = models.CharField(max_length=255)
+    specimen_name = models.ForeignKey(SpecimenName, on_delete=models.PROTECT)
 
     # Speciment origin 
     BLOOD = 'Blood'
@@ -93,15 +97,6 @@ class Sample(models.Model):
         on_delete=models.PROTECT,
         related_name="samples"
     )
-
-    parent_sample = models.ForeignKey(
-        'self',
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name='re_extraction',
-        
-    )
     
     location = models.ForeignKey(
         Location,
@@ -110,9 +105,9 @@ class Sample(models.Model):
         blank=True
     )
 
-    date_received = models.DateField()
+    date_received = models.DateField(auto_now_add=True)
 
-    volume_received = models.FloatField()
+    volume_received = models.FloatField(null=True)
 
     # Sample Type choices  
     DNA = 'DNA'

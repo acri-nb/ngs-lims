@@ -2,7 +2,7 @@ from django.contrib import admin
 
 # samples/admin.py
 from django.contrib import admin
-from .models import Client, Case, Specimen, Sample, Project
+from .models import Client, Case, Specimen, SpecimenName, Sample, Project
 
 class CaseInline(admin.TabularInline):
     model = Case
@@ -18,6 +18,10 @@ class ClientAdmin(admin.ModelAdmin):
     search_fields = ['client_name', 'organisation_name']
     inlines = [CaseInline, ProjectInline]   # create cases/projects directly from client page
 
+class SpecimenNameInline(admin.TabularInline):
+    model = Specimen
+    extra = 1
+
 class SpecimenInline(admin.TabularInline):
     model = Specimen
     extra = 1
@@ -32,6 +36,10 @@ class CaseAdmin(admin.ModelAdmin):
 class SampleInline(admin.TabularInline):
     model = Sample
     extra = 1
+
+@admin.register(SpecimenName)
+class SpecimenNameAdmin(admin.ModelAdmin):
+    list_display = ['specimen_name']
 
 @admin.register(Specimen)
 class SpecimenAdmin(admin.ModelAdmin):

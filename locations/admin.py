@@ -1,16 +1,16 @@
 from django.contrib import admin
-from .models import Location, Temp_Logs
+from .models import Location, TempLog
 
 
 class TempLogInline(admin.TabularInline):
     """
     Shows recent temperature logs directly on the location page.
     """
-    model = Temp_Logs
+    model = TempLog
     extra = 1
-    fields = ['dateLogged', 'currentTempC', 'maxTempC', 'minTempC', 'maxHumidity', 'minHumidity']
-    readonly_fields = ['dateLogged']    # auto_now_add — can't be edited
-    ordering = ['-dateLogged']
+    fields = ['date_logged', 'currentTempC', 'maxTempC', 'minTempC', 'maxHumidity', 'minHumidity']
+    readonly_fields = ['date_logged']    # auto_now_add — can't be edited
+    ordering = ['-date_logged']
 
     def get_extra(self, request, obj=None, **kwargs):
         # don't show empty rows when viewing an existing location
@@ -29,27 +29,27 @@ class LocationAdmin(admin.ModelAdmin):
         return obj.temp_logs_set.count()
 
 
-@admin.register(Temp_Logs)
-class TempLogsAdmin(admin.ModelAdmin):
+@admin.register(TempLog)
+class TempLogAdmin(admin.ModelAdmin):
     list_display = [
-        'location', 'dateLogged',
-        'currentTempC', 'maxTempC', 'minTempC',
-        'maxHumidity', 'minHumidity'
+        'location', 'date_logged',
+        'current_temp_c', 'max_temp_c', 'min_temp_c',
+        'max_humidity', 'min_humidity'
     ]
-    list_filter = ['location', 'location__storageType']
     search_fields = ['location__locationName']
-    readonly_fields = ['dateLogged']
-    ordering = ['-dateLogged']
+    list_filter = ['location']
+    ordering = ['-date_logged']
+    autocomplete_fields = ['location']
 
     fieldsets = (
         ('Location & Date', {
-            'fields': ('location', 'dateLogged')
+            'fields': ('location', 'date_logged')
         }),
         ('Temperature (°C)', {
-            'fields': ('currentTempC', 'maxTempC', 'minTempC')
+            'fields': ('current_temp_c', 'max_temp_c', 'min_temp_c')
         }),
         ('Humidity — Rooms only', {
-            'fields': ('maxHumidity', 'minHumidity'),
+            'fields': ('max_humidity', 'min_humidity'),
             'classes': ('collapse',),
         }),
     )

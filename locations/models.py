@@ -52,19 +52,42 @@ class Location(models.Model):
     )
 
 
+class TempLog(models.Model):
+    """
+    Daily temperature and humidity log for a storage location.
+    Linked to Location so you can pull all logs for a given freezer.
 
-# TODO Decimal places for the lab machines
-class Temp_Logs(models.Model):
+    """
+    temp_log_id = models.AutoField(primary_key=True)
 
-    location = models.ForeignKey(Location, on_delete=models.PROTECT)
+    location = models.ForeignKey(
+        Location,
+        on_delete=models.PROTECT,       # keep historical logs even if location is renamed
+        related_name='templogs'
+    )
 
-    dateLogged = models.DateTimeField( auto_now_add=True)
+    date_logged = models.DateField()
+    current_temp_c = models.DecimalField(max_digits=5, decimal_places=2)
+    max_temp_c = models.DecimalField(max_digits=5, decimal_places=2)
+    min_temp_c = models.DecimalField(max_digits=5, decimal_places=2)
 
-    currentTempC = models.DecimalField( max_digits=2, decimal_places=1)
+    # Humidity only applies to room-temperature locations
+    max_humidity = models.DecimalField(
+        max_digits=5, decimal_places=2,
+        null=True, blank=True,
+        help_text="Room locations only."
+    )
+    min_humidity = models.DecimalField(
+        max_digits=5, decimal_places=2,
+        null=True, blank=True,
+        help_text="Room locations only."
+    )
 
-    maxTempC = models.DecimalField( max_digits=2, decimal_places=1)
-    minTempC = models.DecimalField( max_digits=2, decimal_places=1)
+    class Meta:
+        ordering = ['-date_logged']
+        verbose_name = "Temperature Log"
+        verbose_name_plural = "Temperature Logs"
+        unique_together = ('location', 'date_logged')   # one log entry per location per day
 
-    #TODO only for the Rooms
-    maxHumidity = models.DecimalField( max_digits=2, decimal_places=1, blank=True, null=True)
-    minHumidity = models.DecimalField( max_digits=2, decimal_places=1, blank=True, null=True)
+    def __str__(self):
+        return f"{self.location} — {self.date_logged} ({self.current_temp_c}°C)"
