@@ -3,36 +3,57 @@ from django.db import models
 from django.utils.translation import gettext_lazy as _
 from samples.models import Sample
 
+from django.core.exceptions import ValidationError
+
 # Model for: SampleQCBatch, BatchSample, SampleQC
  
 class SampleQCBatch(models.Model):
-
-    batch_name = models.CharField(max_length=255)
-    date_batched = models.DateField()
-
-    #TODO create lab users
-    created_by = models.CharField(max_length=255)
+    """
+    Represents a QC run 
  
-    # ManyToMany to Sample through the explicit junction table BatchSample.
-    # Django creates no extra table itself — BatchSample is the junction.
+    Batch name format: ProjectName-BATCH-4HexID
+    Example: CancerTEST-BATCH-1A4C
+ 
+    The hex ID is the batch's auto-incremented primary key
+    zero-padded to 4 uppercase hex digits.
+    Batch 1   → 0001
+    Batch 16  → 0010
+    Batch 255 → 00FF
+    """
 
+    batch_name = models.CharField(max_length=255, unique=True, blank=True)
+    date_batched = models.DateField()
+    created_by = models.CharField(max_length=255)
     samples = models.ManyToManyField(
         Sample,
         through='BatchSample',
         related_name='qc_batches'
     )
- 
+
+    def _generate_batch_name(self, project_name: str) -> str:
+        hex_id = format(self.id, '04X')   # ← self.id not self.batch_id
+        return f"{project_name}-BATCH-{hex_id}"
+
+    def save(self, *args, **kwargs):
+        if not self.batch_name:
+            super().save(*args, **kwargs)
+            self.batch_name = self._generate_batch_name('LAB')
+            super().save(update_fields=['batch_name'])
+        else:
+            super().save(*args, **kwargs)
+
     class Meta:
         verbose_name = "Sample QC Batch"
         verbose_name_plural = "Sample QC Batches"
         ordering = ['-date_batched']
- 
-    def __str__(self):
-        return f"{self.batch_name} ({self.date_batched})"
- 
+
     @property
     def sample_count(self):
         return self.samples.count()
+      
+    def __str__(self):
+        return f"{self.batch_name}"
+ 
  
  
 class BatchSample(models.Model):
@@ -96,10 +117,12 @@ class SampleQC(models.Model):
 
     #TODO Decimal places of the parameters
 
+    # Shared
     qubit_nm = models.FloatField(
         null=True, blank=True,
     )
- 
+    
+    # RNA only
     rin = models.FloatField(
         null=True, blank=True,
     )
@@ -107,7 +130,8 @@ class SampleQC(models.Model):
     dv200 = models.FloatField(
         null=True, blank=True,
     )
- 
+    
+    # DNA Only
     nanodrop_260_230 = models.FloatField(
         null=True, blank=True,
     )
@@ -124,6 +148,59 @@ class SampleQC(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
- 
+    # DNA and RNA Validation 
+    def clean(self):
+
+        super().clean()
+
+        if not self.sample:
+            return
+
+        sample_type = self.sample.sample_type
+
+        if sample_type == "RNA":
+
+            # Required RNA fields
+            if self.rin is None:
+                raise ValidationError({
+                    'rin': 'RIN is required for RNA samples.'
+                })
+
+            if self.dv200 is None:
+                raise ValidationError({
+                    'dv200': 'DV200 is required for RNA samples.'
+                })
+
+            # DNA fields should not be used
+            if self.nanodrop_260_230 is not None:
+                raise ValidationError({
+                    'nanodrop_260_230': 'Nanodrop 260/230 should not be set for RNA samples.'
+                })
+
+        elif sample_type == "DNA":
+
+            # Required DNA field
+            if self.nanodrop_260_230 is None:
+                raise ValidationError({
+                    'nanodrop_260_230': 'Nanodrop 260/230 is required for DNA samples.'
+                })
+
+            # RNA fields should not be used
+            if self.rin is not None:
+                raise ValidationError({
+                    'rin': 'RIN should not be set for DNA samples.'
+                })
+
+            if self.dv200 is not None:
+                raise ValidationError({
+                    'dv200': 'DV200 should not be set for DNA samples.'
+                })
+
+
+    def save(self, *args, **kwargs):
+        if self.sample_id:
+            self.full_clean()
+            super().save(*args, **kwargs)
+
     def __str__(self):
-        return f"QC {self.sample} — {self.qc_status}"
+        return f"QC {self.sample}({self.qc_status})"

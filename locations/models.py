@@ -1,5 +1,6 @@
 from django.db import models
 from django.utils.translation import gettext_lazy as _
+from django.core.exceptions import ValidationError
 
 # Models for : Location and Temp_logs
 
@@ -51,6 +52,9 @@ class Location(models.Model):
         choices=LOCATION_CHOICES
     )
 
+    def __str__(self):
+        return f"{self.locationName} ({self.storageType})"
+
 
 class TempLog(models.Model):
     """
@@ -66,7 +70,7 @@ class TempLog(models.Model):
         related_name='templogs'
     )
 
-    date_logged = models.DateField()
+    date_logged = models.DateField(auto_now_add=True)
     current_temp_c = models.DecimalField(max_digits=5, decimal_places=2)
     max_temp_c = models.DecimalField(max_digits=5, decimal_places=2)
     min_temp_c = models.DecimalField(max_digits=5, decimal_places=2)
@@ -83,6 +87,33 @@ class TempLog(models.Model):
         help_text="Room locations only."
     )
 
+    def clean(self):
+        super().clean()
+
+        # Humidity required for room-temperature locations
+        if self.location.storageType == Location.ROOMTEMPATURE:
+
+            if self.max_humidity is None:
+                raise ValidationError({
+                    'max_humidity': 'Max humidity is required for room-temperature locations.'
+                })
+
+            if self.min_humidity is None:
+                raise ValidationError({
+                    'min_humidity': 'Min humidity is required for room-temperature locations.'
+                })
+
+        else:
+            # Optional: prevent humidity for freezer/fridge locations
+            if self.max_humidity is not None or self.min_humidity is not None:
+                raise ValidationError(
+                    'Humidity values should only be set for room-temperature locations.'
+                )
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        super().save(*args, **kwargs)
+        
     class Meta:
         ordering = ['-date_logged']
         verbose_name = "Temperature Log"
@@ -90,4 +121,4 @@ class TempLog(models.Model):
         unique_together = ('location', 'date_logged')   # one log entry per location per day
 
     def __str__(self):
-        return f"{self.location} — {self.date_logged} ({self.current_temp_c}°C)"
+        return f"{self.location}—{self.date_logged}"

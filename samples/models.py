@@ -16,7 +16,7 @@ class Client(models.Model):
     organisation_name = models.CharField(max_length=255)
 
     def __str__(self):
-        return self.client_name
+        return f"{self.client_name}"
 
 
 class Case(models.Model):
@@ -45,11 +45,14 @@ class Project(models.Model):
     date_created = models.DateField(auto_now_add=True)
 
     def __str__(self):
-        return self.project_name
+        return f"{self.project_name}"
 
-class SpecimenName(models.Model):
+class SpecimenType(models.Model):
 
-    specimen_name = models.CharField(max_length=255, primary_key=True)
+    specimen_type = models.CharField(max_length=255, primary_key=True)
+
+    def __str__(self):
+        return self.specimen_type
 
 
 class Specimen(models.Model):
@@ -62,79 +65,100 @@ class Specimen(models.Model):
         related_name="specimens"
     )
 
-    specimen_name = models.ForeignKey(SpecimenName, on_delete=models.PROTECT)
+    specimen_type = models.ForeignKey(SpecimenType, on_delete=models.PROTECT)
 
     # Speciment origin 
-    BLOOD = 'Blood'
-    FFPE = 'FFPE'
-    FROZENTISSUE = 	'Frozen Tissue'
-    EV = 'EV'
-
-    SPECIMEN_ORIGIN_CHOICES = [
-        (BLOOD, _('Blood')),
-        (FFPE, _('FFPE')),
-        (FROZENTISSUE, _('Frozen Tissue')),
-        (EV, _('EV')),
-    ]
-    specimen_origin = models.CharField(max_length=255, choices=SPECIMEN_ORIGIN_CHOICES)
+    #BLOOD = 'Blood'
+    #FFPE = 'FFPE'
+    #FROZENTISSUE = 	'Frozen Tissue'
+    #EV = 'EV'
+    #SPECIMEN_ORIGIN_CHOICES = [
+    #    (BLOOD, _('Blood')),
+    #    (FFPE, _('FFPE')),
+    #    (FROZENTISSUE, _('Frozen Tissue')),
+    #    (EV, _('EV')),
+    #]
+    #specimen_origin = models.CharField(max_length=255, choices=SPECIMEN_ORIGIN_CHOICES)
 
     def __str__(self):
-        return self.specimen_name
+        return f"{self.case.case_name}—{self.specimen_type.specimen_type}"
 
 
 class Sample(models.Model):
-    
+    # AutoField so Django assigns the integer — we then convert it to hex for the name
     sample_id = models.AutoField(primary_key=True)
-
+ 
     specimen = models.ForeignKey(
         Specimen,
         on_delete=models.PROTECT,
         related_name="samples"
     )
-
     project = models.ForeignKey(
         Project,
         on_delete=models.PROTECT,
         related_name="samples"
     )
-    
     location = models.ForeignKey(
         Location,
         on_delete=models.PROTECT,
         null=True,
         blank=True
     )
-
-    date_received = models.DateField(auto_now_add=True)
-
-    volume_received = models.FloatField(null=True)
-
-    # Sample Type choices  
+ 
+    # blank=True so Django doesn't require it on the form — we generate it in save()
+    sample_name = models.CharField(max_length=255, unique=True, blank=True)
+ 
     DNA = 'DNA'
     RNA = 'RNA'
-
     SAMPLE_TYPE_CHOICES = [
         (DNA, _('DNA')),
-        (RNA, _('RNA'))
+        (RNA, _('RNA')),
     ]
     sample_type = models.CharField(max_length=10, choices=SAMPLE_TYPE_CHOICES)
-
-    # Receiving condition 
+ 
+    date_received = models.DateField(auto_now_add=True)
+    volume_received = models.FloatField(null=True, blank=True)
+ 
     TUBES = 'Tubes'
     PLATES = 'Plates'
     TUBES_STRIPS = 'Tube Strips'
-
     RECEIVING_CONDITION_CHOICES = [
-        (TUBES, _('Tubes')),
-        (PLATES, _('Plates')),
-        (TUBES_STRIPS, _('Tube Strips'))
+        (TUBES,       _('Tubes')),
+        (PLATES,      _('Plates')),
+        (TUBES_STRIPS,_('Tube Strips')),
     ]
-    receiving_condition = models.CharField(max_length=255, choices=RECEIVING_CONDITION_CHOICES)
-
-
-    # TODO automatique to lab format name? : Study-Cohort-TissueType-CaseNo-SpecimenType-SpecimenNo-SampleType-SampleExtractionNo : ACC-PanCancer-FFPE-380-N-1-DNA-1
-
-    sample_name = models.CharField(max_length=255, unique=True, default='ACC-PanCancer-FFPE-380-N-1-DNA-1')
-
+    receiving_condition = models.CharField(
+        max_length=255,
+        choices=RECEIVING_CONDITION_CHOICES,
+        blank=True
+    )
+ 
+    def _generate_sample_name(self):
+        """
+        Format: CaseName-SpecimenType-SampleType-5HexID
+        Example: MCF10A-Cells-RNA-000C8
+ 
+        The hex ID is the sample_id zero-padded to 5 uppercase hex digits.
+        Sample 200  → 000C8
+        Sample 1    → 00001
+        Sample 65535 → 0FFFF
+        """
+        case_name     = self.specimen.case.case_name
+        specimen_type = self.specimen.specimen_type.specimen_type
+        sample_type   = self.sample_type
+        hex_id        = format(self.sample_id, '05X')   # 5 digits, uppercase, zero-padded
+        return f"{case_name}-{specimen_type}-{sample_type}-{hex_id}"
+ 
+    def save(self, *args, **kwargs):
+        if not self.sample_name:
+            # First save to get the auto-incremented sample_id from the DB
+            super().save(*args, **kwargs)
+            # Now generate the name using the real ID
+            self.sample_name = self._generate_sample_name()
+            # Save again to store the generated name
+            super().save(update_fields=['sample_name'])
+        else:
+            super().save(*args, **kwargs)
+ 
     def __str__(self):
         return self.sample_name

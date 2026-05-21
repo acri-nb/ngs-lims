@@ -3,19 +3,17 @@ from .models import Location, TempLog
 
 
 class TempLogInline(admin.TabularInline):
-    """
-    Shows recent temperature logs directly on the location page.
-    """
     model = TempLog
-    extra = 1
-    fields = ['date_logged', 'currentTempC', 'maxTempC', 'minTempC', 'maxHumidity', 'minHumidity']
-    readonly_fields = ['date_logged']    # auto_now_add — can't be edited
-    ordering = ['-date_logged']
-
-    def get_extra(self, request, obj=None, **kwargs):
-        # don't show empty rows when viewing an existing location
-        return 0 if obj else 1
-
+    extra = 0
+    fields = [
+        'date_logged',
+        'current_temp_c',
+        'max_temp_c',
+        'min_temp_c',
+        'max_humidity',
+        'min_humidity'
+    ]
+    readonly_fields = ['date_logged']
 
 @admin.register(Location)
 class LocationAdmin(admin.ModelAdmin):
@@ -24,9 +22,9 @@ class LocationAdmin(admin.ModelAdmin):
     search_fields = ['locationName']
     inlines = [TempLogInline]
 
-    @admin.display(description='# Temp Logs')
+    #@admin.display(description='# Temp Logs')
     def temp_log_count(self, obj):
-        return obj.temp_logs_set.count()
+        return obj.templogs.count() 
 
 
 @admin.register(TempLog)

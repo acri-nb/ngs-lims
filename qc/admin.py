@@ -23,10 +23,13 @@ class SampleQCInline(admin.TabularInline):
     readonly_fields = ['created_at', 'updated_at']
 
     def get_readonly_fields(self, request, obj=None):
-        # once a QC result exists, make sample field read-only to prevent re-assignment
-        if obj:
-            return self.readonly_fields + ['sample']
         return self.readonly_fields
+    
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+    # Restrict the sample dropdown to only samples in this batch
+        if db_field.name == 'sample' and request._current_obj is not None:
+            kwargs['queryset'] = request._current_obj.samples.all()
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
 
 @admin.register(SampleQCBatch)
@@ -36,11 +39,18 @@ class SampleQCBatchAdmin(admin.ModelAdmin):
     ordering = ['-date_batched']
     inlines = [BatchSampleInline, SampleQCInline]
 
-    # show sample_count property in the list
     @admin.display(description='# Samples')
     def sample_count(self, obj):
         return obj.sample_count
 
+    # Stash the current batch object so the inline can access it
+    def get_form(self, request, obj=None, **kwargs):
+        request._current_obj = obj
+        return super().get_form(request, obj, **kwargs)
+
+    def get_inlines(self, request, obj):
+        request._current_obj = obj
+        return super().get_inlines(request, obj)
 
 @admin.register(BatchSample)
 class BatchSampleAdmin(admin.ModelAdmin):

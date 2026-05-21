@@ -2,15 +2,17 @@ from django.contrib import admin
 
 # samples/admin.py
 from django.contrib import admin
-from .models import Client, Case, Specimen, SpecimenName, Sample, Project
+from .models import Client, Case, Specimen, SpecimenType, Sample, Project
 
 class CaseInline(admin.TabularInline):
     model = Case
     extra = 1          # shows one empty row ready to fill
+    fields = ['case_name']
 
 class ProjectInline(admin.TabularInline):
     model = Project
     extra = 1
+    fields = ['project_name', 'sequencing_type']
 
 @admin.register(Client)
 class ClientAdmin(admin.ModelAdmin):
@@ -18,13 +20,13 @@ class ClientAdmin(admin.ModelAdmin):
     search_fields = ['client_name', 'organisation_name']
     inlines = [CaseInline, ProjectInline]   # create cases/projects directly from client page
 
-class SpecimenNameInline(admin.TabularInline):
-    model = Specimen
-    extra = 1
 
 class SpecimenInline(admin.TabularInline):
     model = Specimen
     extra = 1
+    fields = ['specimen_type']
+    autocomplete_fields = ['specimen_type']
+
 
 @admin.register(Case)
 class CaseAdmin(admin.ModelAdmin):
@@ -35,17 +37,26 @@ class CaseAdmin(admin.ModelAdmin):
 
 class SampleInline(admin.TabularInline):
     model = Sample
-    extra = 1
+    extra = 0
+    fields = ['sample_name', 'sample_type', 'date_received']
+    readonly_fields = ['sample_name', 'date_received']   
+    autocomplete_fields = ['project']   
+    show_change_link = True  
 
-@admin.register(SpecimenName)
-class SpecimenNameAdmin(admin.ModelAdmin):
-    list_display = ['specimen_name']
+@admin.register(SpecimenType)
+class SpecimenTypeAdmin(admin.ModelAdmin):
+    list_display = ['specimen_type']
+    search_fields = ['specimen_type']
 
+#TODO Sample in specimen does not work (/samples/specimen/<ID>/change/)
 @admin.register(Specimen)
 class SpecimenAdmin(admin.ModelAdmin):
-    list_display = ['specimen_name', 'specimen_origin', 'case']
-    list_filter = ['specimen_origin']
+    list_display = ['__str__', 'specimen_type', 'case']
+    search_fields = ['case__case_name', 'specimen_type__specimen_type']
+    list_filter = ['specimen_type']
+    autocomplete_fields = ['specimen_type']
     inlines = [SampleInline]
+
 
 @admin.register(Sample)
 class SampleAdmin(admin.ModelAdmin):
