@@ -1,0 +1,30 @@
+{% extends "admin/base_site.html" %}
+
+{% block content %}
+
+<h1>Bulk Change Location</h1>
+
+<form method="post">
+    {% csrf_token %}
+
+    {{ form.as_p }}
+
+    {% for sample in samples %}
+        <input type="hidden" name="_selected_action" value="{{ sample.pk }}">
+    {% endfor %}
+
+    <input type="hidden" name="action" value="bulk_change_location">
+    <input type="hidden" name="apply" value="1">
+
+    <button type="submit">Apply</button>
+</form>
+
+<h2>Selected Samples</h2>
+
+<ul>
+{% for sample in samples %}
+    <li>{{ sample }}</li>
+{% endfor %}
+</ul>
+
+{% endblock %}

@@ -133,6 +133,9 @@ class Sample(models.Model):
         blank=True
     )
  
+    compliance = models.BooleanField(default=True)
+    notes =  models.CharField(max_length=255, blank=True)
+
     def _generate_sample_name(self):
         """
         Format: CaseName-SpecimenType-SampleType-5HexID
