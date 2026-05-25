@@ -3,6 +3,10 @@ from django.utils.translation import gettext_lazy as _
 
 from locations.models import Location
 
+from django.contrib.auth import get_user_model
+
+User = get_user_model()
+
 # Models for Supplier, Product, ProductSupplier, InventoryReceipt, Inventory, TempLog
 
 class Supplier(models.Model):
@@ -31,6 +35,8 @@ class Product(models.Model):
         through='ProductSupplier',
         related_name='products'
     )
+
+    product_notes = models.CharField(max_length=255, null=True, blank=True)
 
     class Meta:
         ordering = ['product_name']
@@ -106,11 +112,57 @@ class InventoryReceipt(models.Model):
         default=ROOMTEMP
     )
 
+    location = models.ForeignKey(
+       Location,
+       on_delete=models.PROTECT,
+       related_name='inventory_receipts'
+    )   
+    quantity_received = models.IntegerField(default=0)
+    
+    #TODO options ml L ul bottles tubes spray bottles ... etc
+    quantity_unit = models.CharField(
+        max_length=50,
+        blank=True
+    )
+
+    User = get_user_model()
+
     date_received = models.DateField()
     expiration_date = models.DateField(null=True, blank=True)   # some items don't expire
 
-    #TODO Add user of the Lab 
-    received_by = models.CharField(max_length=255)             
+    receipt_notes = models.CharField(max_length=255, null=True, blank=True)
+       
+    received_by = models.ForeignKey(
+        User,
+        on_delete=models.PROTECT,
+        related_name='inventory_receipts_received'
+    )
+
+    def save(self, *args, **kwargs):
+
+        is_new = self.pk is None
+
+        super().save(*args, **kwargs)
+
+        # Only create inventory on first creation
+        if is_new:
+
+            inventory, created = Inventory.objects.get_or_create(
+                product=self.product,
+                location=self.location,
+                receipt=self,
+                quantity_unit=self.quantity_unit,
+                defaults={
+                    'quantity_on_hand': self.quantity_received
+                }
+            )
+
+            # If somehow already exists
+            if not created:
+                inventory.quantity_on_hand += self.quantity_received
+                inventory.save()
+
+
 
     class Meta:
         ordering = ['-date_received']
@@ -152,6 +204,12 @@ class Inventory(models.Model):
         related_name='inventory_entries'
     )
     quantity_on_hand = models.IntegerField(default=0)
+
+    quantity_unit = models.CharField(
+        max_length=50,
+        blank=True
+    )
+
     last_updated = models.DateField(auto_now=True)
 
     class Meta:
