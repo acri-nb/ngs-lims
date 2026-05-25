@@ -40,7 +40,7 @@ class Project(models.Model):
         related_name="projects"
     )
 
-    project_name = models.CharField(max_length=255)
+    project_name = models.CharField(max_length=255, unique=True)
     sequencing_type = models.CharField(max_length=255)
     date_created = models.DateField(auto_now_add=True)
 

@@ -5,6 +5,9 @@ from samples.models import Sample
 
 from django.core.exceptions import ValidationError
 
+from django.contrib.auth import get_user_model
+
+User = get_user_model()
 # Model for: SampleQCBatch, BatchSample, SampleQC
  
 class SampleQCBatch(models.Model):
@@ -23,7 +26,14 @@ class SampleQCBatch(models.Model):
 
     batch_name = models.CharField(max_length=255, unique=True, blank=True)
     date_batched = models.DateField()
-    created_by = models.CharField(max_length=255)
+   
+    created_by = models.ForeignKey(
+        User,
+        on_delete=models.PROTECT,
+        related_name='qc_batches_created'
+    )
+
+   
     samples = models.ManyToManyField(
         Sample,
         through='BatchSample',
@@ -147,54 +157,54 @@ class SampleQC(models.Model):
  
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-
-    # DNA and RNA Validation 
-    def clean(self):
-
-        super().clean()
-
-        if not self.sample:
-            return
-
-        sample_type = self.sample.sample_type
-
-        if sample_type == "RNA":
-
-            # Required RNA fields
-            if self.rin is None:
-                raise ValidationError({
-                    'rin': 'RIN is required for RNA samples.'
-                })
-
-            if self.dv200 is None:
-                raise ValidationError({
-                    'dv200': 'DV200 is required for RNA samples.'
-                })
-
-            # DNA fields should not be used
-            if self.nanodrop_260_230 is not None:
-                raise ValidationError({
-                    'nanodrop_260_230': 'Nanodrop 260/230 should not be set for RNA samples.'
-                })
-
-        elif sample_type == "DNA":
-
-            # Required DNA field
-            if self.nanodrop_260_230 is None:
-                raise ValidationError({
-                    'nanodrop_260_230': 'Nanodrop 260/230 is required for DNA samples.'
-                })
-
-            # RNA fields should not be used
-            if self.rin is not None:
-                raise ValidationError({
-                    'rin': 'RIN should not be set for DNA samples.'
-                })
-
-            if self.dv200 is not None:
-                raise ValidationError({
-                    'dv200': 'DV200 should not be set for DNA samples.'
-                })
+#
+#    # DNA and RNA Validation 
+#    def clean(self):
+#
+#        super().clean()
+#
+#        if not self.sample:
+#            return
+#
+#        sample_type = self.sample.sample_type
+#
+#        if sample_type == "RNA":
+#
+#            # Required RNA fields
+#            if self.rin is None:
+#                raise ValidationError({
+#                    'rin': 'RIN is required for RNA samples.'
+#                })
+#
+#            if self.dv200 is None:
+#                raise ValidationError({
+#                    'dv200': 'DV200 is required for RNA samples.'
+#                })
+#
+#            # DNA fields should not be used
+#            if self.nanodrop_260_230 is not None:
+#                raise ValidationError({
+#                    'nanodrop_260_230': 'Nanodrop 260/230 should not be set for RNA samples.'
+#                })
+#
+#        elif sample_type == "DNA":
+#
+#            # Required DNA field
+#            if self.nanodrop_260_230 is None:
+#                raise ValidationError({
+#                    'nanodrop_260_230': 'Nanodrop 260/230 is required for DNA samples.'
+#                })
+#
+#            # RNA fields should not be used
+#            if self.rin is not None:
+#                raise ValidationError({
+#                    'rin': 'RIN should not be set for DNA samples.'
+#                })
+#
+#            if self.dv200 is not None:
+#                raise ValidationError({
+#                    'dv200': 'DV200 should not be set for DNA samples.'
+#                })
 
 
     def save(self, *args, **kwargs):

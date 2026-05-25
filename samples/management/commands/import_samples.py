@@ -18,6 +18,9 @@ from django.db import transaction
 from samples.models import Project, Case, Specimen, SpecimenType, Sample
 from qc.models import SampleQCBatch, BatchSample, SampleQC
 
+from django.contrib.auth import get_user_model
+
+User = get_user_model()
 
 # CSV column names
 COL_CASE_ID       = 'CaseID'
@@ -25,6 +28,7 @@ COL_SPECIMEN_TYPE = 'SpecimenType'
 COL_NUCLEID_TYPE  = 'NucleidType'
 COL_CONCENTRATION = 'Concentration(ng)'
 COL_VOLUME        = 'Volume(uL)'
+
 
 
 def parse_float(value: str, field_name: str, row_num: int):
@@ -43,10 +47,24 @@ class Command(BaseCommand):
 
     def add_arguments(self, parser):
         parser.add_argument(
-            '--project',
+            '--project-id',
             type=int,
+            required=False,
+            help='Project ID'
+        )
+
+        parser.add_argument(
+            '--project-name',
+            type=str,
+            required=False,
+            help='Project name'
+        )
+
+        parser.add_argument(
+            '--user',
+            type=str,
             required=True,
-            help='ID of the project to import samples into'
+            help='Username performing the import'
         )
         parser.add_argument(
             '--file',
@@ -68,17 +86,53 @@ class Command(BaseCommand):
         )
 
     def handle(self, *args, **options):
-        project_id = options['project']
+
+
+        project_id = options['project_id']
+        project_name = options['project_name']
+       
+
+        if not project_id and not project_name:
+            raise CommandError(
+                "You must provide either --project-id or --project-name."
+            )
+
+        if project_id and project_name:
+            raise CommandError(
+                "Use only one of --project-id or --project-name."
+            )
+
         file_path  = options['file']
         dry_run    = options['dry_run']
         batch_name = options['batch_name']
 
-        # Load the project
-        try:
-            project = Project.objects.get(pk=project_id)
-        except Project.DoesNotExist:
-            raise CommandError(f"Project with ID {project_id} does not exist.")
+        username = options['user']
 
+        try:
+        
+            if project_id:
+                project = Project.objects.get(pk=project_id)
+
+            else:
+                project = Project.objects.get(project_name=project_name)
+
+        except Project.DoesNotExist:
+        
+            if project_id:
+                raise CommandError(
+                    f"Project with ID {project_id} does not exist."
+                )
+
+            raise CommandError(
+                f"Project '{project_name}' does not exist."
+            )
+        try:
+            user = User.objects.get(username=username)
+
+        except User.DoesNotExist:
+            raise CommandError(
+                f"User '{username}' does not exist."
+            )
         self.stdout.write(f"\nProject   : {project.project_name}")
         self.stdout.write(f"File      : {file_path}")
         self.stdout.write(f"Mode      : {'DRY RUN — nothing will be saved' if dry_run else 'LIVE'}\n")
@@ -231,7 +285,7 @@ class Command(BaseCommand):
             intake_batch = SampleQCBatch.objects.create(
                 batch_name=batch_name,
                 date_batched=timezone.now().date(),
-                created_by='Client Intake Import',
+                created_by=user,
             )
 
             cases_created     = 0
@@ -296,7 +350,7 @@ class Command(BaseCommand):
                     batch=intake_batch,
                     qubit_nm=r['concentration'],    # Concentration (ng) = Qubit
                     qc_status=SampleQC.PENDING,     # lab will review and update status
-                    notes='Client intake values.',
+                    notes='',
                 )
 
 

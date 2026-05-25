@@ -26,6 +26,9 @@ class LocationAdmin(admin.ModelAdmin):
     def temp_log_count(self, obj):
         return obj.templogs.count() 
 
+class TemperatureLogInline(admin.TabularInline):
+    model = TempLog
+    readonly_fields = ['date_logged']
 
 @admin.register(TempLog)
 class TempLogAdmin(admin.ModelAdmin):
