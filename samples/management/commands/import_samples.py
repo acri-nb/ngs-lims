@@ -339,6 +339,7 @@ class Command(BaseCommand):
                     project=project,
                     sample_type=r['nucleid_type'],
                     volume_received=r['volume'],
+                    concentration=r['concentration'],
                     date_received=timezone.now().date(),
                 )
                 samples_created += 1
@@ -350,6 +351,7 @@ class Command(BaseCommand):
                     batch=intake_batch,
                     qubit_nm=r['concentration'],    # Concentration (ng) = Qubit
                     qc_status=SampleQC.PENDING,     # lab will review and update status
+                    edited_by=user,
                     notes='',
                 )
 

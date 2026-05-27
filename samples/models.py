@@ -118,7 +118,12 @@ class Sample(models.Model):
  
     date_received = models.DateField(auto_now_add=True)
     volume_received = models.FloatField(null=True, blank=True)
- 
+    
+    
+    concentration = models.FloatField(
+        null=True, blank=True
+    )
+
     TUBES = 'Tubes'
     PLATES = 'Plates'
     TUBES_STRIPS = 'Tube Strips'
@@ -132,7 +137,6 @@ class Sample(models.Model):
         choices=RECEIVING_CONDITION_CHOICES,
         blank=True
     )
- 
     compliance = models.BooleanField(default=True)
     notes =  models.CharField(max_length=255, blank=True)
 
@@ -153,15 +157,13 @@ class Sample(models.Model):
         return f"{case_name}-{specimen_type}-{sample_type}-{hex_id}"
  
     def save(self, *args, **kwargs):
-        if not self.sample_name:
-            # First save to get the auto-incremented sample_id from the DB
-            super().save(*args, **kwargs)
-            # Now generate the name using the real ID
-            self.sample_name = self._generate_sample_name()
-            # Save again to store the generated name
-            super().save(update_fields=['sample_name'])
-        else:
-            super().save(*args, **kwargs)
+        # First save to get the auto-incremented sample_id from the DB
+        super().save(*args, **kwargs)
+        # Now generate the name using the real ID
+        self.sample_name = self._generate_sample_name()
+        # Save again to store the generated name
+        super().save(update_fields=['sample_name'])
+        
  
     def __str__(self):
         return self.sample_name

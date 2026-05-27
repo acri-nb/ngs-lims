@@ -72,7 +72,7 @@ class SpecimenAdmin(admin.ModelAdmin):
 
 @admin.register(Sample)
 class SampleAdmin(admin.ModelAdmin):
-    list_display = ['sample_name', 'sample_id', 'project', 'date_received', 'receiving_condition', 'location']
+    list_display = ['sample_name', 'sample_id', 'project', 'concentration', 'volume_received', 'date_received', 'receiving_condition', 'location']
     search_fields = ['sample_name']
     list_editable = ['location', 'receiving_condition']
     list_filter = ['sample_type', 'receiving_condition', 'project']
