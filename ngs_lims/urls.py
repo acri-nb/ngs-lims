@@ -16,20 +16,15 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path, include
-
-# from debug_toolbar.toolbar import debug_toolbar_urls
-
 import debug_toolbar
 
 admin.site.site_header = 'ngs-lims Admin'
 admin.site.index_title = 'Admin'
 
-
 urlpatterns = [
-    path('admin/', admin.site.urls),
-
-    path('samples/', include('samples.urls')),
-
+    path('',        include('samples.urls')),
+    path('admin/',  admin.site.urls),
+    path('accounts/', include('django.contrib.auth.urls')), #login and logout
     path('__debug__/', include(debug_toolbar.urls)),
-    
 ]
+

@@ -1,0 +1,180 @@
+{% extends 'base.html' %}
+
+{% block title %}Dashboard | NGS-LIMS{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1 class="page-title">
+        <i class="fas fa-th-large"></i> Dashboard
+    </h1>
+    <a href="{% url 'admin:samples_sample_add' %}" class="btn btn-accent">
+        <i class="fas fa-plus me-1"></i> New Sample
+    </a>
+</div>
+
+<!-- STAT CARDS -->
+<div class="row g-3 mb-4">
+    <div class="col-sm-6 col-xl-3">
+        <div class="stat-card">
+            <div class="stat-card-icon teal">
+                <i class="fas fa-vial"></i>
+            </div>
+            <div>
+                <div class="stat-card-value">{{ total_samples }}</div>
+                <div class="stat-card-label">Total Samples</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-sm-6 col-xl-3">
+        <div class="stat-card">
+            <div class="stat-card-icon green">
+                <i class="fas fa-project-diagram"></i>
+            </div>
+            <div>
+                <div class="stat-card-value">{{ total_projects }}</div>
+                <div class="stat-card-label">Active Projects</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-sm-6 col-xl-3">
+        <div class="stat-card">
+            <div class="stat-card-icon orange">
+                <i class="fas fa-microscope"></i>
+            </div>
+            <div>
+                <div class="stat-card-value">{{ total_batches }}</div>
+                <div class="stat-card-label">QC Batches</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-sm-6 col-xl-3">
+        <div class="stat-card">
+            <div class="stat-card-icon red">
+                <i class="fas fa-exclamation-triangle"></i>
+            </div>
+            <div>
+                <div class="stat-card-value">{{ expiring_soon }}</div>
+                <div class="stat-card-label">Expiring Inventory</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-3">
+    <!-- RECENT SAMPLES -->
+    <div class="col-lg-7">
+        <div class="card">
+            <div class="card-header">
+                <i class="fas fa-vial"></i>
+                Recent Samples
+                <a href="{% url 'sample-list' %}" class="ms-auto btn btn-outline-lims btn-sm">View all</a>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-lims">
+                    <thead>
+                        <tr>
+                            <th>Sample Name</th>
+                            <th>Project</th>
+                            <th>Type</th>
+                            <th>Received</th>
+                            <th>Location</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for sample in recent_samples %}
+                        <tr>
+                            <td>
+                                <span class="sample-id">{{ sample.sample_name }}</span>
+                            </td>
+                            <td>{{ sample.project.project_name }}</td>
+                            <td>
+                                <span class="lims-badge badge-{{ sample.sample_type|lower }}">
+                                    {{ sample.sample_type }}
+                                </span>
+                            </td>
+                            <td>{{ sample.date_received|date:"M d, Y" }}</td>
+                            <td>
+                                {% if sample.location %}
+                                    <span style="font-size:0.8rem;color:var(--text-muted);">
+                                        <i class="fas fa-map-marker-alt me-1"></i>{{ sample.location.locationName }}
+                                    </span>
+                                {% else %}
+                                    <span class="text-muted">—</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="5" class="text-center text-muted py-4">
+                                <i class="fas fa-vial me-2"></i>No samples yet.
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- SIDE STATS -->
+    <div class="col-lg-5">
+
+        <!-- QC STATUS BREAKDOWN -->
+        <div class="card">
+            <div class="card-header">
+                <i class="fas fa-check-circle"></i>
+                QC Status
+            </div>
+            <div class="card-body py-3">
+                {% for stat in qc_status_stats %}
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span class="lims-badge badge-{{ stat.qc_status|lower }}">
+                        {{ stat.qc_status }}
+                    </span>
+                    <span style="font-family:'IBM Plex Mono',monospace;font-size:0.85rem;font-weight:600;">
+                        {{ stat.count }}
+                    </span>
+                </div>
+                {% empty %}
+                <span class="text-muted" style="font-size:0.85rem;">No QC data yet.</span>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- RECENT QC BATCHES -->
+        <div class="card">
+            <div class="card-header">
+                <i class="fas fa-layer-group"></i>
+                Recent QC Batches
+            </div>
+            <div class="table-responsive">
+                <table class="table table-lims">
+                    <thead>
+                        <tr>
+                            <th>Batch</th>
+                            <th>Samples</th>
+                            <th>Date</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for batch in recent_batches %}
+                        <tr>
+                            <td>
+                                <span class="sample-id">{{ batch.batch_name }}</span>
+                            </td>
+                            <td>{{ batch.sample_count }}</td>
+                            <td>{{ batch.date_batched|date:"M d" }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="3" class="text-center text-muted py-3">No batches yet.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </div>
+</div>
+{% endblock %}

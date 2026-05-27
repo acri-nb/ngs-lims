@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}NGS-LIMS{% endblock %}</title>
+
+    <!-- Bootstrap 5 -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --primary:      #1a2332;   /* deep navy */
+            --accent:       #00b4d8;   /* teal/cyan */
+            --accent-dark:  #0096b4;
+            --danger:       #e63946;
+            --success:      #2dc653;
+            --warning:      #f4a261;
+            --caution:      #e9c46a;
+            --surface:      #ffffff;
+            --surface-alt:  #f0f4f8;
+            --border:       #dde3ea;
+            --text:         #1a2332;
+            --text-muted:   #6b7a8f;
+            --sidebar-w:    220px;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            font-family: 'IBM Plex Sans', sans-serif;
+            background-color: var(--surface-alt);
+            color: var(--text);
+            margin: 0;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* ── TOP NAV ── */
+        .topnav {
+            background-color: var(--primary);
+            height: 56px;
+            display: flex;
+            align-items: center;
+            padding: 0 1.5rem;
+            position: fixed;
+            top: 0; left: 0; right: 0;
+            z-index: 1000;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+        }
+
+        .topnav-brand {
+            font-family: 'IBM Plex Mono', monospace;
+            font-weight: 600;
+            font-size: 1rem;
+            color: #fff;
+            text-decoration: none;
+            letter-spacing: 0.04em;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .topnav-brand .brand-accent {
+            color: var(--accent);
+        }
+
+        .topnav-right {
+            margin-left: auto;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .topnav-user {
+            color: rgba(255,255,255,0.8);
+            font-size: 0.85rem;
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+        }
+
+        .topnav-user .dropdown-toggle {
+            color: rgba(255,255,255,0.8);
+            text-decoration: none;
+            font-size: 0.85rem;
+        }
+
+        .topnav-user .dropdown-toggle:hover { color: #fff; }
+
+        /* ── SIDEBAR ── */
+        .sidebar {
+            position: fixed;
+            top: 56px;
+            left: 0;
+            bottom: 0;
+            width: var(--sidebar-w);
+            background-color: var(--primary);
+            padding: 1.5rem 0 1rem;
+            overflow-y: auto;
+            z-index: 900;
+        }
+
+        .sidebar-section-label {
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 0.65rem;
+            font-weight: 600;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: rgba(255,255,255,0.35);
+            padding: 0.75rem 1.25rem 0.35rem;
+        }
+
+        .sidebar-link {
+            display: flex;
+            align-items: center;
+            gap: 0.65rem;
+            padding: 0.55rem 1.25rem;
+            color: rgba(255,255,255,0.65);
+            text-decoration: none;
+            font-size: 0.875rem;
+            transition: background 0.15s, color 0.15s;
+            border-left: 3px solid transparent;
+        }
+
+        .sidebar-link:hover {
+            background: rgba(255,255,255,0.07);
+            color: #fff;
+        }
+
+        .sidebar-link.active {
+            color: var(--accent);
+            border-left-color: var(--accent);
+            background: rgba(0, 180, 216, 0.08);
+        }
+
+        .sidebar-link i {
+            width: 16px;
+            text-align: center;
+            font-size: 0.8rem;
+        }
+
+        /* ── MAIN CONTENT ── */
+        .main-wrap {
+            margin-left: var(--sidebar-w);
+            margin-top: 56px;
+            padding: 2rem;
+            flex: 1;
+        }
+
+        /* ── PAGE HEADER ── */
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.75rem;
+        }
+
+        .page-title {
+            font-size: 1.4rem;
+            font-weight: 600;
+            margin: 0;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .page-title i { color: var(--accent); font-size: 1.1rem; }
+
+        /* ── CARDS ── */
+        .card {
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: var(--surface);
+            box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+            margin-bottom: 1.25rem;
+        }
+
+        .card-header {
+            background: var(--surface);
+            border-bottom: 1px solid var(--border);
+            padding: 0.9rem 1.25rem;
+            font-weight: 600;
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            border-radius: 8px 8px 0 0 !important;
+        }
+
+        .card-header i { color: var(--accent); }
+
+        /* ── STAT CARDS ── */
+        .stat-card {
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: var(--surface);
+            padding: 1.25rem 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .stat-card-icon {
+            width: 44px;
+            height: 44px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.1rem;
+            flex-shrink: 0;
+        }
+
+        .stat-card-icon.teal   { background: rgba(0,180,216,0.12); color: var(--accent); }
+        .stat-card-icon.green  { background: rgba(45,198,83,0.12);  color: var(--success); }
+        .stat-card-icon.orange { background: rgba(244,162,97,0.12); color: var(--warning); }
+        .stat-card-icon.red    { background: rgba(230,57,70,0.12);  color: var(--danger); }
+
+        .stat-card-value {
+            font-size: 1.75rem;
+            font-weight: 600;
+            line-height: 1;
+            font-family: 'IBM Plex Mono', monospace;
+        }
+
+        .stat-card-label {
+            font-size: 0.78rem;
+            color: var(--text-muted);
+            margin-top: 0.2rem;
+        }
+
+        /* ── TABLES ── */
+        .table-lims {
+            font-size: 0.875rem;
+            margin: 0;
+        }
+
+        .table-lims thead th {
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 0.7rem;
+            font-weight: 600;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            background: var(--surface-alt);
+            border-bottom: 1px solid var(--border);
+            padding: 0.65rem 1rem;
+        }
+
+        .table-lims tbody tr {
+            border-bottom: 1px solid var(--border);
+            transition: background 0.1s;
+        }
+
+        .table-lims tbody tr:last-child { border-bottom: none; }
+        .table-lims tbody tr:hover { background: var(--surface-alt); }
+
+        .table-lims td {
+            padding: 0.75rem 1rem;
+            vertical-align: middle;
+        }
+
+        /* ── SAMPLE ID MONO ── */
+        .sample-id {
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 0.8rem;
+            color: var(--accent-dark);
+            background: rgba(0,180,216,0.08);
+            padding: 2px 6px;
+            border-radius: 4px;
+            white-space: nowrap;
+        }
+
+        /* ── BADGES ── */
+        .badge-pass     { background: rgba(45,198,83,0.15);  color: #1a8c3d; border: 1px solid rgba(45,198,83,0.3); }
+        .badge-fail     { background: rgba(230,57,70,0.12);  color: #b52530; border: 1px solid rgba(230,57,70,0.3); }
+        .badge-caution  { background: rgba(233,196,106,0.2); color: #8a6a00; border: 1px solid rgba(233,196,106,0.4); }
+        .badge-pending  { background: rgba(107,122,143,0.12);color: var(--text-muted); border: 1px solid var(--border); }
+        .badge-dna      { background: rgba(0,180,216,0.1);   color: #0077a0; border: 1px solid rgba(0,180,216,0.25); }
+        .badge-rna      { background: rgba(244,162,97,0.15); color: #a0530a; border: 1px solid rgba(244,162,97,0.3); }
+
+        .lims-badge {
+            display: inline-block;
+            font-size: 0.7rem;
+            font-weight: 600;
+            letter-spacing: 0.04em;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-family: 'IBM Plex Mono', monospace;
+        }
+
+        /* ── BUTTONS ── */
+        .btn-accent {
+            background: var(--accent);
+            color: #fff;
+            border: none;
+            font-size: 0.85rem;
+            padding: 0.45rem 1rem;
+            border-radius: 6px;
+            font-weight: 500;
+        }
+
+        .btn-accent:hover { background: var(--accent-dark); color: #fff; }
+
+        .btn-outline-lims {
+            border: 1px solid var(--border);
+            color: var(--text);
+            background: transparent;
+            font-size: 0.85rem;
+            padding: 0.45rem 1rem;
+            border-radius: 6px;
+        }
+
+        .btn-outline-lims:hover { background: var(--surface-alt); color: var(--text); }
+
+        /* ── BREADCRUMB ── */
+        .breadcrumb {
+            font-size: 0.8rem;
+            margin-bottom: 1.25rem;
+            background: none;
+            padding: 0;
+        }
+
+        .breadcrumb-item a { color: var(--accent); text-decoration: none; }
+        .breadcrumb-item.active { color: var(--text-muted); }
+        .breadcrumb-item + .breadcrumb-item::before { color: var(--border); }
+
+        /* ── ALERTS ── */
+        .alert { border-radius: 6px; font-size: 0.875rem; border: none; }
+        .alert-success { background: rgba(45,198,83,0.1);  color: #1a6b30; border-left: 3px solid var(--success); }
+        .alert-danger  { background: rgba(230,57,70,0.1);  color: #7a1520; border-left: 3px solid var(--danger); }
+        .alert-info    { background: rgba(0,180,216,0.1);  color: #005f78; border-left: 3px solid var(--accent); }
+        .alert-warning { background: rgba(244,162,97,0.1); color: #7a3c00; border-left: 3px solid var(--warning); }
+
+        /* ── SEARCH / FILTER BAR ── */
+        .filter-bar {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 1rem 1.25rem;
+            margin-bottom: 1.25rem;
+        }
+
+        .filter-bar .form-control,
+        .filter-bar .form-select {
+            font-size: 0.85rem;
+            border-color: var(--border);
+        }
+
+        .filter-bar .form-label {
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+        }
+
+        /* ── FOOTER ── */
+        .footer {
+            margin-left: var(--sidebar-w);
+            background: var(--surface);
+            border-top: 1px solid var(--border);
+            padding: 0.75rem 2rem;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .footer-mono {
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 0.7rem;
+        }
+    </style>
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+
+<!-- TOP NAV -->
+<nav class="topnav">
+    <a class="topnav-brand" href="{% url 'home' %}">
+        <i class="fas fa-dna" style="color: var(--accent);"></i>
+        NGS-LIMS
+    </a>
+    <div class="topnav-right">
+        {% if user.is_authenticated %}
+        <div class="dropdown topnav-user">
+            <a class="dropdown-toggle" href="#" data-bs-toggle="dropdown">
+                <i class="fas fa-user-circle"></i> {{ user.username }}
+                {% if user.is_superuser %}
+                    <span class="badge bg-danger ms-1" style="font-size:0.65rem;">Admin</span>
+                {% endif %}
+            </a>
+            <ul class="dropdown-menu dropdown-menu-end" style="font-size:0.85rem;">
+                {% if user.is_superuser %}
+                <li>
+                    <a class="dropdown-item" href="{% url 'admin:index' %}">
+                        <i class="fas fa-tools me-2 text-muted"></i>Admin Panel
+                    </a>
+                </li>
+                <li><hr class="dropdown-divider"></li>
+                {% endif %}
+                <li>
+                    <form method="post" action="{% url 'logout' %}" style="margin:0;">
+                        {% csrf_token %}
+                        <button type="submit" class="dropdown-item">
+                            <i class="fas fa-sign-out-alt me-2 text-muted"></i>Logout
+                        </button>
+                    </form>
+                </li>
+            </ul>
+        </div>
+        {% else %}
+        <a href="{% url 'login' %}" style="color:rgba(255,255,255,0.7);font-size:0.85rem;text-decoration:none;">
+            <i class="fas fa-sign-in-alt me-1"></i> Login
+        </a>
+        {% endif %}
+    </div>
+</nav>
+
+<!-- SIDEBAR -->
+<nav class="sidebar">
+    <span class="sidebar-section-label">Navigation</span>
+
+    <a href="{% url 'home' %}" class="sidebar-link {% if request.resolver_match.url_name == 'home' %}active{% endif %}">
+        <i class="fas fa-th-large"></i> Dashboard
+    </a>
+
+    <span class="sidebar-section-label">Samples</span>
+    <a href="{% url 'sample-list' %}" class="sidebar-link {% if 'sample' in request.resolver_match.url_name %}active{% endif %}">
+        <i class="fas fa-vial"></i> Samples
+    </a>
+    <a href="/samples/clients/" class="sidebar-link">
+        <i class="fas fa-hospital-user"></i> Clients
+    </a>
+    <a href="/samples/projects/" class="sidebar-link">
+        <i class="fas fa-project-diagram"></i> Projects
+    </a>
+
+    <span class="sidebar-section-label">QC</span>
+    <a href="/qc/" class="sidebar-link">
+        <i class="fas fa-microscope"></i> QC Batches
+    </a>
+
+    <span class="sidebar-section-label">Lab</span>
+    <a href="/inventory/" class="sidebar-link">
+        <i class="fas fa-boxes"></i> Inventory
+    </a>
+    <a href="/locations/" class="sidebar-link">
+        <i class="fas fa-thermometer-half"></i> Locations
+    </a>
+
+    {% if user.is_superuser %}
+    <span class="sidebar-section-label">Admin</span>
+    <a href="{% url 'admin:index' %}" class="sidebar-link">
+        <i class="fas fa-tools"></i> Admin Panel
+    </a>
+    {% endif %}
+</nav>
+
+<!-- MESSAGES -->
+<div class="main-wrap">
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    {% block content %}{% endblock %}
+</div>
+
+<!-- FOOTER -->
+<footer class="footer">
+    <span>NGS-LIMS — Atlantic Cancer Research Institute (IARC)</span>
+    <span class="footer-mono">© {% now "Y" %}</span>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+{% block extra_js %}{% endblock %}
+</body>
+</html>
