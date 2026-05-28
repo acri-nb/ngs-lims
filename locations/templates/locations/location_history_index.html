@@ -1,0 +1,51 @@
+{% extends 'base.html' %}
+{% block title %}Temperature History | NGS-LIMS{% endblock %}
+{% block content %}
+
+<div class="page-header">
+    <h1 class="page-title"><i class="fas fa-history"></i> Location History</h1>
+    <a href="{% url 'location-list' %}" class="btn btn-outline-lims">
+        <i class="fas fa-arrow-left me-1"></i> Back to Daily Log
+    </a>
+</div>
+
+<div class="card">
+    <div class="card-header"><i class="fas fa-list"></i> Select a Location</div>
+    <div class="table-responsive">
+        <table class="table table-lims">
+            <thead>
+                <tr>
+                    <th>Location</th>
+                    <th>Storage Type</th>
+                    <th>Last Logged</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for loc in locations %}
+                <tr>
+                    <td><strong>{{ loc.locationName }}</strong></td>
+                    <td>
+                        <span class="loc-type-badge storage-{{ loc.storageType|slugify }}">
+                            {{ loc.storageType }}
+                        </span>
+                    </td>
+                    <td style="font-size:0.82rem;color:var(--text-muted);">
+                        {% if loc.last_log %}
+                            {{ loc.last_log.date_logged|date:"M j, Y" }}
+                        {% else %}
+                            <span class="text-muted">Never logged</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-end">
+                        <a href="{% url 'location-log-history' loc.pk %}" class="btn btn-outline-lims btn-sm">
+                            View History <i class="fas fa-chevron-right ms-1"></i>
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

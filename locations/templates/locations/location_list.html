@@ -1,0 +1,309 @@
+{% extends 'base.html' %}
+{% block title %}Locations | NGS-LIMS{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1 class="page-title">
+        <i class="fas fa-thermometer-half"></i> Storage Locations Logs
+    </h1>
+    <span style="font-size:0.8rem;color:var(--text-muted);">
+        <i class="fas fa-calendar-day me-1"></i>{{ today|date:"l, F j, Y" }}
+    </span>
+</div>
+
+<!-- LOCATION CARDS GRID -->
+<div class="row g-3">
+    {% for item in location_data %}
+    {% with loc=item.location log=item.today_log yesterday=item.yesterday_log %}
+    <div class="col-md-6 col-xl-4">
+        <div class="loc-card {% if log %}logged{% endif %}">
+
+            <!-- Card Header -->
+            <div class="loc-card-header">
+                <div>
+                    <div class="loc-name">{{ loc.locationName }}</div>
+                    <div class="loc-type-badge storage-{{ loc.storageType|slugify }}">
+                        <i class="fas {% if 'Room' in loc.storageType %}fa-door-open{% elif 'Fridge' in loc.storageType %}fa-temperature-low{% else %}fa-snowflake{% endif %}"></i>
+                        {{ loc.storageType }}
+                    </div>
+                </div>
+                <div class="loc-status-dot {% if log %}dot-done{% else %}dot-pending{% endif %}"
+                     title="{% if log %}Logged today{% else %}Not logged today{% endif %}">
+                </div>
+            </div>
+
+            <!-- Today's log or "not logged" state -->
+            {% if log %}
+            <!-- Already logged today — show values + edit option -->
+            <div class="loc-temps">
+                <div class="temp-reading">
+                    <span class="temp-label">Current</span>
+                    <span class="temp-value current">{{ log.current_temp_c }}°C</span>
+                </div>
+                <div class="temp-divider"></div>
+                <div class="temp-reading">
+                    <span class="temp-label">Max</span>
+                    <span class="temp-value max">{{ log.max_temp_c }}°C</span>
+                </div>
+                <div class="temp-divider"></div>
+                <div class="temp-reading">
+                    <span class="temp-label">Min</span>
+                    <span class="temp-value min">{{ log.min_temp_c }}°C</span>
+                </div>
+                {% if log.max_humidity is not None %}
+                <div class="temp-divider"></div>
+                <div class="temp-reading">
+                    <span class="temp-label">Humidity</span>
+                    <span class="temp-value" style="color:var(--accent);">
+                        {{ log.min_humidity }}% {{ log.max_humidity }}%
+                    </span>
+                </div>
+                {% endif %}
+            </div>
+            <div class="loc-card-footer">
+                <span style="font-size:0.75rem;color:var(--text-muted);">
+                    <i class="fas fa-check-circle me-1" style="color:var(--success);"></i>Logged today
+                </span>
+                <a href="{% url 'location-log-history' loc.pk %}" class="btn-card-link">
+                    History <i class="fas fa-chevron-right"></i>
+                </a>
+            </div>
+
+            {% else %}
+            <!-- Not logged yet — show quick form pre-filled from yesterday -->
+            <form method="post" action="{% url 'location-add-log' loc.pk %}" class="quick-log-form">
+                {% csrf_token %}
+
+                <div class="form-row-temps">
+                    <div class="qf-field">
+                        <label>Current °C</label>
+                        <input type="number" name="current_temp_c" step="0.1"
+                               value="{% if yesterday %}{{ yesterday.current_temp_c }}{% endif %}"
+                               class="qf-input" required placeholder="—">
+                    </div>
+                    <div class="qf-field">
+                        <label>Max °C</label>
+                        <input type="number" name="max_temp_c" step="0.1"
+                               value="{% if yesterday %}{{ yesterday.max_temp_c }}{% endif %}"
+                               class="qf-input" required placeholder="—">
+                    </div>
+                    <div class="qf-field">
+                        <label>Min °C</label>
+                        <input type="number" name="min_temp_c" step="0.1"
+                               value="{% if yesterday %}{{ yesterday.min_temp_c }}{% endif %}"
+                               class="qf-input" required placeholder="—">
+                    </div>
+                </div>
+
+                {% if loc.storageType == 'Room-Temperature' %}
+                <div class="form-row-temps" style="margin-top:0.5rem;">
+                    <div class="qf-field">
+                        <label>Max Humidity %</label>
+                        <input type="number" name="max_humidity" step="0.1"
+                               value="{% if yesterday %}{{ yesterday.max_humidity }}{% endif %}"
+                               class="qf-input" placeholder="—">
+                    </div>
+                    <div class="qf-field">
+                        <label>Min Humidity %</label>
+                        <input type="number" name="min_humidity" step="0.1"
+                               value="{% if yesterday %}{{ yesterday.min_humidity }}{% endif %}"
+                               class="qf-input" placeholder="—">
+                    </div>
+                </div>
+                {% endif %}
+
+                {% if yesterday %}
+                <div class="yesterday-hint">
+                    <i class="fas fa-info-circle"></i>
+                    Pre-filled from yesterday ({{ yesterday.date_logged|date:"M j" }}) — adjust if needed
+                </div>
+                {% endif %}
+
+                <div class="loc-card-footer">
+                    <a href="{% url 'location-log-history' loc.pk %}" class="btn-card-link" style="color:var(--text-muted);">
+                        History
+                    </a>
+                    <button type="submit" class="btn-log-submit">
+                        <i class="fas fa-plus me-1"></i> Log Today
+                    </button>
+                </div>
+            </form>
+            {% endif %}
+
+        </div>
+    </div>
+    {% endwith %}
+    {% endfor %}
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+/* ── LOCATION CARD ── */
+.loc-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+    transition: box-shadow 0.15s;
+}
+.loc-card:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.08); }
+.loc-card.logged { border-color: rgba(45,198,83,0.3); }
+
+.loc-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    padding: 1rem 1.1rem 0.75rem;
+    border-bottom: 1px solid var(--border);
+}
+
+.loc-name {
+    font-weight: 600;
+    font-size: 0.95rem;
+    color: var(--text);
+    margin-bottom: 0.3rem;
+}
+
+.loc-type-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-size: 0.7rem;
+    font-family: 'IBM Plex Mono', monospace;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 4px;
+    letter-spacing: 0.03em;
+}
+.storage-room-temperature  { background: rgba(244,162,97,0.15); color: #8a4800; border: 1px solid rgba(244,162,97,0.3); }
+.storage-fridge4c          { background: rgba(0,180,216,0.1);   color: #005f78; border: 1px solid rgba(0,180,216,0.25); }
+.storage-freezer-20c       { background: rgba(107,122,200,0.12);color: #3a3f9e; border: 1px solid rgba(107,122,200,0.3); }
+.storage-freezer-80c       { background: rgba(60,60,180,0.1);   color: #1a1a7a; border: 1px solid rgba(60,60,180,0.2); }
+
+.loc-status-dot {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    margin-top: 3px;
+    flex-shrink: 0;
+}
+.dot-done    { background: var(--success); box-shadow: 0 0 0 3px rgba(45,198,83,0.2); }
+.dot-pending { background: var(--border); }
+
+/* ── TEMPERATURE DISPLAY (already logged) ── */
+.loc-temps {
+    display: flex;
+    align-items: center;
+    padding: 1rem 1.1rem;
+    gap: 0;
+}
+.temp-reading {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+}
+.temp-label {
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-muted);
+    font-family: 'IBM Plex Mono', monospace;
+}
+.temp-value {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text);
+}
+.temp-value.current { color: var(--accent); font-size: 1.1rem; }
+.temp-value.max     { color: var(--danger); }
+.temp-value.min     { color: #5b8dee; }
+.temp-divider {
+    width: 1px;
+    height: 32px;
+    background: var(--border);
+    margin: 0 0.25rem;
+}
+
+/* ── QUICK LOG FORM ── */
+.quick-log-form { padding: 0.9rem 1.1rem 0; }
+
+.form-row-temps {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.5rem;
+}
+
+.qf-field label {
+    display: block;
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: var(--text-muted);
+    font-family: 'IBM Plex Mono', monospace;
+    margin-bottom: 3px;
+}
+
+.qf-input {
+    width: 100%;
+    background: var(--surface-alt);
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    padding: 5px 8px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.875rem;
+    color: var(--text);
+    text-align: center;
+    transition: border-color 0.15s;
+}
+.qf-input:focus {
+    outline: none;
+    border-color: var(--accent);
+    background: var(--surface);
+}
+
+.yesterday-hint {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    margin-top: 0.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+}
+.yesterday-hint i { color: var(--accent); }
+
+/* ── CARD FOOTER ── */
+.loc-card-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.65rem 1.1rem;
+    margin-top: 0.75rem;
+    border-top: 1px solid var(--border);
+    background: var(--surface-alt);
+}
+.btn-card-link {
+    font-size: 0.8rem;
+    color: var(--accent);
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+}
+.btn-card-link:hover { color: var(--accent-dark); }
+.btn-log-submit {
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: 5px;
+    padding: 5px 14px;
+    font-size: 0.82rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+.btn-log-submit:hover { background: var(--accent-dark); }
+</style>
+{% endblock %}

@@ -453,8 +453,13 @@
     <a href="/inventory/" class="sidebar-link">
         <i class="fas fa-boxes"></i> Inventory
     </a>
+
+    <a href="{% url 'location-history-index' %}" class="sidebar-link">
+        <i class="fas fa-thermometer-half"></i>Locations
+    </a>
+
     <a href="/locations/" class="sidebar-link">
-        <i class="fas fa-thermometer-half"></i> Locations
+        <i class="fas fa-history"></i> Temperature Logs
     </a>
 
     {% if user.is_superuser %}

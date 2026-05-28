@@ -1,6 +1,9 @@
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 from django.core.exceptions import ValidationError
+from django.contrib.auth import get_user_model
+
+User = get_user_model()
 
 # Models for : Location and Temp_logs
 
@@ -85,6 +88,13 @@ class TempLog(models.Model):
         max_digits=5, decimal_places=2,
         null=True, blank=True,
         help_text="Room locations only."
+    )
+
+    logged_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name='temp_logs'
     )
 
     def clean(self):

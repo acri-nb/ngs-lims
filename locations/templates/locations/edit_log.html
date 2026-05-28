@@ -1,0 +1,211 @@
+{% extends 'base.html' %}
+
+{% block title %}Edit Temperature Log | NGS-LIMS{% endblock %}
+
+{% block content %}
+
+<!-- PAGE HEADER -->
+<div class="page-header">
+    <h1 class="page-title">
+        <i class="fas fa-thermometer-half"></i>
+        Edit Temperature Log
+    </h1>
+
+    <a href="{% url 'location-log-history' log.location.pk %}" class="btn btn-outline-lims">
+        <i class="fas fa-arrow-left me-1"></i> Back
+    </a>
+</div>
+
+<!-- BREADCRUMB -->
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item">
+            <a href="{% url 'home' %}">Dashboard</a>
+        </li>
+        <li class="breadcrumb-item">
+            <a href="{% url 'location-history-index' %}">Locations</a>
+        </li>
+        <li class="breadcrumb-item">
+            <a href="{% url 'location-log-history' log.location.pk %}">
+                {{ log.location.locationName }}
+            </a>
+        </li>
+        <li class="breadcrumb-item active">
+            Edit Log
+        </li>
+    </ol>
+</nav>
+
+<div class="row g-4">
+
+    <!-- LEFT SIDE -->
+    <div class="col-lg-8">
+
+        <div class="card">
+            <div class="card-header">
+                <i class="fas fa-pen"></i>
+                Temperature Log Edit
+            </div>
+
+            <div class="card-body p-4">
+
+                <form method="post">
+                    {% csrf_token %}
+
+                    <!-- CURRENT -->
+                    <div class="mb-4">
+                        <label class="form-label">Current Temperature (°C)</label>
+                        <input
+                            type="number"
+                            step="0.1"
+                            name="current_temp_c"
+                            value="{{ log.current_temp_c }}"
+                            class="form-control"
+                            required
+                        >
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-4">
+                            <label class="form-label">Maximum Temperature (°C)</label>
+                            <input
+                                type="number"
+                                step="0.1"
+                                name="max_temp_c"
+                                value="{{ log.max_temp_c }}"
+                                class="form-control"
+                                required
+                            >
+                        </div>
+
+                        <div class="col-md-6 mb-4">
+                            <label class="form-label">Minimum Temperature (°C)</label>
+                            <input
+                                type="number"
+                                step="0.1"
+                                name="min_temp_c"
+                                value="{{ log.min_temp_c }}"
+                                class="form-control"
+                                required
+                            >
+                        </div>
+                    </div>
+
+                    {% if log.location.storageType == 'Room-Temperature' %}
+                    <div class="row">
+                        <div class="col-md-6 mb-4">
+                            <label class="form-label">Maximum Humidity (%)</label>
+                            <input
+                                type="number"
+                                step="0.1"
+                                name="max_humidity"
+                                value="{{ log.max_humidity }}"
+                                class="form-control"
+                            >
+                        </div>
+
+                        <div class="col-md-6 mb-4">
+                            <label class="form-label">Minimum Humidity (%)</label>
+                            <input
+                                type="number"
+                                step="0.1"
+                                name="min_humidity"
+                                value="{{ log.min_humidity }}"
+                                class="form-control"
+                            >
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <div class="d-flex justify-content-end gap-2 mt-2">
+                        <a href="{% url 'location-log-history' log.location.pk %}"
+                           class="btn btn-outline-lims">
+                            Cancel
+                        </a>
+
+                        <button type="submit" class="btn btn-accent">
+                            <i class="fas fa-save me-1"></i>
+                            Save Changes
+                        </button>
+                    </div>
+
+                </form>
+
+            </div>
+        </div>
+
+    </div>
+
+    <!-- RIGHT SIDE -->
+    <div class="col-lg-4">
+
+        <div class="card">
+            <div class="card-header">
+                <i class="fas fa-info-circle"></i>
+                Storage Information
+            </div>
+
+            <div class="card-body p-4">
+
+
+                <div class="mb-4">
+                    <div style="
+                        font-size:0.68rem;
+                        text-transform:uppercase;
+                        letter-spacing:0.08em;
+                        color:var(--text-muted);
+                        font-family:'IBM Plex Mono', monospace;
+                        margin-bottom:0.35rem;
+                    ">
+                        Location
+                    </div>
+
+                    <div style="font-size:0.95rem;font-weight:500;">
+                        <i class="fas fa-map-marker-alt me-1"
+                           style="color:var(--accent);"></i>
+                        {{ log.location.locationName }}
+                    </div>
+                </div>
+
+                <div class="mb-4">
+                    <div style="
+                        font-size:0.68rem;
+                        text-transform:uppercase;
+                        letter-spacing:0.08em;
+                        color:var(--text-muted);
+                        font-family:'IBM Plex Mono', monospace;
+                        margin-bottom:0.35rem;
+                    ">
+                        Storage Type
+                    </div>
+
+                    <div style="font-size:0.95rem;font-weight:500;">
+                        {{ log.location.storageType }}
+                    </div>
+                </div>
+
+                <div class="mb-0">
+                    <div style="
+                        font-size:0.68rem;
+                        text-transform:uppercase;
+                        letter-spacing:0.08em;
+                        color:var(--text-muted);
+                        font-family:'IBM Plex Mono', monospace;
+                        margin-bottom:0.35rem;
+                    ">
+                        Date Recorded
+                    </div>
+
+                    <div style="font-size:0.9rem;">
+                        {{ log.date_logged|date:"M d, Y " }}
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+    </div>
+
+</div>
+
+{% endblock %}

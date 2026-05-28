@@ -23,6 +23,7 @@ admin.site.index_title = 'Admin'
 
 urlpatterns = [
     path('',        include('samples.urls')),
+    path('locations/', include('locations.urls')),
     path('admin/',  admin.site.urls),
     path('accounts/', include('django.contrib.auth.urls')), #login and logout
     path('__debug__/', include(debug_toolbar.urls)),

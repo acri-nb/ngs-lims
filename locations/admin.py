@@ -44,7 +44,7 @@ class TempLogAdmin(admin.ModelAdmin):
 
     fieldsets = (
         ('Location & Date', {
-            'fields': ('location', 'date_logged')
+            'fields': ('location', 'logged_by')
         }),
         ('Temperature (°C)', {
             'fields': ('current_temp_c', 'max_temp_c', 'min_temp_c')
