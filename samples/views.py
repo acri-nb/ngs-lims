@@ -65,7 +65,7 @@ class SampleListView(ListView):
     model = Sample
     template_name = 'samples/sample_list.html'
     context_object_name = 'samples'
-    paginate_by = 25
+    paginate_by = 100
 
     def get_queryset(self):
         qs = (
