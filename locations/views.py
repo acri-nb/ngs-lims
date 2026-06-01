@@ -23,7 +23,7 @@ def location_list(request):
     location_data = []
     for loc in locations:
         today_log     = loc.templogs.filter(date_logged=today).first()
-        yesterday_log = loc.templogs.filter(date_logged=yesterday).first()
+        yesterday_log = loc.templogs.order_by('-date_logged').exclude(date_logged=today).first()
         location_data.append({
             'location':     loc,
             'today_log':    today_log,

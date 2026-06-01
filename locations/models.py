@@ -100,6 +100,26 @@ class TempLog(models.Model):
     def clean(self):
         super().clean()
 
+        # min ≤ current ≤ max 
+        if self.min_temp_c is not None and self.current_temp_c is not None:
+            if self.min_temp_c > self.current_temp_c:
+                raise ValidationError({
+                    'min_temp_c': f'Min ({self.min_temp_c}°C) cannot be greater than current ({self.current_temp_c}°C).'
+                })
+
+        if self.current_temp_c is not None and self.max_temp_c is not None:
+            if self.current_temp_c > self.max_temp_c:
+                raise ValidationError({
+                    'current_temp_c': f'Current ({self.current_temp_c}°C) cannot be greater than max ({self.max_temp_c}°C).'
+                })
+
+        if self.min_temp_c is not None and self.max_temp_c is not None:
+            if self.min_temp_c > self.max_temp_c:
+                raise ValidationError({
+                    'min_temp_c': f'Min ({self.min_temp_c}°C) cannot be greater than max ({self.max_temp_c}°C).'
+                })
+
+
         # Humidity required for room-temperature locations
         if self.location.storageType == Location.ROOMTEMPATURE:
 
