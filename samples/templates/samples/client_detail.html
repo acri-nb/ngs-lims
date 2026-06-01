@@ -1,0 +1,198 @@
+{% extends 'base.html' %}
+{% block title %}{{ client.client_name }} | NGS-LIMS{% endblock %}
+
+{% block content %}
+
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'client-list' %}">Clients</a></li>
+        <li class="breadcrumb-item active">{{ client.client_name }}</li>
+    </ol>
+</nav>
+
+<!-- CLIENT HEADER -->
+<div class="client-hero">
+    <div class="client-hero-avatar">{{ client.client_name|first|upper }}</div>
+    <div class="client-hero-info">
+        <h1 class="page-title mb-0">{{ client.client_name }}</h1>
+        <div style="font-size:0.875rem;color:var(--text-muted);margin-top:2px;">
+            {{ client.organisation_name }}
+        </div>
+    </div>
+    <a href="{% url 'admin:samples_project_add' %}" class="btn btn-accent ms-auto">
+        <i class="fas fa-plus me-1"></i> New Project
+    </a>
+</div>
+
+<!-- SUMMARY STATS -->
+<div class="row g-3 mb-4">
+    <div class="col-sm-4">
+        <div class="stat-card">
+            <div class="stat-card-icon teal"><i class="fas fa-project-diagram"></i></div>
+            <div>
+                <div class="stat-card-value">{{ total_projects }}</div>
+                <div class="stat-card-label">Projects</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-sm-4">
+        <div class="stat-card">
+            <div class="stat-card-icon green"><i class="fas fa-vial"></i></div>
+            <div>
+                <div class="stat-card-value">{{ total_samples }}</div>
+                <div class="stat-card-label">Total samples</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-sm-4">
+        <div class="stat-card">
+            <div class="stat-card-icon orange"><i class="fas fa-folder-open"></i></div>
+            <div>
+                <div class="stat-card-value">{{ total_cases }}</div>
+                <div class="stat-card-label">Cases</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- PROJECTS LIST -->
+{% if not projects %}
+<div class="empty-state">
+    <i class="fas fa-project-diagram"></i>
+    <p>No projects yet for this client.</p>
+    <a href="{% url 'admin:samples_project_add' %}" class="btn btn-accent btn-sm">Add first project</a>
+</div>
+{% else %}
+<div class="card">
+    <div class="card-header">
+        <i class="fas fa-project-diagram"></i> Projects
+    </div>
+    <div class="table-responsive">
+        <table class="table table-lims">
+            <thead>
+                <tr>
+                    <th>Project</th>
+                    <th>Sequencing type</th>
+                    <th>Created</th>
+                    <th>Samples</th>
+                    <th>DNA / RNA</th>
+                    <th>QC status</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in projects %}
+                <tr class="project-row" onclick="window.location='{% url 'project-detail' item.project.project_id %}'">
+                    <td>
+                        <span style="font-weight:600;font-size:0.9rem;">{{ item.project.project_name }}</span>
+                    </td>
+                    <td>
+                        <span class="lims-badge badge-dna">{{ item.project.sequencing_type }}</span>
+                    </td>
+                    <td style="font-size:0.82rem;color:var(--text-muted);">
+                        {{ item.project.date_created|date:"M j, Y" }}
+                    </td>
+                    <td>
+                        <span style="font-family:'IBM Plex Mono',monospace;font-weight:600;">
+                            {{ item.sample_count }}
+                        </span>
+                    </td>
+                    <td>
+                        <span style="font-size:0.8rem;">
+                            {% if item.dna_count %}
+                                <span class="lims-badge badge-dna me-1">{{ item.dna_count }} DNA</span>
+                            {% endif %}
+                            {% if item.rna_count %}
+                                <span class="lims-badge badge-rna">{{ item.rna_count }} RNA</span>
+                            {% endif %}
+                            {% if not item.dna_count and not item.rna_count %}
+                                <span class="text-muted">—</span>
+                            {% endif %}
+                        </span>
+                    </td>
+                    <td>
+                        <div class="qc-mini-bar">
+                            {% if item.qc_pass > 0 %}
+                            <div class="qc-seg pass" style="width:{{ item.qc_pass_pct }}%"
+                                 title="{{ item.qc_pass }} Pass"></div>
+                            {% endif %}
+                            {% if item.qc_caution > 0 %}
+                            <div class="qc-seg caution" style="width:{{ item.qc_caution_pct }}%"
+                                 title="{{ item.qc_caution }} Caution"></div>
+                            {% endif %}
+                            {% if item.qc_fail > 0 %}
+                            <div class="qc-seg fail" style="width:{{ item.qc_fail_pct }}%"
+                                 title="{{ item.qc_fail }} Fail"></div>
+                            {% endif %}
+                            {% if item.qc_pending > 0 %}
+                            <div class="qc-seg pending" style="width:{{ item.qc_pending_pct }}%"
+                                 title="{{ item.qc_pending }} Pending"></div>
+                            {% endif %}
+                        </div>
+                        <div style="font-size:0.7rem;color:var(--text-muted);margin-top:2px;">
+                            {% if item.qc_pass %}{{ item.qc_pass }}✓{% endif %}
+                            {% if item.qc_fail %} {{ item.qc_fail }}✗{% endif %}
+                            {% if item.qc_pending %} {{ item.qc_pending }} pending{% endif %}
+                        </div>
+                    </td>
+                    <td class="text-end">
+                        <i class="fas fa-chevron-right" style="color:var(--border);font-size:0.75rem;"></i>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.client-hero {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+.client-hero-avatar {
+    width: 52px; height: 52px;
+    border-radius: 12px;
+    background: rgba(0, 180, 216, 0.14);
+    color: var(--accent);
+    font-family: 'IBM Plex Mono', monospace;
+    font-weight: 600;
+    font-size: 1.4rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+.project-row { cursor: pointer; }
+.project-row:hover td { background: var(--surface-alt); }
+
+.qc-mini-bar {
+    display: flex;
+    height: 6px;
+    border-radius: 3px;
+    overflow: hidden;
+    background: var(--border);
+    width: 100%;
+    min-width: 60px;
+}
+.qc-seg { height: 100%; transition: width 0.3s; }
+.qc-seg.pass    { background: var(--success); }
+.qc-seg.caution { background: var(--caution); }
+.qc-seg.fail    { background: var(--danger); }
+.qc-seg.pending { background: var(--border); }
+
+.empty-state {
+    text-align: center;
+    padding: 4rem 1rem;
+    color: var(--text-muted);
+}
+.empty-state i { font-size: 2.5rem; margin-bottom: 0.75rem; display: block; color: var(--border); }
+.empty-state p { margin-bottom: 1rem; }
+</style>
+{% endblock %}

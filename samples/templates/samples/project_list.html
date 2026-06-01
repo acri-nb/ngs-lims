@@ -1,0 +1,125 @@
+{% extends 'base.html' %}
+
+{% block title %}Projects | NGS-LIMS{% endblock %}
+
+{% block content %}
+
+<div class="page-header">
+    <h1 class="page-title">
+        <i class="fas fa-project-diagram"></i> Projects
+    </h1>
+
+    <a href="{% url 'admin:samples_project_add' %}" class="btn btn-accent">
+        <i class="fas fa-plus me-1"></i> New Project
+    </a>
+</div>
+
+<!-- FILTER -->
+<div class="filter-bar">
+    <form method="get" class="row g-3 align-items-end">
+        <div class="col-md-10">
+            <label class="form-label">Search</label>
+            <input
+                type="text"
+                name="q"
+                value="{{ request.GET.q }}"
+                class="form-control"
+                placeholder="Project name..."
+            >
+        </div>
+
+        <div class="col-md-2">
+            <button type="submit" class="btn btn-accent w-100">
+                <i class="fas fa-search me-1"></i> Search
+            </button>
+        </div>
+    </form>
+</div>
+
+<!-- PROJECT TABLE -->
+<div class="card">
+    <div class="card-header">
+        <i class="fas fa-project-diagram"></i>
+        {{ projects.count }} project{{ projects.count|pluralize }}
+    </div>
+
+    <div class="table-responsive">
+        <table class="table table-lims">
+            <thead>
+                <tr>
+                    <th>Project</th>
+                    <th>Client</th>
+                    <th>Sequencing Type</th>
+                    <th>Samples</th>
+                    <th>Created</th>
+                    <th></th>
+                </tr>
+            </thead>
+
+            <tbody>
+                {% for project in projects %}
+                <tr
+                    class="project-row"
+                    onclick="window.location='{% url 'project-detail' project.project_id %}'"
+                >
+                    <td>
+                        <span style="font-weight:600;">
+                            {{ project.project_name }}
+                        </span>
+                    </td>
+
+                    <td>
+                        {{ project.client.client_name }}
+                    </td>
+
+                    <td>
+                        <span class="lims-badge badge-dna">
+                            {{ project.sequencing_type }}
+                        </span>
+                    </td>
+
+                    <td>
+                        <span class="sample-id">
+                            {{ project.sample_count }}
+                        </span>
+                    </td>
+
+                    <td style="white-space:nowrap;">
+                        {{ project.date_created|date:"M j, Y" }}
+                    </td>
+
+                    <td class="text-end">
+                        <i class="fas fa-chevron-right"
+                           style="color:var(--border);font-size:0.75rem;">
+                        </i>
+                    </td>
+                </tr>
+
+                {% empty %}
+                <tr>
+                    <td colspan="6"
+                        class="text-center py-5 text-muted">
+                        <i class="fas fa-project-diagram fa-2x mb-2 d-block"
+                           style="color:var(--border);"></i>
+                        No projects found.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.project-row {
+    cursor: pointer;
+}
+
+.project-row:hover td {
+    background: var(--surface-alt);
+}
+</style>
+{% endblock %}

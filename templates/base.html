@@ -434,16 +434,21 @@
     </a>
 
     <span class="sidebar-section-label">Samples</span>
-    <a href="{% url 'sample-list' %}" class="sidebar-link {% if 'sample' in request.resolver_match.url_name %}active{% endif %}">
-        <i class="fas fa-vial"></i> Samples
-    </a>
-    <a href="/samples/clients/" class="sidebar-link">
+
+    <a href="/clients/" class="sidebar-link">
         <i class="fas fa-hospital-user"></i> Clients
     </a>
-    <a href="/samples/projects/" class="sidebar-link">
+
+    <a href="/projects/" class="sidebar-link">
         <i class="fas fa-project-diagram"></i> Projects
     </a>
 
+
+    <a href="{% url 'sample-list' %}" class="sidebar-link {% if 'sample' in request.resolver_match.url_name %}active{% endif %}">
+        <i class="fas fa-vial"></i> Samples
+    </a>
+    
+    
     <span class="sidebar-section-label">QC</span>
     <a href="/qc/" class="sidebar-link">
         <i class="fas fa-microscope"></i> QC Batches
