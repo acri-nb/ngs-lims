@@ -6,6 +6,9 @@ from django.utils.translation import gettext_lazy as _
 
 from locations.models import Location
 
+from django.contrib.auth import get_user_model
+User = get_user_model()
+
 # Model for : Client, Case, Specimen, Samples and Projects
 
 #TODO Look at all the on_delete behaviors for good implementation in the lab
@@ -18,6 +21,37 @@ class Client(models.Model):
     def __str__(self):
         return f"{self.client_name}"
 
+class UserProfile(models.Model):
+    """
+    Links a Django User to a Client (researcher account).
+    Lab staff have NO UserProfile — that's how we tell them apart.
+    Researchers have a UserProfile pointing to their Client.
+    """
+    user = models.OneToOneField(
+        User,
+        on_delete=models.CASCADE,
+        related_name='profile'
+    )
+    client = models.ForeignKey(
+        Client,
+        on_delete=models.PROTECT,
+        related_name='users',
+        null=True, blank=True,
+        help_text="Leave blank for lab staff. Set for researcher/client accounts."
+    )
+
+    def is_researcher(self):
+        """Returns True if this user is a client/researcher (not lab staff)."""
+        return self.client is not None
+
+    def __str__(self):
+        if self.client:
+            return f"{self.user.username} → {self.client.client_name}"
+        return f"{self.user.username} (lab staff)"
+
+    class Meta:
+        verbose_name = "User Profile"
+        verbose_name_plural = "User Profiles"
 
 class Case(models.Model):
     case_id = models.AutoField(primary_key=True)

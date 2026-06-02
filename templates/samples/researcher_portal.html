@@ -1,0 +1,184 @@
+{% extends 'base.html' %}
+{% block title %}My Projects | NGS-LIMS{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">
+            <i class="fas fa-project-diagram"></i> My Projects
+        </h1>
+        <div style="font-size:0.82rem;color:var(--text-muted);margin-top:2px;">
+            <i class="fas fa-university me-1"></i>{{ client.organisation_name }}
+        </div>
+    </div>
+</div>
+
+{% if not projects %}
+<div class="empty-state card p-5 text-center">
+    <i class="fas fa-project-diagram fa-2x mb-3" style="color:var(--border);"></i>
+    <p class="text-muted mb-0">No projects assigned to your account yet.<br>
+    Contact the lab if you believe this is an error.</p>
+</div>
+{% else %}
+
+<!-- PROJECT CARDS -->
+<div class="row g-3">
+    {% for item in projects %}
+    <div class="col-md-6 col-xl-4">
+        <a href="{% url 'researcher-project-detail' item.project.project_id %}" class="project-card-link">
+            <div class="project-card">
+                <div class="project-card-header">
+                    <div class="project-icon">
+                        <i class="fas fa-dna"></i>
+                    </div>
+                    <div class="project-info">
+                        <div class="project-name">{{ item.project.project_name }}</div>
+                        <div class="project-meta">
+                            <span class="lims-badge badge-dna">{{ item.project.sequencing_type }}</span>
+                            <span style="font-size:0.75rem;color:var(--text-muted);margin-left:6px;">
+                                Since {{ item.project.date_created|date:"M Y" }}
+                            </span>
+                        </div>
+                    </div>
+                    <i class="fas fa-chevron-right" style="color:var(--border);font-size:0.75rem;"></i>
+                </div>
+
+                <!-- QC progress bar -->
+                <div class="project-card-progress">
+                    <div class="progress-label">
+                        <span>Sample QC</span>
+                        <span>{{ item.qc_pass }}/{{ item.sample_count }} passed</span>
+                    </div>
+                    <div class="progress-bar-wrap">
+                        <div class="progress-seg pass"    style="width:{{ item.qc_pass_pct }}%"></div>
+                        <div class="progress-seg caution" style="width:{{ item.qc_caution_pct }}%"></div>
+                        <div class="progress-seg fail"    style="width:{{ item.qc_fail_pct }}%"></div>
+                    </div>
+                </div>
+
+                <!-- Stats row -->
+                <div class="project-card-stats">
+                    <div class="pstat">
+                        <span class="pstat-val">{{ item.sample_count }}</span>
+                        <span class="pstat-label">Samples</span>
+                    </div>
+                    <div class="pstat-div"></div>
+                    <div class="pstat">
+                        <span class="pstat-val" style="color:var(--success);">{{ item.qc_pass }}</span>
+                        <span class="pstat-label">QC Pass</span>
+                    </div>
+                    <div class="pstat-div"></div>
+                    <div class="pstat">
+                        <span class="pstat-val" style="color:var(--text-muted);">{{ item.qc_pending }}</span>
+                        <span class="pstat-label">Pending</span>
+                    </div>
+                    {% if item.qc_fail > 0 %}
+                    <div class="pstat-div"></div>
+                    <div class="pstat">
+                        <span class="pstat-val" style="color:var(--danger);">{{ item.qc_fail }}</span>
+                        <span class="pstat-label">Failed</span>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </a>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.project-card-link { text-decoration: none; display: block; }
+
+.project-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+    transition: box-shadow 0.15s, border-color 0.15s;
+}
+.project-card:hover {
+    box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+    border-color: var(--accent);
+}
+
+.project-card-header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 1rem 1.1rem;
+    border-bottom: 1px solid var(--border);
+}
+.project-icon {
+    width: 38px; height: 38px;
+    border-radius: 9px;
+    background: rgba(0,180,216,0.1);
+    color: var(--accent);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.9rem; flex-shrink: 0;
+}
+.project-info { flex: 1; min-width: 0; }
+.project-name {
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: var(--text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.project-meta { margin-top: 3px; }
+
+.project-card-progress {
+    padding: 0.75rem 1.1rem 0.5rem;
+}
+.progress-label {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    margin-bottom: 5px;
+    font-family: 'IBM Plex Mono', monospace;
+}
+.progress-bar-wrap {
+    display: flex;
+    height: 6px;
+    border-radius: 3px;
+    overflow: hidden;
+    background: var(--border);
+}
+.progress-seg         { height: 100%; }
+.progress-seg.pass    { background: var(--success); }
+.progress-seg.caution { background: var(--caution); }
+.progress-seg.fail    { background: var(--danger); }
+
+.project-card-stats {
+    display: flex;
+    align-items: center;
+    padding: 0.65rem 1.1rem;
+    background: var(--surface-alt);
+    border-top: 1px solid var(--border);
+}
+.pstat { flex: 1; text-align: center; }
+.pstat-val {
+    display: block;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text);
+    line-height: 1;
+}
+.pstat-label {
+    display: block;
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: var(--text-muted);
+    margin-top: 2px;
+}
+.pstat-div { width: 1px; height: 26px; background: var(--border); }
+
+.empty-state { color: var(--text-muted); }
+</style>
+{% endblock %}

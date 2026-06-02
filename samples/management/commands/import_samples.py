@@ -7,9 +7,8 @@ Expected CSV format:
     CaseID, SpecimenType, NucleidType, Concentration(ng), Volume(uL)
     Y1V9RH, smallEVs, RNA, 250.7564, 788
 
-Usage:
-    python manage.py import_samples --project 1 --file path/to/samples.csv
-    python manage.py import_samples --project 1 --file path/to/samples.csv --dry-run
+Usage: 
+    python manage.py import_samples --project-id 4 --user mathieu --file ./path
 """
 
 import csv

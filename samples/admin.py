@@ -15,6 +15,20 @@ from .forms import (
 )
 
 
+from django.contrib import admin
+from .models import UserProfile
+
+@admin.register(UserProfile)
+class UserProfileAdmin(admin.ModelAdmin):
+    list_display  = ('user', 'client', 'is_researcher')
+    list_filter   = ('client',)
+    search_fields = ('user__username', 'client__client_name')
+
+    def is_researcher(self, obj):
+        return obj.client is not None
+    is_researcher.boolean = True
+    is_researcher.short_description = 'Researcher?'
+
 class CaseInline(admin.TabularInline):
     model = Case
     extra = 1          # shows one empty row ready to fill

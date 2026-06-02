@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login | NGS-LIMS</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary:    #1a2332;
+            --accent:     #00b4d8;
+            --accent-dark:#0096b4;
+            --border:     #dde3ea;
+            --surface:    #ffffff;
+            --surface-alt:#f0f4f8;
+            --text:       #1a2332;
+            --text-muted: #6b7a8f;
+            --danger:     #e63946;
+            --success:    #2dc653;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            font-family: 'IBM Plex Sans', sans-serif;
+            background: var(--primary);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+            /* subtle grid pattern */
+            background-image:
+                linear-gradient(rgba(0,180,216,0.04) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0,180,216,0.04) 1px, transparent 1px);
+            background-size: 40px 40px;
+        }
+
+        .login-wrap {
+            width: 100%;
+            max-width: 420px;
+        }
+
+        /* ── BRAND ── */
+        .login-brand {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+        .login-brand-logo {
+            width: 56px; height: 56px;
+            background: rgba(0,180,216,0.15);
+            border: 1px solid rgba(0,180,216,0.3);
+            border-radius: 14px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 0.75rem;
+            font-size: 1.5rem;
+            color: var(--accent);
+        }
+        .login-brand-name {
+            font-family: 'IBM Plex Mono', monospace;
+            font-weight: 600;
+            font-size: 1.1rem;
+            color: #fff;
+            letter-spacing: 0.08em;
+        }
+        .login-brand-name span { color: var(--accent); }
+        .login-brand-sub {
+            font-size: 0.8rem;
+            color: rgba(255,255,255,0.45);
+            margin-top: 2px;
+        }
+
+        /* ── CARD ── */
+        .login-card {
+            background: var(--surface);
+            border-radius: 14px;
+            padding: 2rem;
+            box-shadow: 0 24px 64px rgba(0,0,0,0.3);
+        }
+
+        .login-card h2 {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: var(--text);
+            margin: 0 0 0.25rem;
+        }
+        .login-card-sub {
+            font-size: 0.82rem;
+            color: var(--text-muted);
+            margin-bottom: 1.75rem;
+        }
+
+        /* ── FORM ── */
+        .form-group { margin-bottom: 1.1rem; }
+
+        .form-label-lims {
+            display: block;
+            font-size: 0.72rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--text-muted);
+            margin-bottom: 5px;
+        }
+
+        .form-input-lims {
+            width: 100%;
+            background: var(--surface-alt);
+            border: 1px solid var(--border);
+            border-radius: 7px;
+            padding: 0.6rem 0.85rem;
+            font-family: 'IBM Plex Sans', sans-serif;
+            font-size: 0.9rem;
+            color: var(--text);
+            transition: border-color 0.15s, box-shadow 0.15s;
+        }
+        .form-input-lims:focus {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(0,180,216,0.12);
+            background: var(--surface);
+        }
+
+        .input-icon-wrap {
+            position: relative;
+        }
+        .input-icon-wrap .form-input-lims {
+            padding-left: 2.4rem;
+        }
+        .input-icon-wrap .input-icon {
+            position: absolute;
+            left: 0.85rem;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-muted);
+            font-size: 0.8rem;
+            pointer-events: none;
+        }
+
+        /* ── ERRORS ── */
+        .login-error {
+            background: rgba(230,57,70,0.08);
+            border: 1px solid rgba(230,57,70,0.25);
+            border-left: 3px solid var(--danger);
+            border-radius: 6px;
+            padding: 0.65rem 0.9rem;
+            font-size: 0.82rem;
+            color: #7a1520;
+            margin-bottom: 1.25rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        /* ── SUBMIT ── */
+        .btn-login {
+            width: 100%;
+            background: var(--accent);
+            color: #fff;
+            border: none;
+            border-radius: 7px;
+            padding: 0.65rem;
+            font-family: 'IBM Plex Sans', sans-serif;
+            font-size: 0.925rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background 0.15s, transform 0.1s;
+            margin-top: 0.5rem;
+        }
+        .btn-login:hover  { background: var(--accent-dark); }
+        .btn-login:active { transform: scale(0.99); }
+
+        /* ── FOOTER ── */
+        .login-footer {
+            text-align: center;
+            margin-top: 1.5rem;
+            font-size: 0.75rem;
+            color: rgba(255,255,255,0.3);
+        }
+        .login-footer a { color: rgba(255,255,255,0.45); text-decoration: none; }
+        .login-footer a:hover { color: var(--accent); }
+
+        /* ── ROLE HINT (shown after bad login) ── */
+        .role-hint {
+            background: rgba(0,180,216,0.08);
+            border: 1px solid rgba(0,180,216,0.2);
+            border-radius: 6px;
+            padding: 0.65rem 0.9rem;
+            font-size: 0.78rem;
+            color: #005f78;
+            margin-bottom: 1.25rem;
+        }
+        .role-hint strong { display: block; margin-bottom: 2px; color: var(--accent); }
+    </style>
+</head>
+<body>
+
+<div class="login-wrap">
+    <!-- BRAND -->
+    <div class="login-brand">
+        <div class="login-brand-logo">
+            <i class="fas fa-dna"></i>
+        </div>
+        <div class="login-brand-name">NGS-LIMS</div>
+        <div class="login-brand-sub">Atlantic Cancer Research Institute</div>
+    </div>
+
+    <!-- CARD -->
+    <div class="login-card">
+        <h2>Sign in</h2>
+        <p class="login-card-sub">Use your lab credentials or researcher account</p>
+
+        {% if form.errors %}
+        <div class="login-error">
+            <i class="fas fa-exclamation-circle"></i>
+            Incorrect username or password. Please try again.
+        </div>
+        {% endif %}
+
+        {% if next %}
+        <div class="role-hint">
+            <strong>Authentication required</strong>
+            Please sign in to access that page.
+        </div>
+        {% endif %}
+
+        <form method="post" action="{% url 'login' %}">
+            {% csrf_token %}
+            <input type="hidden" name="next" value="{{ next }}">
+
+            <div class="form-group">
+                <label class="form-label-lims" for="id_username">Username</label>
+                <div class="input-icon-wrap">
+                    <i class="fas fa-user input-icon"></i>
+                    <input type="text"
+                           name="username"
+                           id="id_username"
+                           class="form-input-lims"
+                           autocomplete="username"
+                           autofocus
+                           required
+                           placeholder="Enter your username">
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label-lims" for="id_password">Password</label>
+                <div class="input-icon-wrap">
+                    <i class="fas fa-lock input-icon"></i>
+                    <input type="password"
+                           name="password"
+                           id="id_password"
+                           class="form-input-lims"
+                           autocomplete="current-password"
+                           required
+                           placeholder="Enter your password">
+                </div>
+            </div>
+
+            <button type="submit" class="btn-login">
+                <i class="fas fa-sign-in-alt me-2"></i>Sign in
+            </button>
+        </form>
+    </div>
+
+    <div class="login-footer">
+        NGS-LIMS &copy; {% now "Y" %} — IARC
+        {% if user.is_authenticated %}
+        · <a href="{% url 'logout' %}">Logout</a>
+        {% endif %}
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

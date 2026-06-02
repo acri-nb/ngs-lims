@@ -149,22 +149,34 @@
     </div>
 
     <!-- PAGINATION -->
-    {% if samples.has_other_pages %}
-    <div class="card-footer d-flex justify-content-between align-items-center" style="background:var(--surface);border-top:1px solid var(--border);padding:0.75rem 1.25rem;">
+    {% if is_paginated %}
+    <div class="card-footer d-flex justify-content-between align-items-center"
+         style="background:var(--surface);border-top:1px solid var(--border);padding:0.75rem 1.25rem;">
         <span style="font-size:0.8rem;color:var(--text-muted);">
-            Page {{ samples.number }} of {{ samples.paginator.num_pages }}
+            Showing {{ page_obj.start_index }}–{{ page_obj.end_index }} of {{ paginator.count }} samples
         </span>
         <div class="d-flex gap-1">
-            {% if samples.has_previous %}
-            <a href="?{% if request.GET.q %}q={{ request.GET.q }}&{% endif %}{% if request.GET.type %}type={{ request.GET.type }}&{% endif %}page={{ samples.previous_page_number }}"
+            {% if page_obj.has_previous %}
+            <a href="?{% if request.GET.q %}q={{ request.GET.q }}&{% endif %}{% if request.GET.type %}type={{ request.GET.type }}&{% endif %}{% if request.GET.project %}project={{ request.GET.project }}&{% endif %}page={{ page_obj.previous_page_number }}"
                class="btn btn-outline-lims btn-sm">
-                <i class="fas fa-chevron-left"></i>
+                <i class="fas fa-chevron-left"></i> Prev
             </a>
             {% endif %}
-            {% if samples.has_next %}
-            <a href="?{% if request.GET.q %}q={{ request.GET.q }}&{% endif %}{% if request.GET.type %}type={{ request.GET.type }}&{% endif %}page={{ samples.next_page_number }}"
+
+            <!-- page numbers -->
+            {% for num in paginator.page_range %}
+                {% if page_obj.number == num %}
+                <span class="btn btn-accent btn-sm">{{ num }}</span>
+                {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                <a href="?{% if request.GET.q %}q={{ request.GET.q }}&{% endif %}{% if request.GET.type %}type={{ request.GET.type }}&{% endif %}{% if request.GET.project %}project={{ request.GET.project }}&{% endif %}page={{ num }}"
+                   class="btn btn-outline-lims btn-sm">{{ num }}</a>
+                {% endif %}
+            {% endfor %}
+
+            {% if page_obj.has_next %}
+            <a href="?{% if request.GET.q %}q={{ request.GET.q }}&{% endif %}{% if request.GET.type %}type={{ request.GET.type }}&{% endif %}{% if request.GET.project %}project={{ request.GET.project }}&{% endif %}page={{ page_obj.next_page_number }}"
                class="btn btn-outline-lims btn-sm">
-                <i class="fas fa-chevron-right"></i>
+                Next <i class="fas fa-chevron-right"></i>
             </a>
             {% endif %}
         </div>

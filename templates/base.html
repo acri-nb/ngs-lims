@@ -427,6 +427,16 @@
 
 <!-- SIDEBAR -->
 <nav class="sidebar">
+    {% if request.user.is_authenticated %}
+
+        {% if user.profile.client %}
+        <!-- RESEARCHER VIEW — only show their portal -->
+        <span class="sidebar-section-label">My Account</span>
+        <a href="{% url 'researcher-portal' %}" class="sidebar-link {% if 'researcher' in request.resolver_match.url_name %}active{% endif %}">
+            <i class="fas fa-project-diagram"></i> My Projects
+        </a>
+
+    {% else %}
     <span class="sidebar-section-label">Navigation</span>
 
     <a href="{% url 'home' %}" class="sidebar-link {% if request.resolver_match.url_name == 'home' %}active{% endif %}">
@@ -473,6 +483,8 @@
         <i class="fas fa-tools"></i> Admin Panel
     </a>
     {% endif %}
+    {% endif %}
+  {% endif %}
 </nav>
 
 <!-- MESSAGES -->

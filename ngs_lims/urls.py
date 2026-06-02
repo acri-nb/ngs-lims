@@ -17,15 +17,24 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path, include
 import debug_toolbar
+from samples.views_auth import smart_redirect, researcher_portal, researcher_project_detail
+from samples.views import home
 
 admin.site.site_header = 'ngs-lims Admin'
 admin.site.index_title = 'Admin'
 
 urlpatterns = [
-    path('',        include('samples.urls')),
+    path('',smart_redirect,name='smart-redirect'),
+    
+    path('dashboard/', home,                     name='home'),
+    path('portal/',    researcher_portal,         name='researcher-portal'),
+    path('portal/projects/<int:project_id>/',researcher_project_detail,name='researcher-project-detail'),
+
+    path('',            include('samples.urls')),
+    path('projects/',   include('samples.urls')),
     path('locations/', include('locations.urls')),
-    path('admin/',  admin.site.urls),
-    path('accounts/', include('django.contrib.auth.urls')), #login and logout
+    path('accounts/',  include('django.contrib.auth.urls')),
+    path('admin/',     admin.site.urls),
     path('__debug__/', include(debug_toolbar.urls)),
 ]
 
