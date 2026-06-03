@@ -1,0 +1,619 @@
+{% extends 'base.html' %}
+{% block title %}Inventory | NGS-LIMS{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1 class="page-title"><i class="fas fa-boxes"></i> Inventory</h1>
+    <a href="{% url 'inventory-receipt-add' %}" class="btn btn-accent">
+        <i class="fas fa-plus me-1"></i> Log Receipt
+    </a>
+</div>
+
+<!-- STAT CARDS -->
+<div class="row g-3 mb-4">
+    <div class="col-sm-6 col-xl-3">
+        <div class="stat-card">
+            <div class="stat-card-icon teal"><i class="fas fa-boxes"></i></div>
+            <div>
+                <div class="stat-card-value">{{ total_products }}</div>
+                <div class="stat-card-label">Products tracked</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-sm-6 col-xl-3">
+        <div class="stat-card">
+            <div class="stat-card-icon green"><i class="fas fa-check-circle"></i></div>
+            <div>
+                <div class="stat-card-value">{{ in_stock_count }}</div>
+                <div class="stat-card-label">In stock</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-sm-6 col-xl-3">
+        <div class="stat-card">
+            <div class="stat-card-icon orange"><i class="fas fa-exclamation-triangle"></i></div>
+            <div>
+                <div class="stat-card-value">{{ low_stock_count }}</div>
+                <div class="stat-card-label">Low stock</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-sm-6 col-xl-3">
+        <div class="stat-card">
+            <div class="stat-card-icon red"><i class="fas fa-calendar-times"></i></div>
+            <div>
+                <div class="stat-card-value">{{ expiring_soon_count }}</div>
+                <div class="stat-card-label">Expiring &lt; 30 days</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- TABS -->
+<div class="inv-tabs">
+    <button class="inv-tab active" onclick="showTab('stock', this)">
+        <i class="fas fa-warehouse me-1"></i> Stock
+    </button>
+    <button class="inv-tab" onclick="showTab('receipts', this)">
+        <i class="fas fa-truck me-1"></i> Receipts
+    </button>
+    <button class="inv-tab" onclick="showTab('products', this)">
+        <i class="fas fa-flask me-1"></i> Products
+    </button>
+    <button class="inv-tab" onclick="showTab('suppliers', this)">
+        <i class="fas fa-industry me-1"></i> Suppliers
+    </button>
+</div>
+
+<!-- TAB: STOCK -->
+<div id="tab-stock" class="tab-pane">
+    <!-- Search + filter bar -->
+    <div class="filter-bar">
+        <div class="row g-2 align-items-end">
+            <div class="col-md-5">
+                <label class="form-label">Search</label>
+                <input type="text" id="stockSearch" class="form-control"
+                       placeholder="Product name, lot number, location…"
+                       oninput="filterStock()">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Location</label>
+                <select id="stockLocation" class="form-select" onchange="filterStock()">
+                    <option value="">All locations</option>
+                    {% for loc in locations %}
+                    <option value="{{ loc.locationName }}">{{ loc.locationName }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">Status</label>
+                <div class="d-flex gap-2">
+                    <button class="filter-chip active" onclick="toggleChip(this,'all')" data-filter="all">All</button>
+                    <button class="filter-chip" onclick="toggleChip(this,'low')" data-filter="low">
+                        <i class="fas fa-exclamation-triangle me-1"></i>Low
+                    </button>
+                    <button class="filter-chip" onclick="toggleChip(this,'expired')" data-filter="expired">
+                        <i class="fas fa-times me-1"></i>Expired
+                    </button>
+                    <button class="filter-chip" onclick="toggleChip(this,'ok')" data-filter="ok">
+                        <i class="fas fa-check me-1"></i>OK
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="table-responsive">
+            <table class="table table-lims" id="stockTable">
+                <thead>
+                    <tr>
+                        <th>Product</th>
+                        <th>Ref #</th>
+                        <th>Location</th>
+                        <th>Lot</th>
+                        <th>Qty on hand</th>
+                        <th>Stock level</th>
+                        <th>Expires</th>
+                        <th>Updated</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in inventory %}
+                    <tr class="stock-row"
+                        data-name="{{ item.product.product_name|lower }}"
+                        data-loc="{{ item.location.locationName }}"
+                        data-lot="{{ item.receipt.lot_number|lower }}"
+                        data-status="{{ item.stock_status }}"
+                        data-expired="{{ item.receipt.is_expired|yesno:'true,false' }}">
+                        <td>
+                            <span style="font-weight:600;font-size:0.875rem;">
+                                {{ item.product.product_name }}
+                            </span>
+                        </td>
+                        <td>
+                            <span class="sample-id">{{ item.product.product_ref_number }}</span>
+                        </td>
+                        <td style="font-size:0.82rem;">
+                            <i class="fas fa-map-marker-alt me-1" style="color:var(--accent);"></i>
+                            {{ item.location.locationName }}
+                        </td>
+                        <td>
+                            <span style="font-family:'IBM Plex Mono',monospace;font-size:0.8rem;color:var(--text-muted);">
+                                {{ item.receipt.lot_number }}
+                            </span>
+                        </td>
+                        <td>
+                            <span style="font-family:'IBM Plex Mono',monospace;font-weight:600;">
+                                {{ item.quantity_on_hand }}
+                                {% if item.quantity_unit %}
+                                <span style="font-weight:400;color:var(--text-muted);font-size:0.78rem;">
+                                    {{ item.quantity_unit }}
+                                </span>
+                                {% endif %}
+                            </span>
+                        </td>
+                        <td style="min-width:120px;">
+                            <div class="stock-bar-wrap">
+                                <div class="stock-bar-fill stock-{{ item.stock_status }}"
+                                     style="width:{{ item.stock_pct }}%"></div>
+                            </div>
+                            <div style="display:flex;justify-content:space-between;margin-top:2px;">
+                                <span class="stock-label stock-label-{{ item.stock_status }}">
+                                    {{ item.stock_status|title }}
+                                </span>
+                                <span style="font-size:0.68rem;color:var(--text-muted);font-family:'IBM Plex Mono',monospace;">
+                                    {{ item.stock_pct }}%
+                                </span>
+                            </div>
+                        </td>
+                        <td>
+                            {% if item.receipt.expiration_date %}
+                                {% if item.receipt.is_expired %}
+                                <span class="lims-badge badge-fail">
+                                    Expired {{ item.receipt.expiration_date|date:"M j, Y" }}
+                                </span>
+                                {% elif item.expiring_soon %}
+                                <span class="lims-badge badge-caution">
+                                    {{ item.receipt.expiration_date|date:"M j, Y" }}
+                                </span>
+                                {% else %}
+                                <span style="font-size:0.8rem;color:var(--text-muted);">
+                                    {{ item.receipt.expiration_date|date:"M j, Y" }}
+                                </span>
+                                {% endif %}
+                            {% else %}
+                            <span class="text-muted" style="font-size:0.8rem;">—</span>
+                            {% endif %}
+                        </td>
+                        <td style="font-size:0.78rem;color:var(--text-muted);">
+                            {{ item.last_updated|date:"M j, Y" }}
+                        </td>
+                        <td>
+                            <a href="{% url 'inventory-adjust' item.inventory_id %}"
+                               class="btn btn-outline-lims btn-sm"
+                               title="Adjust quantity">
+                                <i class="fas fa-edit"></i>
+                            </a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="9" class="text-center py-5 text-muted">
+                            <i class="fas fa-boxes fa-2x mb-2 d-block" style="color:var(--border);"></i>
+                            No inventory yet. Log a receipt to get started.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- TAB: RECEIPTS -->
+<div id="tab-receipts" class="tab-pane" style="display:none;">
+    <div class="filter-bar">
+        <input type="text" id="receiptSearch" class="form-control"
+               style="max-width:380px;"
+               placeholder="Product, lot number, supplier…"
+               oninput="filterReceipts()">
+    </div>
+    <div class="card">
+        <div class="table-responsive">
+            <table class="table table-lims" id="receiptTable">
+                <thead>
+                    <tr>
+                        <th>Product</th>
+                        <th>Supplier</th>
+                        <th>Lot #</th>
+                        <th>Received</th>
+                        <th>Qty</th>
+                        <th>Condition</th>
+                        <th>Location</th>
+                        <th>Expires</th>
+                        <th>Received by</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for receipt in receipts %}
+                    <tr class="receipt-row"
+                        data-name="{{ receipt.product.product_name|lower }}"
+                        data-lot="{{ receipt.lot_number|lower }}"
+                        data-supplier="{{ receipt.supplier.supplier_name|lower }}">
+                        <td>
+                            <span style="font-weight:600;font-size:0.875rem;">
+                                {{ receipt.product.product_name }}
+                            </span>
+                            <div style="font-size:0.75rem;color:var(--text-muted);">
+                                {{ receipt.product.product_ref_number }}
+                            </div>
+                        </td>
+                        <td style="font-size:0.85rem;">{{ receipt.supplier.supplier_name }}</td>
+                        <td>
+                            <span class="sample-id">{{ receipt.lot_number }}</span>
+                        </td>
+                        <td style="font-size:0.82rem;white-space:nowrap;">
+                            {{ receipt.date_received|date:"M j, Y" }}
+                        </td>
+                        <td>
+                            <span style="font-family:'IBM Plex Mono',monospace;font-weight:600;">
+                                {{ receipt.quantity_received }}
+                                <span style="font-weight:400;color:var(--text-muted);font-size:0.78rem;">
+                                    {{ receipt.quantity_unit }}
+                                </span>
+                            </span>
+                        </td>
+                        <td>
+                            <span class="condition-badge condition-{{ receipt.receiving_condition|lower|slugify }}">
+                                {% if receipt.receiving_condition == 'Frozen' %}
+                                    <i class="fas fa-snowflake me-1"></i>
+                                {% elif receipt.receiving_condition == 'On Ice' %}
+                                    <i class="fas fa-temperature-low me-1"></i>
+                                {% else %}
+                                    <i class="fas fa-sun me-1"></i>
+                                {% endif %}
+                                {{ receipt.receiving_condition }}
+                            </span>
+                        </td>
+                        <td style="font-size:0.82rem;">{{ receipt.location.locationName }}</td>
+                        <td>
+                            {% if receipt.expiration_date %}
+                                {% if receipt.is_expired %}
+                                <span class="lims-badge badge-fail">
+                                    Expired {{ receipt.expiration_date|date:"M j" }}
+                                </span>
+                                {% else %}
+                                <span style="font-size:0.8rem;">
+                                    {{ receipt.expiration_date|date:"M j, Y" }}
+                                </span>
+                                {% endif %}
+                            {% else %}
+                            <span class="text-muted" style="font-size:0.8rem;">—</span>
+                            {% endif %}
+                        </td>
+                        <td style="font-size:0.82rem;color:var(--text-muted);">
+                            {{ receipt.received_by.username }}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="9" class="text-center py-5 text-muted">No receipts yet.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- TAB: PRODUCTS -->
+<div id="tab-products" class="tab-pane" style="display:none;">
+    <div class="filter-bar">
+        <input type="text" id="productSearch" class="form-control"
+               style="max-width:380px;"
+               placeholder="Product name or ref number…"
+               oninput="filterProducts()">
+    </div>
+    <div class="card">
+        <div class="table-responsive">
+            <table class="table table-lims" id="productTable">
+                <thead>
+                    <tr>
+                        <th>Product name</th>
+                        <th>Ref #</th>
+                        <th>Suppliers</th>
+                        <th>In stock</th>
+                        <th>Notes</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in products %}
+                    <tr class="product-row"
+                        data-name="{{ item.product_name|lower }}"
+                        data-ref="{{ item.product_ref_number|lower }}">
+                        <td style="font-weight:600;font-size:0.875rem;">{{ item.product_name }}</td>
+                        <td><span class="sample-id">{{ item.product_ref_number }}</span></td>
+                        <td style="font-size:0.82rem;">
+                            {% for supplier in item.suppliers.all %}
+                            <span class="lims-badge badge-pending me-1">{{ supplier.supplier_name }}</span>
+                            {% empty %}
+                            <span class="text-muted">—</span>
+                            {% endfor %}
+                        </td>
+                        <td>
+                            {% with total=item.inventory_entries.all %}
+                            {% if total %}
+                            <span style="font-family:'IBM Plex Mono',monospace;font-weight:600;color:var(--success);">
+                                ✓
+                            </span>
+                            {% else %}
+                            <span style="color:var(--text-muted);font-size:0.8rem;">No stock</span>
+                            {% endif %}
+                            {% endwith %}
+                        </td>
+                        <td style="font-size:0.8rem;color:var(--text-muted);">
+                            {{ item.product_notes|default:"—" }}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" class="text-center py-5 text-muted">No products yet.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!--TAB: SUPPLIERS -->
+<div id="tab-suppliers" class="tab-pane" style="display:none;">
+    <div class="filter-bar">
+        <input type="text" id="supplierSearch" class="form-control"
+               style="max-width:380px;"
+               placeholder="Supplier name or contact…"
+               oninput="filterSuppliers()">
+    </div>
+    <div class="row g-3" id="supplierCards">
+        {% for supplier in suppliers %}
+        <div class="col-md-6 col-xl-4 supplier-card-wrap"
+             data-name="{{ supplier.supplier_name|lower }}"
+             data-contact="{{ supplier.contact_name|lower }}">
+            <div class="supplier-card">
+                <div class="supplier-card-header">
+                    <div class="supplier-avatar">{{ supplier.supplier_name|first|upper }}</div>
+                    <div>
+                        <div style="font-weight:600;font-size:0.9rem;">{{ supplier.supplier_name }}</div>
+                        <div style="font-size:0.78rem;color:var(--text-muted);">
+                            {{ supplier.products.count }} product{{ supplier.products.count|pluralize }}
+                        </div>
+                    </div>
+                </div>
+                <div class="supplier-card-body">
+                    <div class="supplier-contact-row">
+                        <i class="fas fa-user"></i>
+                        <span>{{ supplier.contact_name }}</span>
+                    </div>
+                    <div class="supplier-contact-row">
+                        <i class="fas fa-envelope"></i>
+                        <a href="mailto:{{ supplier.contact_email }}">{{ supplier.contact_email }}</a>
+                    </div>
+                </div>
+                {% if supplier.products.all %}
+                <div class="supplier-products">
+                    {% for product in supplier.products.all|slice:":4" %}
+                    <span class="lims-badge badge-pending">{{ product.product_name }}</span>
+                    {% endfor %}
+                    {% if supplier.products.count > 4 %}
+                    <span style="font-size:0.72rem;color:var(--text-muted);">
+                        +{{ supplier.products.count|add:"-4" }} more
+                    </span>
+                    {% endif %}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% empty %}
+        <div class="col-12 text-center py-5 text-muted">No suppliers yet.</div>
+        {% endfor %}
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_css %}
+<style>
+/* TABS */
+.inv-tabs {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 1rem;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 0;
+}
+.inv-tab {
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    padding: 0.5rem 1rem 0.6rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: color 0.15s, border-color 0.15s;
+    margin-bottom: -1px;
+}
+.inv-tab:hover  { color: var(--text); }
+.inv-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+/* STOCK BAR */
+.stock-bar-wrap {
+    height: 6px;
+    background: var(--border);
+    border-radius: 3px;
+    overflow: hidden;
+}
+.stock-bar-fill {
+    height: 100%;
+    border-radius: 3px;
+    transition: width 0.4s ease;
+}
+.stock-bar-fill.stock-ok      { background: var(--success); }
+.stock-bar-fill.stock-low     { background: var(--warning); }
+.stock-bar-fill.stock-critical{ background: var(--danger); }
+.stock-bar-fill.stock-empty   { background: var(--border); }
+
+.stock-label          { font-size:0.68rem; font-family:'IBM Plex Mono',monospace; font-weight:600; }
+.stock-label-ok       { color: var(--success); }
+.stock-label-low      { color: var(--warning); }
+.stock-label-critical { color: var(--danger); }
+.stock-label-empty    { color: var(--text-muted); }
+
+/*  FILTER CHIPS*/
+.filter-chip {
+    background: var(--surface-alt);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 3px 12px;
+    font-size: 0.78rem;
+    font-weight: 500;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all 0.15s;
+    white-space: nowrap;
+}
+.filter-chip:hover  { border-color: var(--accent); color: var(--accent); }
+.filter-chip.active { background: rgba(0,180,216,0.1); border-color: var(--accent); color: var(--accent); }
+
+/* CONDITION BADGES */
+.condition-badge {
+    display: inline-flex;
+    align-items: center;
+    font-size: 0.72rem;
+    font-family: 'IBM Plex Mono', monospace;
+    font-weight: 600;
+    padding: 3px 8px;
+    border-radius: 4px;
+}
+.condition-frozen         { background:rgba(60,60,180,0.1);   color:#1a1a7a; border:1px solid rgba(60,60,180,0.2); }
+.condition-on-ice         { background:rgba(0,180,216,0.1);   color:#005f78; border:1px solid rgba(0,180,216,0.2); }
+.condition-room-temperature{ background:rgba(244,162,97,0.15); color:#8a4800; border:1px solid rgba(244,162,97,0.3); }
+
+/* SUPPLIER CARD */
+.supplier-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+}
+.supplier-card-header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.9rem 1rem;
+    border-bottom: 1px solid var(--border);
+}
+.supplier-avatar {
+    width: 38px; height: 38px;
+    border-radius: 9px;
+    background: rgba(0,180,216,0.1);
+    color: var(--accent);
+    font-family: 'IBM Plex Mono', monospace;
+    font-weight: 600;
+    font-size: 1rem;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+}
+.supplier-card-body {
+    padding: 0.75rem 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+.supplier-contact-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.82rem;
+    color: var(--text-muted);
+}
+.supplier-contact-row i { width: 14px; text-align: center; color: var(--accent); font-size: 0.75rem; }
+.supplier-contact-row a { color: var(--accent); text-decoration: none; }
+.supplier-contact-row a:hover { text-decoration: underline; }
+.supplier-products {
+    padding: 0.6rem 1rem 0.75rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    border-top: 1px solid var(--border);
+    background: var(--surface-alt);
+}
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// TAB SWITCHING
+function showTab(name, btn) {
+    document.querySelectorAll('.tab-pane').forEach(p => p.style.display = 'none');
+    document.querySelectorAll('.inv-tab').forEach(b => b.classList.remove('active'));
+    document.getElementById('tab-' + name).style.display = '';
+    btn.classList.add('active');
+}
+
+// STOCK FILTER 
+let activeStatusFilter = 'all';
+
+function toggleChip(btn, filter) {
+    document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+    btn.classList.add('active');
+    activeStatusFilter = filter;
+    filterStock();
+}
+
+function filterStock() {
+    const q   = document.getElementById('stockSearch').value.toLowerCase();
+    const loc = document.getElementById('stockLocation').value.toLowerCase();
+    document.querySelectorAll('.stock-row').forEach(row => {
+        const matchText   = row.dataset.name.includes(q) || row.dataset.lot.includes(q);
+        const matchLoc    = !loc || row.dataset.loc.toLowerCase() === loc;
+        const status      = row.dataset.status;
+        const expired     = row.dataset.expired === 'true';
+        let   matchStatus = true;
+        if (activeStatusFilter === 'low')     matchStatus = status === 'low' || status === 'critical';
+        if (activeStatusFilter === 'expired') matchStatus = expired;
+        if (activeStatusFilter === 'ok')      matchStatus = status === 'ok' && !expired;
+        row.style.display = (matchText && matchLoc && matchStatus) ? '' : 'none';
+    });
+}
+
+// RECEIPT SEARCH 
+function filterReceipts() {
+    const q = document.getElementById('receiptSearch').value.toLowerCase();
+    document.querySelectorAll('.receipt-row').forEach(row => {
+        const match = row.dataset.name.includes(q) ||
+                      row.dataset.lot.includes(q) ||
+                      row.dataset.supplier.includes(q);
+        row.style.display = match ? '' : 'none';
+    });
+}
+
+// PRODUCT SEARCH 
+function filterProducts() {
+    const q = document.getElementById('productSearch').value.toLowerCase();
+    document.querySelectorAll('.product-row').forEach(row => {
+        row.style.display = (row.dataset.name.includes(q) || row.dataset.ref.includes(q)) ? '' : 'none';
+    });
+}
+
+// SUPPLIER SEARCH
+function filterSuppliers() {
+    const q = document.getElementById('supplierSearch').value.toLowerCase();
+    document.querySelectorAll('.supplier-card-wrap').forEach(card => {
+        card.style.display = (card.dataset.name.includes(q) || card.dataset.contact.includes(q)) ? '' : 'none';
+    });
+}
+</script>
+{% endblock %}

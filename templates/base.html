@@ -378,6 +378,16 @@
             font-family: 'IBM Plex Mono', monospace;
             font-size: 0.7rem;
         }
+
+        .table-lims tbody tr:last-child td {
+            border-bottom: none;
+        }
+
+        .card .table-responsive:last-child {
+            
+            overflow: hidden;
+        }
+        
     </style>
     {% block extra_css %}{% endblock %}
 </head>
@@ -465,7 +475,7 @@
     </a>
 
     <span class="sidebar-section-label">Lab</span>
-    <a href="/inventory/" class="sidebar-link">
+    <a href="{% url 'inventory-dashboard' %}" class="sidebar-link">
         <i class="fas fa-boxes"></i> Inventory
     </a>
 
