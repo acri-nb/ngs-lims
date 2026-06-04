@@ -46,6 +46,14 @@ UNIT_GROUPS = [
             {'value': 'g',   'label': 'g'},
         ]
     },
+    {
+        'label': 'Reactions / preps',
+        'units': [
+            {'value': 'rxn',   'label': 'rxn'},
+            {'value': 'preps', 'label': 'preps'},
+            {'value': 'reactions', 'label': 'reactions'},
+        ]
+    },
     
 ]
 

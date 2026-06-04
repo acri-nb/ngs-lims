@@ -94,10 +94,10 @@ GROUPS = [
 #       'Room-Temperature', 'Fridge(4C)', 'Freezer(-20C)', 'Freezer(-80C)'
 # ══════════════════════════════════════════════════════════════════════════════
 LOCATIONS = [
-    {"locationName": "Vanishing Cabinet",    "storageType": "Freezer(-80C)"},
+    {"locationName": "Vanishing Cabinet",    "storageType": "Freezer(-20C)"},
     {"locationName": "Netflix N Chill",      "storageType": "Freezer(-20C)"},
-    {"locationName": "James Bond",           "storageType": "Freezer(-80C)"},
-    {"locationName": "Yeti",                 "storageType": "Fridge(4C)"},
+    {"locationName": "James Bond",           "storageType": "Fridge(4C)"},
+    {"locationName": "Yeti",                 "storageType": "Freezer(-20C)"},
     {"locationName": "Pre-PCR Room",         "storageType": "Room-Temperature"},
     {"locationName": "Post-PCR Room",        "storageType": "Room-Temperature"},
     {"locationName": "4th floor -80C Freezer", "storageType": "Freezer(-80C)"},
@@ -111,14 +111,14 @@ LOCATIONS = [
 #     Add / remove types as you need
 # ══════════════════════════════════════════════════════════════════════════════
 SPECIMEN_TYPES = [
-    "Blood",
+    "Bl",
     "FFPE",
-    "FrozenTissue",
+    "FrzT", # "FrozenTissue",
     "Cells",
     "EV",   # Extracellular Vesicles   
     "smallEVs",        
     "LargeEVs",     
-    "Plasma",
+    #"Plasma",
     #"Serum",
     #"Urine",
     #"Saliva",
