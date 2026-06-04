@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
-
+{% load lims_extras %}
 {% block title %}Dashboard | NGS-LIMS{% endblock %}
 
 {% block content %}
@@ -92,7 +92,7 @@
                                     {{ sample.sample_type }}
                                 </span>
                             </td>
-                            <td>{{ sample.date_received|date:"M d, Y" }}</td>
+                            <td>{{ sample.date_received|lab_date }}</td>
                             <td>
                                 {% if sample.location %}
                                     <span style="font-size:0.8rem;color:var(--text-muted);">
@@ -163,7 +163,7 @@
                                 <span class="sample-id">{{ batch.batch_name }}</span>
                             </td>
                             <td>{{ batch.sample_count }}</td>
-                            <td>{{ batch.date_batched|date:"M d" }}</td>
+                            <td>{{ batch.date_batched|lab_date }}</td>
                         </tr>
                         {% empty %}
                         <tr>

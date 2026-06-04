@@ -1,8 +1,13 @@
 {% extends 'base.html' %}
-
+{% load lims_extras %}
 {% block title %}Samples | NGS-LIMS{% endblock %}
 
 {% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item active">Samples</li>
+    </ol>
+</nav>
 
 <div class="page-header">
     <h1 class="page-title">
@@ -101,7 +106,7 @@
                         <span style="font-size:0.75rem;color:var(--text-muted);">{{ sample.specimen.specimen_type }}</span>
                     </td>
                     <td>{{ sample.project.project_name }}</td>
-                    <td style="white-space:nowrap;">{{ sample.date_received|date:"M d, Y" }}</td>
+                    <td style="white-space:nowrap;">{{ sample.date_received|lab_date }}</td>
                     <td>
                         {% if sample.receiving_condition %}
                             <span style="font-size:0.8rem;color:var(--text-muted);">

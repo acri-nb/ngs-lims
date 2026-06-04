@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load lims_extras %}
 {% block title %}{{ project.project_name }} | NGS-LIMS{% endblock %}
 
 {% block content %}
@@ -23,7 +24,7 @@
             <span class="lims-badge badge-dna me-2">{{ project.sequencing_type }}</span>
             <i class="fas fa-university me-1"></i>{{ project.client.client_name }}
             <span class="mx-2">·</span>
-            <i class="fas fa-calendar me-1"></i>Created {{ project.date_created|date:"M j, Y" }}
+            <i class="fas fa-calendar me-1"></i>Created {{ project.date_created|lab_date }}
         </div>
     </div>
     <a href="{% url 'admin:samples_sample_add' %}" class="btn btn-accent">
@@ -147,7 +148,7 @@
                         {{ item.sample.specimen.specimen_type }}
                     </td>
                     <td style="font-size:0.82rem;white-space:nowrap;">
-                        {{ item.sample.date_received|date:"M j, Y" }}
+                        {{ item.sample.date_received|lab_date }}
                     </td>
                     <td>
                         {% if item.sample.location %}

@@ -1,5 +1,6 @@
 {% extends 'base.html' %}
-{% block title %}{{ location }} — Temp History | NGS-LIMS{% endblock %}
+{% load lims_extras %}
+{% block title %}{{ location.locationName }} | NGS-LIMS{% endblock %}
 
 {% block content %}
 
@@ -58,7 +59,7 @@
                         <tr>
                             <td>
                                 <span style="font-family:'IBM Plex Mono',monospace;font-size:0.82rem;">
-                                    {{ log.date_logged|date:"M j, Y" }}
+                                    {{ log.date_logged|lab_date }}
                                 </span>
                                 {% if forloop.first %}
                                 <span class="lims-badge badge-pass ms-1" style="font-size:0.65rem;">latest</span>

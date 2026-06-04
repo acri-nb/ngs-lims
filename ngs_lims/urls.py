@@ -31,7 +31,6 @@ urlpatterns = [
     path('portal/projects/<int:project_id>/',researcher_project_detail,name='researcher-project-detail'),
 
     path('',            include('samples.urls')),
-    path('projects/',   include('samples.urls')),
     path('locations/', include('locations.urls')),
     path('inventory/', include('inventory.urls')),
     path('accounts/',  include('django.contrib.auth.urls')),

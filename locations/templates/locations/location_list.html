@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load lims_extras %}
 {% block title %}Locations | NGS-LIMS{% endblock %}
 
 {% block content %}
@@ -7,9 +8,15 @@
         <i class="fas fa-thermometer-half"></i> Storage Locations Logs
     </h1>
     <span style="font-size:0.8rem;color:var(--text-muted);">
-        <i class="fas fa-calendar-day me-1"></i>{{ today|date:"l, F j, Y" }}
+        <i class="fas fa-calendar-day me-1"></i>{{ today|lab_date }}
     </span>
 </div>
+
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item active">Storage Locations</li>
+    </ol>
+</nav>
 
 <!-- LOCATION CARDS GRID -->
 <div class="row g-3">
@@ -115,7 +122,7 @@
                 {% if yesterday %}
                 <div class="yesterday-hint">
                     <i class="fas fa-info-circle"></i>
-                    Pre-filled from {{ yesterday.date_logged|date:"l, M j" }}
+                    Pre-filled from {{ yesterday.date_logged|lab_date }}
                 </div>
                 {% endif %}
 
@@ -123,7 +130,7 @@
                     <a href="{% url 'location-log-history' loc.pk %}" class="btn-card-link" style="color:var(--text-muted);">
                         History
                     </a>
-                    <button type="submit" class="btn-log-submit">
+                    <button type="submit" class="btn-accent">
                         <i class="fas fa-plus me-1"></i> Log Today
                     </button>
                 </div>
@@ -293,18 +300,7 @@
     gap: 0.3rem;
 }
 .btn-card-link:hover { color: var(--accent-dark); }
-.btn-log-submit {
-    background: var(--accent);
-    color: #fff;
-    border: none;
-    border-radius: 5px;
-    padding: 5px 14px;
-    font-size: 0.82rem;
-    font-weight: 500;
-    cursor: pointer;
-    transition: background 0.15s;
-}
-.btn-log-submit:hover { background: var(--accent-dark); }
+
 </style>
 {% endblock %}
 

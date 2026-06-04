@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load lims_extras %}
 {% block title %}Inventory | NGS-LIMS{% endblock %}
 
 {% block content %}
@@ -8,6 +9,12 @@
         <i class="fas fa-plus me-1"></i> Log Receipt
     </a>
 </div>
+
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item active">Inventory</li>
+    </ol>
+</nav>
 
 <!-- STAT CARDS -->
 <div class="row g-3 mb-4">
@@ -172,15 +179,15 @@
                             {% if item.receipt.expiration_date %}
                                 {% if item.receipt.is_expired %}
                                 <span class="lims-badge badge-fail">
-                                    Expired {{ item.receipt.expiration_date|date:"M j, Y" }}
+                                    Expired {{ item.receipt.expiration_date|lab_date }}
                                 </span>
                                 {% elif item.expiring_soon %}
                                 <span class="lims-badge badge-caution">
-                                    {{ item.receipt.expiration_date|date:"M j, Y" }}
+                                    {{ item.receipt.expiration_date|lab_date}}
                                 </span>
                                 {% else %}
                                 <span style="font-size:0.8rem;color:var(--text-muted);">
-                                    {{ item.receipt.expiration_date|date:"M j, Y" }}
+                                    {{ item.receipt.expiration_date|lab_date }}
                                 </span>
                                 {% endif %}
                             {% else %}
@@ -188,7 +195,7 @@
                             {% endif %}
                         </td>
                         <td style="font-size:0.78rem;color:var(--text-muted);">
-                            {{ item.last_updated|date:"M j, Y" }}
+                            {{ item.last_updated|lab_date }}
                         </td>
                         <td>
                             <a href="{% url 'inventory-adjust' item.inventory_id %}"
@@ -255,7 +262,7 @@
                             <span class="sample-id">{{ receipt.lot_number }}</span>
                         </td>
                         <td style="font-size:0.82rem;white-space:nowrap;">
-                            {{ receipt.date_received|date:"M j, Y" }}
+                            {{ receipt.date_received|lab_date }}
                         </td>
                         <td>
                             <span style="font-family:'IBM Plex Mono',monospace;font-weight:600;">
@@ -282,11 +289,11 @@
                             {% if receipt.expiration_date %}
                                 {% if receipt.is_expired %}
                                 <span class="lims-badge badge-fail">
-                                    Expired {{ receipt.expiration_date|date:"M j" }}
+                                    Expired {{ receipt.expiration_date|lab_date }}
                                 </span>
                                 {% else %}
                                 <span style="font-size:0.8rem;">
-                                    {{ receipt.expiration_date|date:"M j, Y" }}
+                                    {{ receipt.expiration_date|lab_date }}
                                 </span>
                                 {% endif %}
                             {% else %}

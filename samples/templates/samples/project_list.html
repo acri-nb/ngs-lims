@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
-
+{% load lims_extras %}
 {% block title %}Projects | NGS-LIMS{% endblock %}
 
 {% block content %}
@@ -85,7 +85,7 @@
                     </td>
 
                     <td style="white-space:nowrap;">
-                        {{ project.date_created|date:"M j, Y" }}
+                        {{ project.date_created|lab_date }}
                     </td>
 
                     <td class="text-end">

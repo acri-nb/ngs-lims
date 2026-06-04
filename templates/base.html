@@ -406,6 +406,8 @@
                 <i class="fas fa-user-circle"></i> {{ user.username }}
                 {% if user.is_superuser %}
                     <span class="badge bg-danger ms-1" style="font-size:0.65rem;">Admin</span>
+                {% elif user.profile.client %}
+                    <span class="badge ms-1" style="font-size:0.65rem;background:rgba(0,180,216,0.2);color:var(--accent);">Researcher</span>
                 {% endif %}
             </a>
             <ul class="dropdown-menu dropdown-menu-end" style="font-size:0.85rem;">
@@ -455,11 +457,12 @@
 
     <span class="sidebar-section-label">Samples</span>
 
-    <a href="/clients/" class="sidebar-link">
+    <a href="{% url 'client-list' %}" class="sidebar-link {% if 'client' in request.resolver_match.url_name %}active{% endif %}">
         <i class="fas fa-hospital-user"></i> Clients
     </a>
 
-    <a href="/projects/" class="sidebar-link">
+    <a href="{% url 'project-list' %}" class="sidebar-link {% if 'project' in request.resolver_match.url_name %}active{% endif %}">
+
         <i class="fas fa-project-diagram"></i> Projects
     </a>
 
@@ -475,15 +478,15 @@
     </a>
 
     <span class="sidebar-section-label">Lab</span>
-    <a href="{% url 'inventory-dashboard' %}" class="sidebar-link">
+    <a href="{% url 'inventory-dashboard' %}" class="sidebar-link {% if 'inventory' in request.resolver_match.url_name %}active{% endif %}">
         <i class="fas fa-boxes"></i> Inventory
     </a>
 
-    <a href="{% url 'location-history-index' %}" class="sidebar-link">
+    <a href="{% url 'locations' %}" class="sidebar-link {% if request.resolver_match.url_name == 'locations' %}active{% endif %}">
         <i class="fas fa-thermometer-half"></i>Locations
     </a>
 
-    <a href="/locations/" class="sidebar-link">
+    <a href="{% url 'location-list' %}" class="sidebar-link {% if request.resolver_match.url_name == 'location-list' %}active{% endif %}">
         <i class="fas fa-history"></i> Temperature Logs
     </a>
 
@@ -518,6 +521,21 @@
 </footer>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-{% block extra_js %}{% endblock %}
+{% block extra_js %}
+
+<script>
+document.addEventListener('submit', function(e) {
+    const form = e.target;
+    const btn  = form.querySelector('[type="submit"]');
+    if (!btn) return;
+    // Short delay so browser validation runs first
+    setTimeout(() => {
+        btn.disabled = true;
+        btn.dataset.original = btn.innerHTML;
+        btn.innerHTML = '<i class="fas fa-circle-notch fa-spin me-1"></i> Saving…';
+    }, 10);
+});
+</script>
+{% endblock %}
 </body>
 </html>

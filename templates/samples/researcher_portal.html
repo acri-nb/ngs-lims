@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load lims_extras %}
 {% block title %}My Projects | NGS-LIMS{% endblock %}
 
 {% block content %}
@@ -36,7 +37,7 @@
                         <div class="project-meta">
                             <span class="lims-badge badge-dna">{{ item.project.sequencing_type }}</span>
                             <span style="font-size:0.75rem;color:var(--text-muted);margin-left:6px;">
-                                Since {{ item.project.date_created|date:"M Y" }}
+                                Since {{ item.project.date_created|lab_date }}
                             </span>
                         </div>
                     </div>

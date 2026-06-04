@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load lims_extras %}
 {% block title %}{{ project.project_name }} | NGS-LIMS{% endblock %}
 
 {% block content %}
@@ -17,7 +18,7 @@
         </h1>
         <div style="font-size:0.82rem;color:var(--text-muted);margin-top:4px;">
             <span class="lims-badge badge-dna me-2">{{ project.sequencing_type }}</span>
-            <i class="fas fa-calendar me-1"></i>Since {{ project.date_created|date:"M j, Y" }}
+            <i class="fas fa-calendar me-1"></i>Since {{ project.date_created|lab_date }}
         </div>
     </div>
 </div>
@@ -135,7 +136,7 @@
                         {{ item.sample.specimen.specimen_type }}
                     </td>
                     <td style="font-size:0.82rem;white-space:nowrap;">
-                        {{ item.sample.date_received|date:"M j, Y" }}
+                        {{ item.sample.date_received|lab_date }}
                     </td>
                     <td>
                         {% if item.qc_status == 'Pass' %}
