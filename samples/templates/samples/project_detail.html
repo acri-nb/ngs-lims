@@ -167,6 +167,8 @@
                             <span class="lims-badge badge-fail">Fail</span>
                         {% elif item.qc_status == 'Caution' %}
                             <span class="lims-badge badge-caution">Caution</span>
+                        {% elif item.qc_status == 'Pending' %}
+                            <span class="lims-badge badge-pending">Pending</span>
                         {% else %}
                             <span class="lims-badge badge-pending">No QC</span>
                         {% endif %}

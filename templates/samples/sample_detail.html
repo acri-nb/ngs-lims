@@ -1,0 +1,374 @@
+{% extends 'base.html' %}
+{% load lims_extras %}
+{% block title %}{{ sample.sample_name }} | NGS-LIMS{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'sample-list' %}">Samples</a></li>
+        <li class="breadcrumb-item active">{{ sample.sample_name }}</li>
+    </ol>
+</nav>
+
+<div class="page-header">
+    <div>
+        <h1 class="page-title mb-0">
+            <span class="sample-id" style="font-size:1.2rem;">{{ sample.sample_name }}</span>
+        </h1>
+        <div class="mt-1 d-flex gap-2 align-items-center">
+            <span class="lims-badge badge-{{ sample.sample_type|lower }}">{{ sample.sample_type }}</span>
+            {% with latest_qc=sample.qc_results.first %}
+            {% if latest_qc %}
+            <span class="lims-badge badge-{{ latest_qc.qc_status|lower }}">
+                QC: {{ latest_qc.qc_status }}
+            </span>
+            {% else %}
+            <span class="lims-badge badge-pending">No QC</span>
+            {% endif %}
+            {% endwith %}
+            {% if sample.compliance == False %}
+            <span class="lims-badge" style="background:rgba(244,162,97,0.15);color:#8a4800;border:1px solid rgba(244,162,97,0.3);">
+                <i class="fas fa-exclamation-triangle me-1"></i>Compliance flag
+            </span>
+            {% endif %}
+        </div>
+    </div>
+    <div class="d-flex gap-2">
+        <a href="{% url 'admin:samples_sample_change' sample.sample_id %}"
+           class="btn btn-outline-lims">
+            <i class="fas fa-pen me-1"></i> Edit in Admin
+        </a>
+        <a href="{% url 'sample-list' %}" class="btn btn-outline-lims">
+            <i class="fas fa-arrow-left me-1"></i> Back
+        </a>
+    </div>
+</div>
+
+<div class="row g-3">
+
+    <!-- LEFT COLUMN -->
+    <div class="col-lg-7">
+
+        <!-- SAMPLE INFO -->
+        <div class="card mb-3">
+            <div class="card-header"><i class="fas fa-info-circle"></i> Sample Details</div>
+            <div class="card-body p-0">
+                <table class="table table-lims mb-0">
+                    <tbody>
+                        <tr>
+                            <td class="detail-label">Sample ID</td>
+                            <td><span class="sample-id">{{ sample.sample_name }}</span></td>
+                        </tr>
+                        <tr>
+                            <td class="detail-label">Type</td>
+                            <td>
+                                <span class="lims-badge badge-{{ sample.sample_type|lower }}">
+                                    {{ sample.sample_type }}
+                                </span>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="detail-label">Date received</td>
+                            <td>{{ sample.date_received|lab_date }}</td>
+                        </tr>
+                        <tr>
+                            <td class="detail-label">Receiving condition</td>
+                            <td>{{ sample.receiving_condition|dash_if_none }}</td>
+                        </tr>
+                        <tr>
+                            <td class="detail-label">Volume received</td>
+                            <td>
+                                {% if sample.volume_received %}
+                                    {{ sample.volume_received }} µL
+                                {% else %}—{% endif %}
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="detail-label">Concentration</td>
+                            <td>
+                                {% if sample.concentration %}
+                                    {{ sample.concentration }} (ng/uL)
+                                {% else %}—{% endif %}
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="detail-label">Storage location</td>
+                            <td>
+                                {% if sample.location %}
+                                <i class="fas fa-map-marker-alt me-1" style="color:var(--accent);"></i>
+                                {{ sample.location.locationName }}
+                                <span style="font-size:0.75rem;color:var(--text-muted);">
+                                    ({{ sample.location.storageType }})
+                                </span>
+                                {% else %}—{% endif %}
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="detail-label">Compliance</td>
+                            <td>
+                                {% if sample.compliance %}
+                                <span style="color:var(--success);font-size:0.82rem;">
+                                    <i class="fas fa-check me-1"></i>OK
+                                </span>
+                                {% else %}
+                                <span style="color:var(--warning);font-size:0.82rem;">
+                                    <i class="fas fa-exclamation-triangle me-1"></i>Flagged
+                                </span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% if sample.notes %}
+                        <tr>
+                            <td class="detail-label">Notes</td>
+                            <td style="font-size:0.85rem;">{{ sample.notes }}</td>
+                        </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- QC HISTORY -->
+        <div class="card mb-3">
+            <div class="card-header">
+                <i class="fas fa-microscope"></i> QC Results
+                <span style="margin-left:auto;font-size:0.75rem;color:var(--text-muted);font-weight:400;">
+                    {{ qc_results|length }} result{{ qc_results|length|pluralize }}
+                </span>
+            </div>
+            {% if qc_results %}
+            <div class="table-responsive">
+                <table class="table table-lims">
+                    <thead>
+                        <tr>
+                            <th>Batch</th>
+                            <th>Qubit (ng/µL)</th>
+                            {% if sample.sample_type == 'DNA' %}
+                            <th>ND 260/280</th>
+                            <th>ND 260/230</th>
+                            {% else %}
+                            <th>RIN</th>
+                            <th>DV200</th>
+                            {% endif %}
+                            <th>Status</th>
+                            <th>Date</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for qc in qc_results %}
+                        <tr>
+                            <td>
+                                <span class="sample-id" style="font-size:0.75rem;">
+                                    {{ qc.batch.batch_name }}
+                                </span>
+                            </td>
+                            <td style="font-family:'IBM Plex Mono',monospace;font-size:0.85rem;">
+                                {{ qc.qubit_nm|dash_if_none }}
+                            </td>
+                            {% if sample.sample_type == 'DNA' %}
+                            <td style="font-family:'IBM Plex Mono',monospace;font-size:0.85rem;">
+                                {{ qc.nanodrop_260_280|dash_if_none }}
+                            </td>
+                            <td style="font-family:'IBM Plex Mono',monospace;font-size:0.85rem;">
+                                {{ qc.nanodrop_260_230|dash_if_none }}
+                            </td>
+                            {% else %}
+                            <td style="font-family:'IBM Plex Mono',monospace;font-size:0.85rem;">
+                                {{ qc.rin|dash_if_none }}
+                            </td>
+                            <td style="font-family:'IBM Plex Mono',monospace;font-size:0.85rem;">
+                                {{ qc.dv200|dash_if_none }}
+                            </td>
+                            {% endif %}
+                            <td>
+                                <span class="lims-badge badge-{{ qc.qc_status|lower }}">
+                                    {{ qc.qc_status }}
+                                </span>
+                            </td>
+                            <td style="font-size:0.78rem;color:var(--text-muted);">
+                                {{ qc.created_at|lab_date }}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="text-center py-4 text-muted" style="font-size:0.85rem;">
+                <i class="fas fa-microscope mb-2 d-block" style="color:var(--border);font-size:1.5rem;"></i>
+                No QC results yet.
+            </div>
+            {% endif %}
+        </div>
+
+    </div>
+
+    <!-- RIGHT COLUMN -->
+    <div class="col-lg-5">
+
+        <!-- CASE / SPECIMEN -->
+        <div class="card mb-3">
+            <div class="card-header"><i class="fas fa-folder-open"></i> Case & Specimen</div>
+            <div class="card-body p-0">
+                <table class="table table-lims mb-0">
+                    <tbody>
+                        <tr>
+                            <td class="detail-label">Client</td>
+                            <td>
+                                <a href="{% url 'client-detail' sample.specimen.case.client.client_id %}"
+                                   style="color:var(--accent);text-decoration:none;font-size:0.85rem;">
+                                    {{ sample.specimen.case.client.client_name }}
+                                </a>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="detail-label">Case</td>
+                            <td style="font-size:0.85rem;">{{ sample.specimen.case.case_name }}</td>
+                        </tr>
+                        <tr>
+                            <td class="detail-label">Specimen type</td>
+                            <td style="font-size:0.85rem;">{{ sample.specimen.specimen_type }}</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- PROJECT -->
+        <div class="card mb-3">
+            <div class="card-header"><i class="fas fa-project-diagram"></i> Project</div>
+            <div class="card-body p-0">
+                <table class="table table-lims mb-0">
+                    <tbody>
+                        <tr>
+                            <td class="detail-label">Project</td>
+                            <td>
+                                <a href="{% url 'project-detail' sample.project.project_id %}"
+                                   style="color:var(--accent);text-decoration:none;font-size:0.85rem;">
+                                    {{ sample.project.project_name }}
+                                </a>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="detail-label">Sequencing</td>
+                            <td>
+                                <span class="lims-badge badge-dna">{{ sample.project.sequencing_type }}</span>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="detail-label">Organisation</td>
+                            <td style="font-size:0.85rem;">
+                                {{ sample.project.client.organisation_name }}
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- PIPELINE STAGE -->
+        <div class="card mb-3">
+            <div class="card-header"><i class="fas fa-stream"></i> Pipeline Stage</div>
+            <div class="card-body p-3">
+                <div class="pipeline-mini">
+                    <div class="pm-step {% if True %}done{% endif %}">
+                        <div class="pm-dot"></div>
+                        <div class="pm-label">Received</div>
+                    </div>
+                    <div class="pm-line {% if qc_results %}done{% endif %}"></div>
+                    <div class="pm-step {% if qc_results %}done{% elif True %}active{% endif %}">
+                        <div class="pm-dot"></div>
+                        <div class="pm-label">Sample QC</div>
+                    </div>
+                    <div class="pm-line"></div>
+                    <div class="pm-step pending">
+                        <div class="pm-dot"></div>
+                        <div class="pm-label">Lib Prep</div>
+                    </div>
+                    <div class="pm-line"></div>
+                    <div class="pm-step pending">
+                        <div class="pm-dot"></div>
+                        <div class="pm-label">Sequencing</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- OTHER SAMPLES IN SAME CASE -->
+        {% if related_samples %}
+        <div class="card">
+            <div class="card-header">
+                <i class="fas fa-vials"></i>{{ sample.specimen.case.case_name }} Samples
+            </div>
+            <div class="table-responsive">
+                <table class="table table-lims">
+                    <thead>
+                        <tr><th>Sample ID</th><th>Type</th><th>QC</th></tr>
+                    </thead>
+                    <tbody>
+                        {% for rel in related_samples %}
+                        <tr style="cursor:pointer;" onclick="window.location='{% url 'sample-detail' rel.sample_id %}'">
+                            <td><span class="sample-id" style="font-size:0.75rem;">{{ rel.sample_name }}</span></td>
+                            <td>
+                                <span class="lims-badge badge-{{ rel.sample_type|lower }}">
+                                    {{ rel.sample_type }}
+                                </span>
+                            </td>
+                            <td>
+                                {% with rqc=rel.qc_results.first %}
+                                {% if rqc %}
+                                <span class="lims-badge badge-{{ rqc.qc_status|lower }}">{{ rqc.qc_status }}</span>
+                                {% else %}
+                                <span class="lims-badge badge-pending">—</span>
+                                {% endif %}
+                                {% endwith %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% endif %}
+
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.detail-label {
+    width: 140px;
+    font-size: 0.72rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-muted);
+    vertical-align: middle;
+    background: var(--surface-alt);
+}
+
+/* PIPELINE MINI */
+.pipeline-mini {
+    display: flex;
+    align-items: center;
+    padding: 0.25rem 0;
+}
+.pm-step { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.pm-dot {
+    width: 12px; height: 12px;
+    border-radius: 50%;
+    border: 2px solid var(--border);
+    background: var(--surface-alt);
+}
+.pm-step.done   .pm-dot { background: var(--success); border-color: var(--success); }
+.pm-step.active .pm-dot { background: var(--accent);  border-color: var(--accent); }
+.pm-label { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); white-space: nowrap; }
+.pm-step.done   .pm-label { color: var(--success); }
+.pm-step.active .pm-label { color: var(--accent); }
+.pm-line { flex: 1; height: 2px; background: var(--border); margin: 0 4px 14px; }
+.pm-line.done { background: var(--success); }
+
+.table-lims tbody tr:last-child td { border-bottom: none; }
+</style>
+{% endblock %}

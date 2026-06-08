@@ -10,36 +10,39 @@
 </nav>
 
 <div class="page-header">
-    <h1 class="page-title">
-        <i class="fas fa-vial"></i> Samples
-    </h1>
-    <a href="{% url 'admin:samples_sample_add' %}" class="btn btn-accent">
-        <i class="fas fa-plus me-1"></i> New Sample
-    </a>
+    <h1 class="page-title"><i class="fas fa-vial"></i> Samples</h1>
+    <div class="d-flex gap-2">
+        <a href="{% url 'sample-import' %}" class="btn btn-outline-lims">
+            <i class="fas fa-file-csv me-1"></i> Import CSV
+        </a>
+        <a href="{% url 'sample-add' %}" class="btn btn-accent">
+            <i class="fas fa-plus me-1"></i> New Sample
+        </a>
+    </div>
 </div>
+
 
 <!-- FILTER BAR -->
 <div class="filter-bar">
-    <form method="get" class="row g-3 align-items-end">
-        <div class="col-md-4">
-            <label class="form-label">Search</label>
-            <input
-                type="text"
-                name="q"
-                value="{{ request.GET.q }}"
-                class="form-control"
-                placeholder="Sample ID, case, project…"
-            >
-        </div>
+    <form method="get" id="filterForm" class="row g-3 align-items-end">
+        <!-- preserve sort params in filters -->
+        {% if request.GET.sort %}<input type="hidden" name="sort" value="{{ request.GET.sort }}">{% endif %}
+        {% if request.GET.dir  %}<input type="hidden" name="dir"  value="{{ request.GET.dir }}">{% endif %}
+
         <div class="col-md-3">
-            <label class="form-label">Sample Type</label>
+            <label class="form-label">Search</label>
+            <input type="text" name="q" value="{{ request.GET.q }}"
+                   class="form-control" placeholder="Sample ID, case, notes…">
+        </div>
+        <div class="col-md-2">
+            <label class="form-label">Type</label>
             <select name="type" class="form-select">
-                <option value="">All types</option>
+                <option value="">All</option>
                 <option value="DNA" {% if request.GET.type == 'DNA' %}selected{% endif %}>DNA</option>
                 <option value="RNA" {% if request.GET.type == 'RNA' %}selected{% endif %}>RNA</option>
             </select>
         </div>
-        <div class="col-md-3">
+        <div class="col-md-2">
             <label class="form-label">Project</label>
             <select name="project" class="form-select">
                 <option value="">All projects</option>
@@ -51,12 +54,24 @@
                 {% endfor %}
             </select>
         </div>
-        <div class="col-md-2 d-flex gap-2">
+        <div class="col-md-2">
+            <label class="form-label">QC Status</label>
+            <select name="qc" class="form-select">
+                <option value="">All</option>
+                <option value="Pass"    {% if request.GET.qc == 'Pass'    %}selected{% endif %}>Pass</option>
+                <option value="Fail"    {% if request.GET.qc == 'Fail'    %}selected{% endif %}>Fail</option>
+                <option value="Caution" {% if request.GET.qc == 'Caution' %}selected{% endif %}>Caution</option>
+                <option value="Pending" {% if request.GET.qc == 'Pending' %}selected{% endif %}>Pending</option>
+                <option value="none"    {% if request.GET.qc == 'none'    %}selected{% endif %}>No QC</option>
+            </select>
+        </div>
+        <div class="col-md-3 d-flex gap-2 align-items-end">
             <button type="submit" class="btn btn-accent flex-grow-1">
                 <i class="fas fa-filter me-1"></i> Filter
             </button>
-            {% if request.GET.q or request.GET.type or request.GET.project %}
-            <a href="{% url 'sample-list' %}" class="btn btn-outline-lims">
+            {% if request.GET.q or request.GET.type or request.GET.project or request.GET.qc %}
+            <a href="{% url 'sample-list' %}{% if request.GET.sort %}?sort={{ request.GET.sort }}&dir={{ request.GET.dir }}{% endif %}"
+               class="btn btn-outline-lims" title="Clear filters">
                 <i class="fas fa-times"></i>
             </a>
             {% endif %}
@@ -64,36 +79,105 @@
     </form>
 </div>
 
+<!-- BULK ACTION BAR — hidden until rows selected -->
+<div id="bulkBar" class="bulk-bar" style="display:none;">
+    <span id="bulkCount" class="bulk-count">0 selected</span>
+    <div class="d-flex gap-2 ms-auto">
+        <button type="button" class="btn btn-accent btn-sm" onclick="bulkAction('change_location')">
+            <i class="fas fa-map-marker-alt me-1"></i> Change Location
+        </button>
+        <button type="button" class="btn btn-accent btn-sm" onclick="bulkAction('change_condition')">
+            <i class="fas fa-box me-1"></i> Change Condition
+        </button>
+        <button type="button" class="btn btn-accent btn-sm" onclick="exportSelected()">
+            <i class="fas fa-download me-1"></i> Export CSV
+        </button>
+        <button type="button" class="btn btn-accent btn-sm" onclick="clearSelection()">
+            <i class="fas fa-times"></i>
+        </button>
+    </div>
+</div>
+
 <!-- TABLE -->
+<form method="post" id="bulkForm" action="{% url 'sample-bulk-action' %}">
+{% csrf_token %}
+<input type="hidden" name="action" id="bulkActionInput">
+
 <div class="card">
     <div class="card-header">
         <i class="fas fa-list"></i>
-        {% if samples.paginator %}
-            {{ samples.paginator.count }} sample{{ samples.paginator.count|pluralize }}
+        <span id="sampleCount">
+            {% if samples.paginator %}
+                {{ samples.paginator.count }} sample{{ samples.paginator.count|pluralize }}
+            {% endif %}
+        </span>
+        {% if request.GET.q or request.GET.type or request.GET.project or request.GET.qc %}
+        <span class="ms-2" style="font-size:0.75rem;color:var(--accent);font-weight:400;">filtered</span>
         {% endif %}
-        {% if request.GET.q or request.GET.type or request.GET.project %}
-            <span class="ms-2" style="font-size:0.75rem;color:var(--accent);font-weight:400;">— filtered</span>
-        {% endif %}
+        <div class="ms-auto d-flex align-items-center gap-2">
+            
+        </div>
     </div>
+
     <div class="table-responsive">
-        <table class="table table-lims">
+        <table class="table table-lims" id="sampleTable">
             <thead>
                 <tr>
-                    <th>Sample ID</th>
+                    <th style="width:36px;">
+                        <input type="checkbox" id="selectAll" class="form-check-input"
+                               onchange="toggleAll(this)">
+                    </th>
+                    {% with s=request.GET.sort d=request.GET.dir %}
+                    <th class="sortable {% if s == 'name' %}sorted-{{ d }}{% endif %}">
+                        <a href="?{% url_params request sort='name' dir=next_name_dir %}">
+                            Sample ID
+                            <i class="fas {% if s == 'name' %}{% if d == 'asc' %}fa-sort-up{% else %}fa-sort-down{% endif %}{% else %}fa-sort{% endif %} sort-icon"></i>
+                        </a>
+                    </th>
                     <th>Type</th>
-                    <th>Specimen</th>
-                    <th>Project</th>
-                    <th>Received</th>
+                    <th class="sortable {% if s == 'case' %}sorted-{{ d }}{% endif %}">
+                        <a href="?{% url_params request sort='case' dir=next_case_dir %}">
+                            Specimen
+                            <i class="fas {% if s == 'case' %}{% if d == 'asc' %}fa-sort-up{% else %}fa-sort-down{% endif %}{% else %}fa-sort{% endif %} sort-icon"></i>
+                        </a>
+                    </th>
+                    <th class="sortable {% if s == 'project' %}sorted-{{ d }}{% endif %}">
+                        <a href="?{% url_params request sort='project' dir=next_project_dir %}">
+                            Project
+                            <i class="fas {% if s == 'project' %}{% if d == 'asc' %}fa-sort-up{% else %}fa-sort-down{% endif %}{% else %}fa-sort{% endif %} sort-icon"></i>
+                        </a>
+                    </th>
+                    <th class="sortable {% if s == 'date' %}sorted-{{ d }}{% endif %}">
+                        <a href="?{% url_params request sort='date' dir=next_date_dir %}">
+                            Received
+                            <i class="fas {% if s == 'date' %}{% if d == 'asc' %}fa-sort-up{% else %}fa-sort-down{% endif %}{% else %}fa-sort{% endif %} sort-icon"></i>
+                        </a>
+                    </th>
                     <th>Condition</th>
                     <th>Location</th>
                     <th>QC</th>
+                    <th style="display:none;">Notes</th>
+                    {% endwith %}
+                    <th style="width:40px;"></th>
                 </tr>
             </thead>
             <tbody>
                 {% for sample in samples %}
-                <tr>
+                <tr class="sample-row"
+                    data-id="{{ sample.sample_id }}"
+                    onclick="handleRowClick(event, this)">
+                    <!-- checkbox — stop propagation so clicking checkbox doesn't open detail -->
+                    <td onclick="event.stopPropagation()">
+                        <input type="checkbox" name="selected_ids" value="{{ sample.sample_id }}"
+                               class="form-check-input row-check" onchange="updateBulkBar()">
+                    </td>
                     <td>
                         <span class="sample-id">{{ sample.sample_name }}</span>
+                        {% if sample.compliance == False %}
+                        <i class="fas fa-exclamation-triangle ms-1"
+                           style="color:var(--warning);font-size:0.7rem;"
+                           title="Compliance issue"></i>
+                        {% endif %}
                     </td>
                     <td>
                         <span class="lims-badge badge-{{ sample.sample_type|lower }}">
@@ -103,48 +187,57 @@
                     <td>
                         <span style="font-size:0.85rem;">{{ sample.specimen.case.case_name }}</span>
                         <br>
-                        <span style="font-size:0.75rem;color:var(--text-muted);">{{ sample.specimen.specimen_type }}</span>
+                        <span style="font-size:0.75rem;color:var(--text-muted);">
+                            {{ sample.specimen.specimen_type }}
+                        </span>
                     </td>
-                    <td>{{ sample.project.project_name }}</td>
-                    <td style="white-space:nowrap;">{{ sample.date_received|lab_date }}</td>
+                    <td style="font-size:0.85rem;">{{ sample.project.project_name }}</td>
+                    <td style="white-space:nowrap;font-size:0.82rem;">
+                        {{ sample.date_received|lab_date }}
+                    </td>
                     <td>
-                        {% if sample.receiving_condition %}
-                            <span style="font-size:0.8rem;color:var(--text-muted);">
-                                {{ sample.receiving_condition }}
-                            </span>
-                        {% else %}
-                            <span class="text-muted">—</span>
-                        {% endif %}
+                        {{ sample.receiving_condition|dash_if_none }}
                     </td>
                     <td>
                         {% if sample.location %}
-                            <span style="font-size:0.8rem;">
-                                <i class="fas fa-map-marker-alt me-1" style="color:var(--accent);"></i>
-                                {{ sample.location.locationName }}
-                            </span>
+                        <span style="font-size:0.8rem;">
+                            <i class="fas fa-map-marker-alt me-1" style="color:var(--accent);"></i>
+                            {{ sample.location.locationName }}
+                        </span>
                         {% else %}
-                            <span class="text-muted">—</span>
+                        <span class="text-muted">—</span>
                         {% endif %}
                     </td>
                     <td>
                         {% with latest_qc=sample.qc_results.first %}
                             {% if latest_qc %}
-                                <span class="lims-badge badge-{{ latest_qc.qc_status|lower }}">
-                                    {{ latest_qc.qc_status }}
-                                </span>
+                            <span class="lims-badge badge-{{ latest_qc.qc_status|lower }}">
+                                {{ latest_qc.qc_status }}
+                            </span>
                             {% else %}
-                                <span class="lims-badge badge-pending">No QC</span>
+                            <span class="lims-badge badge-pending">No QC</span>
                             {% endif %}
                         {% endwith %}
+                    </td>
+                    <!-- Notes column — hidden by default, toggled via Columns menu -->
+                    <td style="font-size:0.78rem;color:var(--text-muted);display:none;">
+                        {{ sample.notes|dash_if_none }}
+                    </td>
+                    <td onclick="event.stopPropagation()">
+                        <a href="{% url 'sample-detail' sample.sample_id %}"
+                           class="btn btn-outline-lims btn-sm"
+                           title="View / edit">
+                            <i class="fas fa-chevron-right"></i>
+                        </a>
                     </td>
                 </tr>
                 {% empty %}
                 <tr>
-                    <td colspan="8" class="text-center py-5 text-muted">
+                    <td colspan="11" class="text-center py-5 text-muted">
                         <i class="fas fa-vial fa-2x mb-2 d-block" style="color:var(--border);"></i>
                         No samples found.
-                        {% if request.GET.q or request.GET.type %}
-                            <br><a href="{% url 'sample-list' %}" style="color:var(--accent);">Clear filters</a>
+                        {% if request.GET.q or request.GET.type or request.GET.qc %}
+                        <br><a href="{% url 'sample-list' %}" style="color:var(--accent);">Clear filters</a>
                         {% endif %}
                     </td>
                 </tr>
@@ -155,37 +248,181 @@
 
     <!-- PAGINATION -->
     {% if is_paginated %}
-    <div class="card-footer d-flex justify-content-between align-items-center"
-         style="background:var(--surface);border-top:1px solid var(--border);padding:0.75rem 1.25rem;">
-        <span style="font-size:0.8rem;color:var(--text-muted);">
-            Showing {{ page_obj.start_index }}–{{ page_obj.end_index }} of {{ paginator.count }} samples
+    <div class="table-pagination">
+        <span class="pag-info">
+            {{ page_obj.start_index }}–{{ page_obj.end_index }} of {{ paginator.count }}
         </span>
-        <div class="d-flex gap-1">
+        <div class="pag-controls">
             {% if page_obj.has_previous %}
-            <a href="?{% if request.GET.q %}q={{ request.GET.q }}&{% endif %}{% if request.GET.type %}type={{ request.GET.type }}&{% endif %}{% if request.GET.project %}project={{ request.GET.project }}&{% endif %}page={{ page_obj.previous_page_number }}"
-               class="btn btn-outline-lims btn-sm">
-                <i class="fas fa-chevron-left"></i> Prev
+            <a href="?{{ filter_qs }}&page={{ page_obj.previous_page_number }}" class="pag-btn">
+                <i class="fas fa-chevron-left"></i>
             </a>
+            {% else %}
+            <span class="pag-btn disabled"><i class="fas fa-chevron-left"></i></span>
             {% endif %}
 
-            <!-- page numbers -->
             {% for num in paginator.page_range %}
                 {% if page_obj.number == num %}
-                <span class="btn btn-accent btn-sm">{{ num }}</span>
-                {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
-                <a href="?{% if request.GET.q %}q={{ request.GET.q }}&{% endif %}{% if request.GET.type %}type={{ request.GET.type }}&{% endif %}{% if request.GET.project %}project={{ request.GET.project }}&{% endif %}page={{ num }}"
-                   class="btn btn-outline-lims btn-sm">{{ num }}</a>
+                <span class="pag-btn active">{{ num }}</span>
+                {% elif num >= page_obj.number|add:"-2" and num <= page_obj.number|add:"2" %}
+                <a href="?{{ filter_qs }}&page={{ num }}" class="pag-btn">{{ num }}</a>
                 {% endif %}
             {% endfor %}
 
             {% if page_obj.has_next %}
-            <a href="?{% if request.GET.q %}q={{ request.GET.q }}&{% endif %}{% if request.GET.type %}type={{ request.GET.type }}&{% endif %}{% if request.GET.project %}project={{ request.GET.project }}&{% endif %}page={{ page_obj.next_page_number }}"
-               class="btn btn-outline-lims btn-sm">
-                Next <i class="fas fa-chevron-right"></i>
+            <a href="?{{ filter_qs }}&page={{ page_obj.next_page_number }}" class="pag-btn">
+                <i class="fas fa-chevron-right"></i>
             </a>
+            {% else %}
+            <span class="pag-btn disabled"><i class="fas fa-chevron-right"></i></span>
             {% endif %}
         </div>
     </div>
     {% endif %}
 </div>
+</form>
+
+{% endblock %}
+
+{% block extra_css %}
+<style>
+/* ── SORTABLE HEADERS ── */
+th.sortable a {
+    color: var(--text-muted);
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    transition: color 0.15s;
+}
+th.sortable a:hover { color: var(--accent); }
+th.sortable.sorted-asc a,
+th.sortable.sorted-desc a { color: var(--text); }
+.sort-icon { font-size: 0.65rem; opacity: 0.5; }
+th.sortable.sorted-asc .sort-icon,
+th.sortable.sorted-desc .sort-icon { opacity: 1; color: var(--accent); }
+
+/* ── CLICKABLE ROWS ── */
+.sample-row { cursor: pointer; }
+.sample-row:hover td { background: rgba(0,180,216,0.04); }
+
+/* ── BULK BAR ── */
+.bulk-bar {
+    background: var(--bs-border-color);
+    border-radius: 8px;
+    padding: 0.65rem 1.1rem;
+    margin-bottom: 0.75rem;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    animation: slideDown 0.15s ease;
+}
+@keyframes slideDown { from { opacity:0; transform:translateY(-8px); } to { opacity:1; transform:none; } }
+.bulk-count {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.82rem;
+    color: var(--text-muted);
+    font-weight: 600;
+    white-space: nowrap;
+}
+.bulk-bar .btn-outline-lims {
+    border-color: ar(--accent);
+    color: rgba(255,255,255,0.8);
+    background: ar(--accent);
+    font-size: 0.78rem;
+}
+.bulk-bar .btn-outline-lims:hover {
+    background: ar(--accent);
+    color: #fff;
+    border-color: rgba(73, 60, 60, 0.4);
+}
+
+/* ── PAGINATION ── */
+.table-pagination {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.65rem 1.25rem;
+    border-top: 1px solid var(--border);
+    background: var(--surface);
+    border-radius: 0 0 8px 8px;
+}
+.pag-info { font-size: 0.78rem; color: var(--text-muted); font-family: 'IBM Plex Mono', monospace; }
+.pag-controls { display: flex; gap: 4px; align-items: center; }
+.pag-btn {
+    display: inline-flex; align-items: center; justify-content: center;
+    min-width: 30px; height: 30px; padding: 0 6px;
+    border: 1px solid var(--border); border-radius: 5px;
+    font-size: 0.78rem; color: var(--text-muted);
+    text-decoration: none; background: var(--surface);
+    transition: all 0.15s;
+}
+.pag-btn:hover   { border-color: var(--accent); color: var(--accent); }
+.pag-btn.active  { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+.pag-btn.disabled{ opacity: 0.35; pointer-events: none; }
+
+/* ── LAST ROW BORDER FIX ── */
+.table-lims tbody tr:last-child td { border-bottom: none; }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// ── ROW CLICK → navigate to detail ──
+function handleRowClick(e, row) {
+    if (e.target.type === 'checkbox') return;
+    const id = row.dataset.id;
+    window.location = `/samples/${id}/`;
+}
+
+// ── SELECT ALL ──
+function toggleAll(master) {
+    document.querySelectorAll('.row-check').forEach(cb => cb.checked = master.checked);
+    updateBulkBar();
+}
+
+// ── UPDATE BULK BAR ──
+function updateBulkBar() {
+    const checked = document.querySelectorAll('.row-check:checked');
+    const bar     = document.getElementById('bulkBar');
+    document.getElementById('bulkCount').textContent = `${checked.length} selected`;
+    bar.style.display = checked.length > 0 ? 'flex' : 'none';
+    document.getElementById('selectAll').indeterminate =
+        checked.length > 0 && checked.length < document.querySelectorAll('.row-check').length;
+    document.getElementById('selectAll').checked = checked.length === document.querySelectorAll('.row-check').length;
+}
+
+function clearSelection() {
+    document.querySelectorAll('.row-check, #selectAll').forEach(cb => cb.checked = false);
+    updateBulkBar();
+}
+
+// ── BULK ACTION ──
+function bulkAction(action) {
+    const checked = document.querySelectorAll('.row-check:checked');
+    if (!checked.length) return;
+    document.getElementById('bulkActionInput').value = action;
+    document.getElementById('bulkForm').submit();
+}
+
+// ── EXPORT SELECTED AS CSV ──
+function exportSelected() {
+    const ids = [...document.querySelectorAll('.row-check:checked')].map(cb => cb.value);
+    if (!ids.length) return;
+    window.location = `/samples/export/?ids=${ids.join(',')}`;
+}
+
+// ── COLUMN VISIBILITY TOGGLE ──
+document.querySelectorAll('.col-toggle').forEach(cb => {
+    cb.addEventListener('change', function() {
+        const col = parseInt(this.dataset.col);
+        const show = this.checked;
+        // toggle nth-child column (header + all rows)
+        document.querySelectorAll(
+            `#sampleTable thead tr th:nth-child(${col}),
+             #sampleTable tbody tr td:nth-child(${col})`
+        ).forEach(cell => cell.style.display = show ? '' : 'none');
+    });
+});
+</script>
 {% endblock %}

@@ -1,0 +1,81 @@
+{% extends 'base.html' %}
+{% block title %}Change Condition | NGS-LIMS{% endblock %}
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'sample-list' %}">Samples</a></li>
+        <li class="breadcrumb-item active">Change Condition</li>
+    </ol>
+</nav>
+
+<div class="page-header">
+    <h1 class="page-title"><i class="fas fa-box"></i> Change Receiving Condition</h1>
+</div>
+
+<div class="row justify-content-center">
+<div class="col-md-6">
+<div class="card mb-3">
+    <div class="card-header"><i class="fas fa-box"></i> New Condition</div>
+    <div class="card-body p-4">
+        <form method="post" action="{% url 'sample-bulk-action' %}">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="apply_condition">
+            {% for sample in samples %}
+            <input type="hidden" name="selected_ids" value="{{ sample.pk }}">
+            {% endfor %}
+
+            <label class="form-label-lims mb-3">Select condition</label>
+            <div class="d-flex gap-3 mb-4">
+                {% for value, label in conditions %}
+                <label style="cursor:pointer;">
+                    <input type="radio" name="receiving_condition" value="{{ value }}" required
+                           style="display:none;" class="cond-radio">
+                    <div class="cond-btn">{{ label }}</div>
+                </label>
+                {% endfor %}
+            </div>
+
+            <div class="mb-3" style="font-size:0.82rem;color:var(--text-muted);">
+                Applying to <strong style="color:var(--text);">{{ samples|length }}</strong> sample{{ samples|length|pluralize }}
+            </div>
+
+            <div class="d-flex gap-2">
+                <a href="{% url 'sample-list' %}" class="btn btn-outline-lims flex-grow-1">Cancel</a>
+                <button type="submit" class="btn btn-accent flex-grow-1">
+                    <i class="fas fa-check me-1"></i> Apply
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+</div>
+</div>
+{% endblock %}
+{% block extra_css %}
+<style>
+.form-label-lims { 
+    display:block; 
+    font-size:0.72rem; 
+    font-weight:600; 
+    text-transform:uppercase; 
+    letter-spacing:0.08em; 
+    color:var(--text-muted); 
+    margin-bottom:5px; 
+}
+.cond-radio:checked + .cond-btn { 
+    border-color:var(--accent); 
+    background:rgba(0,180,216,0.1); 
+    color:var(--accent); 
+}
+.cond-btn { padding:8px 18px; 
+    border:1px solid var(--border); 
+    border-radius:7px; font-size:0.85rem; 
+    font-weight:500; color:var(--text-muted); 
+    background:var(--surface-alt); 
+    transition:all 0.15s; 
+}
+.cond-btn:hover { 
+    border-color:var(--accent); 
+}
+</style>
+{% endblock %}

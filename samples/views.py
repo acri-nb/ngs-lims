@@ -1,13 +1,22 @@
 # Django imports
-from django.shortcuts import render, get_object_or_404
+from django.shortcuts import render, get_object_or_404, redirect
 from django.views.generic import ListView
 from django.db.models import Q, Count, Prefetch
 from django.utils import timezone
 from datetime import timedelta
 
-# Local app models
-from .models import Client, Project, Sample, Case
+import csv
+import io
+
+from django.contrib import messages
+from django.contrib.auth.decorators import login_required
+
+from .models import Client, Sample, Project, Specimen, Case, SpecimenType, Case
+from locations.models import Location
 from qc.models import SampleQC
+
+from django.http import JsonResponse,HttpResponse
+from .forms import SampleAddForm
 
 def home(request):
     """
@@ -62,7 +71,6 @@ def home(request):
     }
     return render(request, 'home.html', context)
 
-
 class SampleListView(ListView):
     model = Sample
     template_name = 'samples/sample_list.html'
@@ -79,34 +87,79 @@ class SampleListView(ListView):
                 'location',
             )
             .prefetch_related('qc_results')
-            .order_by('-date_received', '-sample_id')
         )
 
-        # Search by sample name / case name / project name
+        #  Search 
         q = self.request.GET.get('q', '').strip()
         if q:
             qs = qs.filter(
-                Q(sample_name__icontains=q) |
-                Q(project__project_name__icontains=q) |
-                Q(specimen__case__case_name__icontains=q)
+                Q(sample_name__icontains=q)               |
+                Q(specimen__case__case_name__icontains=q) |
+                Q(project__project_name__icontains=q)     |
+                Q(notes__icontains=q)
             )
 
-        # Filter by sample type (DNA / RNA)
+        #  Type filter 
         sample_type = self.request.GET.get('type', '').strip()
         if sample_type in ('DNA', 'RNA'):
             qs = qs.filter(sample_type=sample_type)
 
-        # Filter by project
+        # Project filter 
         project_id = self.request.GET.get('project', '').strip()
         if project_id.isdigit():
             qs = qs.filter(project_id=int(project_id))
 
-        return qs
+        # QC filter 
+        qc = self.request.GET.get('qc', '').strip()
+        if qc == 'none':
+            qs = qs.filter(qc_results__isnull=True)
+        elif qc in ('Pass', 'Fail', 'Caution', 'Pending', 'No QC'):
+            qs = qs.filter(qc_results__qc_status=qc)
+
+        # Sort 
+        sort = self.request.GET.get('sort', '').strip()
+        direction = self.request.GET.get('dir', 'desc').strip()
+        prefix = '-' if direction == 'desc' else ''
+
+        sort_map = {
+            'name':    f'{prefix}sample_id',      # sample_id = correct numeric sort
+            'date':    f'{prefix}date_received',
+            'project': f'{prefix}project__project_name',
+            'case':    f'{prefix}specimen__case__case_name',
+        }
+
+        # Default: sample_id descending (newest first)
+        order = sort_map.get(sort, '-sample_id')
+        return qs.order_by(order)
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
-        # Pass projects for the filter dropdown
         ctx['projects'] = Project.objects.order_by('project_name')
+
+        # Clean query string for pagination: remove page, keep everything else
+        params = self.request.GET.copy()
+        params.pop('page', None)
+        ctx['filter_qs'] = params.urlencode()
+
+        ctx['next_name_dir'] = 'asc'
+        ctx['next_case_dir'] = 'asc'
+        ctx['next_project_dir'] = 'asc'
+        ctx['next_date_dir'] = 'asc'
+
+        current_sort = self.request.GET.get('sort')
+        current_dir = self.request.GET.get('dir', 'asc')
+
+        if current_sort == 'name':
+            ctx['next_name_dir'] = 'desc' if current_dir == 'asc' else 'asc'
+
+        if current_sort == 'case':
+            ctx['next_case_dir'] = 'desc' if current_dir == 'asc' else 'asc'
+
+        if current_sort == 'project':
+            ctx['next_project_dir'] = 'desc' if current_dir == 'asc' else 'asc'
+
+        if current_sort == 'date':
+            ctx['next_date_dir'] = 'desc' if current_dir == 'asc' else 'asc'
         return ctx
 
 
@@ -379,3 +432,490 @@ def project_detail(request, project_id):
         "samples/project_detail.html",
         context
     )
+
+@login_required
+def import_samples(request):
+    if request.method == "POST":
+        csv_file = request.FILES.get("file")
+
+        if not csv_file:
+            messages.error(request, "No file provided.")
+            return redirect("sample-import")
+
+        try:
+            decoded_file = csv_file.read().decode("utf-8")
+            io_string = io.StringIO(decoded_file)
+            reader = csv.DictReader(io_string)
+
+            created = 0
+
+            for row in reader:
+                # required fields 
+                project = Project.objects.get(project_id=row["project_id"])
+                specimen = Specimen.objects.get(specimen_id=row["specimen_id"])
+
+                location = None
+                if row.get("location_id"):
+                    location = Location.objects.get(location_id=row["location_id"])
+
+                sample = Sample.objects.create(
+                    project=project,
+                    specimen=specimen,
+                    location=location,
+                    sample_type=row.get("sample_type", "DNA"),
+                    receiving_condition=row.get("receiving_condition", ""),
+                    volume_received=row.get("volume_received") or None,
+                    concentration=row.get("concentration") or None,
+                    notes=row.get("notes", "")
+                )
+
+                created += 1
+
+            messages.success(request, f"Imported {created} samples.")
+            return redirect("sample-list")
+
+        except Exception as e:
+            messages.error(request, f"Import failed: {e}")
+
+    return render(request, "samples/import_samples.html")
+
+
+# SAMPLE DETAIL 
+
+@login_required
+def sample_detail(request, sample_id):
+    sample = get_object_or_404(
+        Sample.objects.select_related(
+            'specimen__case__client',
+            'specimen__specimen_type',
+            'project__client',
+            'location',
+        ).prefetch_related('qc_results__batch'),
+        pk=sample_id
+    )
+
+    qc_results = sample.qc_results.order_by('-created_at').select_related('batch')
+
+    # Other samples in the same case (excluding this one)
+    related_samples = (
+        Sample.objects
+        .filter(specimen__case=sample.specimen.case)
+        .exclude(pk=sample_id)
+        .prefetch_related('qc_results')
+        .order_by('sample_name')[:10]
+    )
+
+    return render(request, 'samples/sample_detail.html', {
+        'sample':          sample,
+        'qc_results':      qc_results,
+        'related_samples': related_samples,
+    })
+
+
+# BULK ACTION 
+
+@login_required
+def sample_bulk_action(request):
+    if request.method != 'POST':
+        return redirect('sample-list')
+
+    action   = request.POST.get('action')
+    ids      = request.POST.getlist('selected_ids')
+    samples  = Sample.objects.filter(pk__in=ids)
+
+    if action == 'change_location':
+        from locations.models import Location
+        locations = Location.objects.all()
+        return render(request, 'samples/bulk_change_location.html', {
+            'samples':   samples,
+            'locations': locations,
+        })
+
+    elif action == 'change_condition':
+        conditions = Sample.RECEIVING_CONDITION_CHOICES
+        return render(request, 'samples/bulk_change_condition.html', {
+            'samples':    samples,
+            'conditions': conditions,
+        })
+
+    elif action == 'apply_location':
+        location_id = request.POST.get('location')
+        from locations.models import Location
+        location = get_object_or_404(Location, pk=location_id)
+        updated  = samples.update(location=location)
+        messages.success(request, f"Location updated for {updated} sample(s).")
+
+    elif action == 'apply_condition':
+        condition = request.POST.get('receiving_condition')
+        updated   = samples.update(receiving_condition=condition)
+        messages.success(request, f"Condition updated for {updated} sample(s).")
+
+    return redirect('sample-list')
+
+
+# EXPORT CSV 
+
+@login_required
+def sample_export_csv(request):
+    ids_param = request.GET.get('ids', '')
+    if ids_param:
+        ids     = [i for i in ids_param.split(',') if i.strip().isdigit()]
+        samples = Sample.objects.filter(pk__in=ids).select_related(
+            'specimen__case', 'specimen__specimen_type', 'project', 'location'
+        ).prefetch_related('qc_results')
+    else:
+        # Export all (respecting current filters if passed)
+        samples = Sample.objects.all().select_related(
+            'specimen__case', 'specimen__specimen_type', 'project', 'location'
+        ).prefetch_related('qc_results')
+
+    response = HttpResponse(content_type='text/csv')
+    response['Content-Disposition'] = 'attachment; filename="samples_export.csv"'
+
+    writer = csv.writer(response)
+    writer.writerow([
+        'sample_name', 'sample_type', 'case_name', 'specimen_type', 'concentration', 'volume',
+        'project', 'date_received', 'receiving_condition',
+        'location', 'qc_status', 'notes'
+    ])
+
+    for s in samples:
+        latest_qc = s.qc_results.first()
+        writer.writerow([
+            s.sample_name,
+            s.specimen.case.case_name,
+            s.specimen.specimen_type.specimen_type,
+            s.sample_type,
+            s.concentration if s.concentration is not None else '',
+            s.volume_received if s.volume_received is not None else '',
+            s.project.project_name,
+            s.date_received.isoformat(),
+            s.receiving_condition or '',
+            s.location.locationName if s.location else '',
+            latest_qc.qc_status if latest_qc else 'No QC',
+            s.notes or '',
+        ])
+
+    return response
+
+
+#IMPORT CSV 
+
+CSV_COLUMNS = [
+    {
+        'name': 'CaseID',
+        'required': True,
+        'description': 'Case identifier. Created automatically if missing.'
+    },
+    {
+        'name': 'SpecimenType',
+        'required': True,
+        'description': 'e.g. FFPE, smallEVs, Blood'
+    },
+    {
+        'name': 'NucleidType',
+        'required': True,
+        'description': 'DNA or RNA'
+    },
+    {
+        'name': 'Concentration(ng/ul)',
+        'required': False,
+        'description': 'Sample concentration'
+    },
+    {
+        'name': 'Volume(uL)',
+        'required': False,
+        'description': 'Sample volume'
+    },
+]
+
+@login_required
+def sample_import(request):
+    preview_rows = []
+    preview_errors = []
+
+    projects = Project.objects.select_related('client').order_by('project_name')
+
+    if request.method == 'POST':
+
+        csv_file = request.FILES.get('csv_file')
+        project_id = request.POST.get('project')
+        action = request.POST.get('action', 'preview')
+
+        if not csv_file:
+            messages.error(request, 'Please select a CSV file.')
+
+        elif not project_id:
+            messages.error(request, 'Please select a project.')
+
+        elif not csv_file.name.endswith('.csv'):
+            messages.error(request, 'File must be a CSV file.')
+
+        else:
+
+            try:
+                project = Project.objects.select_related('client').get(
+                    project_id=project_id
+                )
+
+                decoded = csv_file.read().decode('utf-8')
+                reader = csv.DictReader(io.StringIO(decoded))
+                rows = list(reader)
+
+                required_columns = [
+                    'CaseID',
+                    'SpecimenType',
+                    'NucleidType',
+                    'Concentration(ng/ul)',
+                    'Volume(uL)',
+                ]
+
+                # Validate headers
+                if rows:
+                    missing = [
+                        col for col in required_columns
+                        if col not in rows[0]
+                    ]
+
+                    if missing:
+                        messages.error(
+                            request,
+                            f"Missing required column(s): {', '.join(missing)}"
+                        )
+
+                for row in rows:
+
+                    error = None
+
+                    case_name = row.get('CaseID', '').strip()
+                    specimen_type = row.get('SpecimenType', '').strip()
+                    nucleid_type = row.get('NucleidType', '').strip().upper()
+                    concentration = row.get('Concentration(ng/ul)', '').strip()
+                    volume = row.get('Volume(uL)', '').strip()
+
+                    if not case_name:
+                        error = "Missing CaseID"
+
+                    elif not specimen_type:
+                        error = "Missing SpecimenType"
+
+                    elif nucleid_type not in ('DNA', 'RNA'):
+                        error = "NucleidType must be DNA or RNA"
+
+                    preview_rows.append({
+                        'case_name': case_name,
+                        'specimen_type': specimen_type,
+                        'sample_type': nucleid_type,
+                        'concentration': concentration,
+                        'volume': volume,
+                        'error': error,
+                        'raw': row,
+                    })
+
+                    if error:
+                        preview_errors.append(error)
+
+               
+                # IMPORT
+                if action == 'import' and not preview_errors:
+
+                    created = 0
+
+                    for item in preview_rows:
+
+                        row = item['raw']
+
+                        case_name = row['CaseID'].strip()
+                        specimen_type_name = row['SpecimenType'].strip()
+
+                        sample_type = row['NucleidType'].strip().upper()
+
+                        concentration = (
+                            float(row['Concentration(ng/ul)'])
+                            if row.get('Concentration(ng/ul)')
+                            else None
+                        )
+
+                        volume = (
+                            float(row['Volume(uL)'])
+                            if row.get('Volume(uL)')
+                            else None
+                        )
+
+                        # CASE
+
+                        case, _ = Case.objects.get_or_create(
+                            case_name=case_name,
+                            defaults={
+                                'client': project.client
+                            }
+                        )
+
+                        # SPECIMEN TYPE
+
+                        spec_type, _ = SpecimenType.objects.get_or_create(
+                            specimen_type=specimen_type_name
+                        )
+
+                        # SPECIMEN
+
+                        specimen, _ = Specimen.objects.get_or_create(
+                            case=case,
+                            specimen_type=spec_type
+                        )
+
+                        # SAMPLE
+                        Sample.objects.create(
+                            specimen=specimen,
+                            project=project,
+                            sample_type=sample_type,
+                            concentration=concentration,
+                            volume_received=volume,
+                        )
+
+                        created += 1
+
+                    messages.success(
+                        request,
+                        f"Successfully imported {created} sample(s)."
+                    )
+
+                    return redirect('sample-list')
+
+                elif action == 'import' and preview_errors:
+
+                    messages.error(
+                        request,
+                        f"Fix {len(preview_errors)} error(s) before importing."
+                    )
+
+            except Exception as e:
+                messages.error(request, f"Import failed: {e}")
+
+    return render(
+        request,
+        'samples/sample_import.html',
+        {
+            'projects': projects,
+            'preview_rows': preview_rows,
+            'preview_errors': preview_errors,
+        }
+    )
+
+@login_required
+def sample_import_template(request):
+    response = HttpResponse(content_type='text/csv')
+    response['Content-Disposition'] = (
+        'attachment; filename="sample_import_template.csv"'
+    )
+
+    writer = csv.writer(response)
+
+    writer.writerow([
+        'CaseID',
+        'SpecimenType',
+        'NucleidType',
+        'Concentration(ng/ul)',
+        'Volume(uL)',
+    ])
+
+    examples = [
+        ['Y1V9RH', 'smallEVs',   'RNA', '250.7564', '788'],
+        ['WYL6O2', 'LargeEVs',   'RNA', '387.5995', '425'],
+        ['08Q2T8', 'FrzT',       'DNA', '243.9815', '612'],
+        ['MCF10A', 'FFPE',       'RNA', '175.2200', '500'],
+        ['MCF10A', 'Cells',      'DNA', '86.4200',  '100'],
+        ['PDX-001','EV',         'DNA', '42.5000',  '50'],
+        ['CTRL01', 'Bld',        'RNA', '12.9000',  '250'],
+    ]
+
+    for row in examples:
+        writer.writerow(row)
+
+    return response
+
+@login_required
+def sample_add(request):
+    form = SampleAddForm(request.POST or None)
+
+    if request.method == 'POST':
+        # Get case by name — create if doesn't exist
+        project_id = request.POST.get('project')
+        case_name  = request.POST.get('case_name', '').strip()
+
+        try:
+            project = Project.objects.get(pk=project_id)
+        except Project.DoesNotExist:
+            messages.error(request, 'Invalid project.')
+            return render(request, 'samples/sample_add.html', {'form': form})
+
+        if not case_name:
+            messages.error(request, 'Case name is required.')
+            return render(request, 'samples/sample_add.html', {'form': form})
+
+        # get_or_create case under the project's client
+        case, case_created = Case.objects.get_or_create(
+            case_name=case_name,
+            client=project.client,
+        )
+
+        specimen_type_id = request.POST.get('specimen_type')
+        sample_type      = request.POST.get('sample_type')
+
+        if not specimen_type_id or not sample_type:
+            messages.error(request, 'Specimen type and nucleic type are required.')
+            return render(request, 'samples/sample_add.html', {'form': form})
+
+        try:
+            specimen_type = SpecimenType.objects.get(pk=specimen_type_id)
+            specimen, _   = Specimen.objects.get_or_create(
+                case=case, specimen_type=specimen_type
+            )
+
+            location_id = request.POST.get('location') or None
+            location    = Location.objects.get(pk=location_id) if location_id else None
+
+            sample = Sample(
+                specimen            = specimen,
+                project             = project,
+                sample_type         = sample_type,
+                receiving_condition = request.POST.get('receiving_condition', ''),
+                location            = location,
+                volume_received     = request.POST.get('volume_received') or None,
+                concentration       = request.POST.get('concentration') or None,
+                notes               = request.POST.get('notes', ''),
+            )
+            sample.save()
+
+            if case_created:
+                messages.info(request, f'New case "{case_name}" was created.')
+            messages.success(request, f'Sample {sample.sample_name} created.')
+            return redirect('sample-detail', sample_id=sample.sample_id)
+
+        except Exception as e:
+            messages.error(request, f'Could not create sample: {e}')
+
+    return render(request, 'samples/sample_add.html', {'form': form})
+
+
+# AJAX Load cases for a projct
+@login_required
+def ajax_cases_for_project(request):
+    '''
+    Called by JS when the user picks a project.
+    Returns JSON list of cases belonging to that project's client.
+    '''
+    project_id = request.GET.get('project_id')
+    cases = []
+    client_name = ''
+    try:
+        project    = Project.objects.select_related('client').get(pk=project_id)
+        client_name = project.client.client_name
+        cases = list(
+            Case.objects.filter(client=project.client)
+            .order_by('case_name')
+            .values('case_id', 'case_name')
+        )
+    except (Project.DoesNotExist, ValueError, TypeError):
+        pass
+    return JsonResponse({'cases': cases, 'client_name': client_name})

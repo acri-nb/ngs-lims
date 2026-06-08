@@ -1,0 +1,357 @@
+{% extends 'base.html' %}
+{% block title %}Import Samples | NGS-LIMS{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'sample-list' %}">Samples</a></li>
+        <li class="breadcrumb-item active">Import CSV</li>
+    </ol>
+</nav>
+
+<div class="page-header">
+    <h1 class="page-title"><i class="fas fa-file-csv"></i> Import Samples from CSV</h1>
+</div>
+
+
+<div class="row g-4">
+<div class="col-lg-7">
+
+    <!-- DOWNLOAD TEMPLATE -->
+    <div class="card mb-3">
+        <div class="card-header">
+            <span class="step-num">1</span> Download the CSV template
+        </div>
+        <div class="card-body p-4">
+            <p style="font-size:0.875rem;color:var(--text-muted);margin-bottom:1rem;">
+                Use this template to prepare your data. Each row is one sample.
+                Required columns are marked with *.
+            </p>
+            <div class="csv-columns">
+                {% for col in csv_columns %}
+                <div class="csv-col {% if col.required %}required{% endif %}">
+                    <span class="csv-col-name">{{ col.name }}</span>
+                    {% if col.required %}<span class="csv-req">*</span>{% endif %}
+                    <span class="csv-col-desc">{{ col.description }}</span>
+                </div>
+                {% endfor %}
+            </div>
+            <div class="mt-3">
+                <a href="{% url 'sample-import-template' %}" class="btn btn-outline-lims">
+                    <i class="fas fa-download me-1"></i> Download template.csv
+                </a>
+            </div>
+        </div>
+    </div>
+
+  
+    <!--UPLOAD -->
+    <div class="card mb-3">
+        <div class="card-header">
+            <span class="step-num">2</span> Upload your CSV file
+        </div>
+        <div class="card-body p-4">
+            <form method="post" enctype="multipart/form-data" id="importForm">
+                {% csrf_token %}
+
+                <div class="mb-3">
+                    <label class="form-label">Project</label>
+                
+                    <select name="project" class="form-select" required>
+                        <option value="">Select project...</option>
+                    
+                        {% for project in projects %}
+                        <option value="{{ project.project_id }}">
+                            {{ project.project_name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+            
+                <!-- Drop zone -->
+                <div class="drop-zone" id="dropZone"
+                     ondragover="event.preventDefault(); this.classList.add('drag-over')"
+                     ondragleave="this.classList.remove('drag-over')"
+                     ondrop="handleDrop(event)">
+                    <i class="fas fa-cloud-upload-alt drop-icon"></i>
+                    <div class="drop-text">Drag & drop your CSV here</div>
+                    <div class="drop-sub">or</div>
+                    <label class="btn btn-outline-lims btn-sm mt-2" style="cursor:pointer;">
+                        Browse file
+                        <input type="file" name="csv_file" id="csvFile"
+                               accept=".csv" style="display:none;"
+                               onchange="previewFile(this)">
+                    </label>
+                    <div id="filePreview" class="file-preview" style="display:none;"></div>
+                </div>
+            
+                <div class="d-flex gap-2 mt-3">
+                    <button type="submit" name="action" value="preview"
+                            class="btn btn-outline-lims flex-grow-1">
+                        Preview
+                    </button>
+                
+                    <button type="submit" name="action" value="import"
+                            class="btn btn-accent flex-grow-1">
+                        Import
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- PREVIEW TABLE  -->
+    {% if preview_rows %}
+    <div class="card">
+        <div class="card-header">
+            <i class="fas fa-table"></i>
+            Preview — {{ preview_rows|length }} row{{ preview_rows|length|pluralize }}
+            {% if preview_errors %}
+            <span class="ms-2 lims-badge badge-fail">{{ preview_errors|length }} error{{ preview_errors|length|pluralize }}</span>
+            {% else %}
+            <span class="ms-2 lims-badge badge-pass">Ready to import</span>
+            {% endif %}
+        </div>
+        <div class="table-responsive">
+            <table class="table table-lims">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Case ID</th>
+                        <th>Specimen type</th>
+                        <th>Nucleid Type</th>
+                        <th>Concentration</th>
+                        <th>Volume</th>
+                        
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in preview_rows %}
+                    <tr class="{% if row.error %}preview-error{% endif %}">
+                        <td style="font-family:'IBM Plex Mono',monospace;font-size:0.75rem;color:var(--text-muted);">
+                            {{ forloop.counter }}
+                        </td>
+                    
+                        <td style="font-size:0.82rem;">
+                            {{ row.case_name }}
+                        </td>
+                    
+                        <td style="font-size:0.82rem;">
+                            {{ row.specimen_type }}
+                        </td>
+                    
+                        <td>
+                            <span class="lims-badge badge-{{ row.sample_type|lower }}">
+                                {{ row.sample_type }}
+                            </span>
+                        </td>
+                    
+                        <td style="font-size:0.82rem;">
+                            {{ row.concentration }}
+                        </td>
+                    
+                        <td style="font-size:0.82rem;">
+                            {{ row.volume }}
+                        </td>
+                    
+                        
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+
+</div>
+
+<!-- INSTRUCTIONS -->
+<div class="col-lg-5">
+
+    <div class="card mb-3">
+        <div class="card-header">
+            <i class="fas fa-info-circle me-2"></i>
+            Import Instructions
+        </div>
+
+        <div class="card-body">
+
+            <div class="instruction-item">
+                <div class="instruction-icon">
+                    <i class="fas fa-folder-open"></i>
+                </div>
+                <div>
+                    <strong>Select a Project</strong>
+                    <div class="text-muted small">
+                        All imported samples will be assigned to the selected project.
+                    </div>
+                </div>
+            </div>
+
+            <div class="instruction-item">
+                <div class="instruction-icon">
+                    <i class="fas fa-user-plus"></i>
+                </div>
+                <div>
+                    <strong>Automatic Case Creation</strong>
+                    <div class="text-muted small">
+                        Missing cases are created automatically and linked to the project's client.
+                    </div>
+                </div>
+            </div>
+
+            <div class="instruction-item">
+                <div class="instruction-icon">
+                    <i class="fas fa-microscope"></i>
+                </div>
+                <div>
+                    <strong>Specimen Types</strong>
+                    <div class="text-muted small">
+                        New specimen types are automatically added if they do not already exist.
+                    </div>
+                </div>
+            </div>
+
+            <div class="instruction-item">
+                <div class="instruction-icon">
+                    <i class="fas fa-dna"></i>
+                </div>
+                <div>
+                    <strong>Nucleic Acid Type</strong>
+                    <div class="text-muted small">
+                        Only <strong>DNA</strong> or <strong>RNA</strong> values are accepted.
+                    </div>
+                </div>
+            </div>
+
+            <div class="instruction-item">
+                <div class="instruction-icon">
+                    <i class="fas fa-eye"></i>
+                </div>
+                <div>
+                    <strong>Preview Before Import</strong>
+                    <div class="text-muted small">
+                        Review the validation results before committing samples to the database.
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.step-num {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    background: var(--accent);
+    color: #fff;
+    font-size: 0.72rem;
+    font-weight: 700;
+    margin-right: 6px;
+    flex-shrink: 0;
+}
+
+/*  CSV COLUMNS  */
+.csv-columns { display: flex; flex-direction: column; gap: 6px; }
+.csv-col {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px;
+    background: var(--surface-alt);
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    font-size: 0.8rem;
+}
+.csv-col.required { border-left: 3px solid var(--accent); }
+.csv-col-name  { font-family:'IBM Plex Mono',monospace; font-weight:600; color:var(--text); flex-shrink:0; }
+.csv-req       { color:var(--danger); font-weight:700; flex-shrink:0; }
+.csv-col-desc  { color:var(--text-muted); font-size:0.75rem; }
+
+/*  DROP ZONE */
+.drop-zone {
+    border: 2px dashed var(--border);
+    border-radius: 10px;
+    padding: 2.5rem 1.5rem;
+    text-align: center;
+    transition: all 0.2s;
+    cursor: pointer;
+}
+.drop-zone.drag-over {
+    border-color: var(--accent);
+    background: rgba(0,180,216,0.04);
+}
+.drop-icon { font-size: 2rem; color: var(--border); margin-bottom: 0.5rem; display: block; }
+.drop-text { font-weight: 600; color: var(--text); font-size: 0.9rem; }
+.drop-sub  { font-size: 0.78rem; color: var(--text-muted); margin: 4px 0; }
+.file-preview {
+    margin-top: 0.75rem;
+    padding: 6px 12px;
+    background: rgba(0,180,216,0.08);
+    border: 1px solid rgba(0,180,216,0.2);
+    border-radius: 6px;
+    font-size: 0.8rem;
+    color: var(--accent);
+    font-family: 'IBM Plex Mono', monospace;
+}
+
+/* PREVIEW TABLE */
+.preview-error td { background: rgba(230,57,70,0.04); }
+.table-lims tbody tr:last-child td { border-bottom: none; }
+
+.instruction-item {
+    display:flex;
+    gap:12px;
+    margin-bottom:1rem;
+    align-items:flex-start;
+}
+
+.instruction-item:last-child {
+    margin-bottom:0;
+}
+
+.instruction-icon {
+    width:34px;
+    height:34px;
+    border-radius:6px;
+    background:rgba(0,180,216,0.08);
+    color:var(--accent);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    flex-shrink:0;
+}
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function previewFile(input) {
+    const preview = document.getElementById('filePreview');
+    if (input.files[0]) {
+        preview.textContent = `📄 ${input.files[0].name} (${(input.files[0].size/1024).toFixed(1)} KB)`;
+        preview.style.display = '';
+    }
+}
+
+function handleDrop(e) {
+    e.preventDefault();
+    document.getElementById('dropZone').classList.remove('drag-over');
+    const file = e.dataTransfer.files[0];
+    if (file && file.name.endsWith('.csv')) {
+        const dt = new DataTransfer();
+        dt.items.add(file);
+        document.getElementById('csvFile').files = dt.files;
+        document.getElementById('filePreview').textContent = `📄 ${file.name}`;
+        document.getElementById('filePreview').style.display = '';
+    }
+}
+</script>
+{% endblock %}

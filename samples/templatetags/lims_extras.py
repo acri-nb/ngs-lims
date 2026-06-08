@@ -1,11 +1,21 @@
 from django import template
-from django.utils import timezone
 
 register = template.Library()
 
+@register.simple_tag
+def url_params(request, **kwargs):
+    """Builds a query string from current GET params, overriding with kwargs."""
+    params = request.GET.copy()
+    for key, value in kwargs.items():
+        if value is not None:
+            params[key] = value
+        elif key in params:
+            del params[key]
+    return params.urlencode()
+
+
 @register.filter
 def dash_if_none(value):
-    """Returns — for any falsy value."""
     if value in (None, '', 0):
         return '—'
     return value

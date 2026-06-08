@@ -1,4 +1,4 @@
-CaseID,SpecimenType,NucleidType,Concentration(ng),Volume(uL)
+CaseID,SpecimenType,NucleidType,Concentration(ng/ul),Volume(uL)
 MCF10A,smallEVs,RNA,250.7564,788
 WYL6O2,FFPE,RNA,387.5995,782
 MCF7,smallEVs,RNA,243.9815,800
