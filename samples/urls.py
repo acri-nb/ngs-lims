@@ -12,6 +12,8 @@ urlpatterns = [
     path('samples/add/',                views.sample_add,               name='sample-add'),
     path('samples/ajax/cases/',         views.ajax_cases_for_project,   name='ajax-cases-for-project'),
     
+    path('cases/', views.case_list, name='case-list'),
+    path('cases/<int:case_id>/', views.case_detail, name='case-detail'),
     path('clients/', views.client_list , name='client-list'),
     path('clients/<int:client_pk>/', views.client_detail, name='client-detail'),
     path( "projects/", views.project_list, name="project-list"),

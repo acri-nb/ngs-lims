@@ -919,3 +919,88 @@ def ajax_cases_for_project(request):
     except (Project.DoesNotExist, ValueError, TypeError):
         pass
     return JsonResponse({'cases': cases, 'client_name': client_name})
+
+# Case 
+
+from django.db.models import Count
+
+
+@login_required
+def case_detail(request, case_id):
+
+    case = get_object_or_404(
+        Case.objects.select_related('client'),
+        pk=case_id
+    )
+
+    specimens = (
+        Specimen.objects
+        .filter(case=case)
+        .select_related('specimen_type')
+    )
+
+    samples = (
+        Sample.objects
+        .filter(specimen__case=case)
+        .select_related(
+            'project',
+            'specimen__specimen_type',
+            'location'
+        )
+        .prefetch_related('qc_results')
+        .order_by('-sample_id')
+    )
+
+    return render(
+        request,
+        'samples/case_detail.html',
+        {
+            'case': case,
+            'specimens': specimens,
+            'samples': samples,
+        }
+    )
+
+@login_required
+def case_list(request):
+    from django.db.models import Count, Q
+    from qc.models import SampleQC
+
+    cases = Case.objects.select_related('client').order_by('case_name')
+
+    case_data = []
+    for case in cases:
+        samples      = Sample.objects.filter(specimen__case=case)
+        sample_count = samples.count()
+        dna_count    = samples.filter(sample_type='DNA').count()
+        rna_count    = samples.filter(sample_type='RNA').count()
+
+        qc_qs      = SampleQC.objects.filter(sample__specimen__case=case)
+        qc_pass    = qc_qs.filter(qc_status='Pass').count()
+        qc_fail    = qc_qs.filter(qc_status='Fail').count()
+        qc_caution = qc_qs.filter(qc_status='Caution').count()
+        qc_pending = max(sample_count - qc_qs.exclude(qc_status='Pending').count(), 0)
+
+        total = qc_pass + qc_fail + qc_caution + qc_pending
+        def pct(n): return round((n / total * 100) if total > 0 else 0)
+
+        case.specimen_count  = case.specimens.count()
+        case.sample_count    = sample_count
+        case.dna_count       = dna_count
+        case.rna_count       = rna_count
+        case.qc_pass         = qc_pass
+        case.qc_fail         = qc_fail
+        case.qc_caution      = qc_caution
+        case.qc_pending      = qc_pending
+        case.qc_pass_pct     = pct(qc_pass)
+        case.qc_fail_pct     = pct(qc_fail)
+        case.qc_caution_pct  = pct(qc_caution)
+        case.qc_pending_pct  = pct(qc_pending)
+        case_data.append(case)
+
+    clients = Client.objects.order_by('client_name')
+
+    return render(request, 'samples/case_list.html', {
+        'cases':   case_data,
+        'clients': clients,
+    })

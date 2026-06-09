@@ -466,6 +466,9 @@
         <i class="fas fa-project-diagram"></i> Projects
     </a>
 
+    <a href="{% url 'case-list' %}" class="sidebar-link {% if 'case' in request.resolver_match.url_name %}active{% endif %}">
+        <i class="fas fa-folder"></i> Case
+    </a>
 
     <a href="{% url 'sample-list' %}" class="sidebar-link {% if 'sample' in request.resolver_match.url_name %}active{% endif %}">
         <i class="fas fa-vial"></i> Samples

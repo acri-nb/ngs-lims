@@ -1,0 +1,109 @@
+{% extends 'base.html' %}
+
+
+{% block title %}Cases | NGS-LIMS{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item active">Cases</li>
+    </ol>
+</nav>
+
+<div class="page-header">
+    <h1 class="page-title"><i class="fas fa-folder-open"></i> Cases</h1>
+    <span style="font-size:0.82rem;color:var(--text-muted);">
+        {{ cases|length }} case{{ cases|length|pluralize }}
+    </span>
+</div>
+
+
+<div class="card mb-3">
+    <div class="card-header">
+        <i class="fas fa-folder-open"></i>
+        Case Information
+    </div>
+    <div class="card-body">
+        <p>
+            <strong>Case:</strong>
+            {{ case.case_name }}
+        </p>
+        <p>
+            <strong>Client:</strong>
+
+            <a href="{% url 'client-detail' case.client.client_id %}" style="color:var(--accent);text-decoration:none;font-size:0.85rem;" >
+                {{ case.client.client_name }}
+            </a>
+        </p>
+        <p>
+            <strong>Organization:</strong>
+            {{ case.client.organisation_name }}
+        </p>
+    </div>
+</div>
+
+<div class="card">
+
+    <div class="card-header">
+        <i class="fas fa-vials"></i>
+        Samples
+    </div>
+    <div class="table-responsive">
+        <table class="table table-lims">
+            <thead>
+                <tr>
+                    <th>Sample</th>
+                    <th>Type</th>
+                    <th>Specimen</th>
+                    <th>Project</th>
+                    <th>QC</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for sample in samples %}
+                <tr
+                    style="cursor:pointer"
+                    onclick="window.location='{% url 'sample-detail' sample.sample_id %}'">
+                    <td>
+                        <span class="sample-id">
+                            {{ sample.sample_name }}
+                        </span>
+                    </td>
+                    <td>
+                        <span class="lims-badge badge-{{ sample.sample_type|lower }}">
+                            {{ sample.sample_type }}
+                        </span>
+                    </td>
+                    <td>
+                        {{ sample.specimen.specimen_type }}
+                    </td>
+
+                    <td>
+                        {{ sample.project.project_name }}
+                    </td>
+                    <td>
+                        {% with qc=sample.qc_results.first %}
+                            {% if qc %}
+                                <span class="lims-badge badge-{{ qc.qc_status|lower }}">
+                                    {{ qc.qc_status }}
+                                </span>
+                            {% else %}
+                                <span class="lims-badge badge-pending">
+                                    No QC
+                                </span>
+                            {% endif %}
+                        {% endwith %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="5">
+                        No samples found.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
