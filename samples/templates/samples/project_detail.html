@@ -1,5 +1,7 @@
 {% extends 'base.html' %}
 {% load lims_extras %}
+{% load static %}
+
 {% block title %}{{ project.project_name }} | NGS-LIMS{% endblock %}
 
 {% block content %}
@@ -195,84 +197,6 @@
 {% endblock %}
 
 {% block extra_css %}
-<style>
-/* ── PIPELINE STEPS ── */
-.pipeline-steps {
-    display: flex;
-    align-items: center;
-    padding: 0.5rem 0;
-    overflow-x: auto;
-}
-.pipeline-step {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 4px;
-    min-width: 80px;
-}
-.ps-icon {
-    width: 38px; height: 38px;
-    border-radius: 50%;
-    border: 2px solid var(--border);
-    background: var(--surface-alt);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 0.85rem;
-    color: var(--text-muted);
-    transition: all 0.2s;
-}
-.pipeline-step.done .ps-icon {
-    background: rgba(45,198,83,0.12);
-    border-color: var(--success);
-    color: var(--success);
-}
-.pipeline-step.active .ps-icon {
-    background: rgba(0,180,216,0.12);
-    border-color: var(--accent);
-    color: var(--accent);
-}
-.ps-label {
-    font-size: 0.7rem;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    color: var(--text-muted);
-    font-family: 'IBM Plex Mono', monospace;
-}
-.pipeline-step.done .ps-label { color: var(--success); }
-.pipeline-step.active .ps-label { color: var(--accent); }
-
-.ps-count {
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 0.85rem;
-    font-weight: 600;
-    color: var(--text-muted);
-}
-.pipeline-step.done .ps-count { color: var(--text); }
-
-.pipeline-connector {
-    flex: 1;
-    height: 2px;
-    background: var(--border);
-    min-width: 20px;
-    margin-bottom: 20px;
-}
-
-/* ── STAGE PILLS ── */
-.stage-pill {
-    display: inline-flex;
-    align-items: center;
-    font-size: 0.72rem;
-    font-family: 'IBM Plex Mono', monospace;
-    font-weight: 600;
-    padding: 3px 8px;
-    border-radius: 4px;
-    white-space: nowrap;
-}
-.stage-received      { background:rgba(107,122,143,0.1); color:var(--text-muted); border:1px solid var(--border); }
-.stage-qc-pass       { background:rgba(45,198,83,0.12);  color:#1a6b30; border:1px solid rgba(45,198,83,0.3); }
-.stage-qc-fail       { background:rgba(230,57,70,0.1);   color:#7a1520; border:1px solid rgba(230,57,70,0.25); }
-.stage-qc-caution    { background:rgba(233,196,106,0.2); color:#6b4e00; border:1px solid rgba(233,196,106,0.4); }
-.stage-awaiting-qc   { background:rgba(0,180,216,0.08);  color:#005f78; border:1px solid rgba(0,180,216,0.2); }
-</style>
+<link rel="stylesheet"
+      href="{% static 'css/project_detail.css' %}">
 {% endblock %}

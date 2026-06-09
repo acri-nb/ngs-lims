@@ -1,0 +1,103 @@
+
+.temp-mono          { font-family:'IBM Plex Mono',monospace; font-size:0.875rem; font-weight:600; }
+.temp-mono.current  { color: var(--accent); }
+.temp-mono.danger   { color: var(--danger); }
+.temp-mono.blue     { color: #5b8dee; }
+
+.form-label-sm {
+    display: block;
+    font-size: 0.72rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-muted);
+    margin-bottom: 4px;
+}
+.font-mono { font-family: 'IBM Plex Mono', monospace; }
+
+.yesterday-hint {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+}
+
+/* Today logged grid */
+.today-logged-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem;
+}
+.tlg-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    background: var(--surface-alt);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 0.6rem 0.5rem;
+}
+.tlg-label {
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: var(--text-muted);
+    font-family: 'IBM Plex Mono', monospace;
+}
+.tlg-val {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 1.05rem;
+    font-weight: 600;
+    margin-top: 2px;
+}
+.tlg-val.current { color: var(--accent); }
+.tlg-val.danger  { color: var(--danger); }
+.tlg-val.blue    { color: #5b8dee; }
+
+/* Mini stats */
+.stat-mini-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.6rem;
+}
+.stat-mini {
+    display: flex;
+    flex-direction: column;
+    background: var(--surface-alt);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 0.5rem 0.75rem;
+}
+.sm-label {
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: var(--text-muted);
+    font-family: 'IBM Plex Mono', monospace;
+}
+.sm-val {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text);
+    margin-top: 2px;
+}
+.sm-val.danger { color: var(--danger); }
+.sm-val.blue   { color: #5b8dee; }
+
+/* reuse from list page */
+.loc-type-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-size: 0.7rem;
+    font-family: 'IBM Plex Mono', monospace;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 4px;
+}
+.storage-room-temperature  { background: rgba(244,162,97,0.15); color: #8a4800; border: 1px solid rgba(244,162,97,0.3); }
+.storage-fridge4c          { background: rgba(0,180,216,0.1);   color: #005f78; border: 1px solid rgba(0,180,216,0.25); }
+.storage-freezer-20c       { background: rgba(107,122,200,0.12);color: #3a3f9e; border: 1px solid rgba(107,122,200,0.3); }
+.storage-freezer-80c       { background: rgba(60,60,180,0.1);   color: #1a1a7a; border: 1px solid rgba(60,60,180,0.2); }

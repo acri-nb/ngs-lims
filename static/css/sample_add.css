@@ -1,0 +1,165 @@
+.form-label-lims {
+    display: block;
+    font-size: 0.72rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-muted);
+    margin-bottom: 5px;
+}
+.req { color: var(--danger); }
+.field-hint  { font-size: 0.72rem; color: var(--text-muted); margin-top: 4px; }
+.field-error { font-size: 0.78rem; color: var(--danger); margin-top: 4px; }
+
+.form-control-lims,
+.form-select-lims {
+    border-color: var(--border);
+    font-size: 0.875rem;
+    color: var(--text);
+    background: var(--surface-alt);
+    border-radius: 6px;
+}
+.form-control-lims:focus,
+.form-select-lims:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(0,180,216,0.1);
+    background: var(--surface);
+}
+
+/* DNA / RNA TOGGLE */
+.type-toggle { display: flex; gap: 8px; }
+.type-opt { cursor: pointer; }
+.type-radio { display: none; }
+.type-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 20px;
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    background: var(--surface-alt);
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    transition: all 0.15s;
+    cursor: pointer;
+}
+.type-radio:checked + .type-btn {
+    border-color: var(--accent);
+    background: rgba(0,180,216,0.1);
+    color: var(--accent);
+}
+
+/*CONDITION PICKER */
+.cond-picker { display: flex; flex-wrap: wrap; gap: 8px; }
+.cond-opt { cursor: pointer; }
+.cond-radio { display: none; }
+.cond-btn {
+    display: inline-block;
+    padding: 5px 14px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--surface-alt);
+    font-size: 0.82rem;
+    font-weight: 500;
+    color: var(--text-muted);
+    transition: all 0.15s;
+    cursor: pointer;
+}
+.cond-radio:checked + .cond-btn {
+    border-color: var(--accent);
+    background: rgba(0,180,216,0.1);
+    color: var(--accent);
+}
+
+/*NAME PREVIEW BOX */
+.name-preview {
+    background: var(--surface-alt);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1rem;
+    text-align: center;
+}
+.name-preview-label {
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-muted);
+    font-family: 'IBM Plex Mono', monospace;
+    margin-bottom: 6px;
+}
+.name-preview-value {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--accent);
+    word-break: break-all;
+    min-height: 24px;
+}
+.name-preview-value.placeholder { color: var(--border); }
+.name-preview-hint {
+    font-size: 0.68rem;
+    color: var(--text-muted);
+    margin-top: 6px;
+}
+
+/* SUMMARY SIDEBAR*/
+.summary-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    padding: 0.45rem 0;
+    border-bottom: 1px solid var(--border);
+    gap: 1rem;
+}
+.summary-row:last-child { border-bottom: none; }
+.summary-label {
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-muted);
+    flex-shrink: 0;
+}
+.summary-val {
+    font-size: 0.82rem;
+    color: var(--text);
+    text-align: right;
+    font-weight: 500;
+}
+
+/*  CASE AUTOCOMPLETE DROPDOWN*/
+.case-dropdown {
+    position: absolute;
+    top: 100%;
+    left: 0; right: 0;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-top: none;
+    border-radius: 0 0 6px 6px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    z-index: 100;
+    max-height: 220px;
+    overflow-y: auto;
+}
+.case-option {
+    padding: 8px 12px;
+    font-size: 0.85rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--text);
+    transition: background 0.1s;
+}
+.case-option:hover { background: var(--surface-alt); }
+.case-option.create-new {
+    color: var(--accent);
+    font-weight: 500;
+    border-top: 1px solid var(--border);
+}
+.case-option.create-new i { font-size: 0.75rem; }
+.case-selected {
+    border-color: var(--accent) !important;
+    background: var(--surface) !important;
+}

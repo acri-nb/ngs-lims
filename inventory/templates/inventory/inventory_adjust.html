@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load static %}
 {% block title %}Adjust Stock | NGS-LIMS{% endblock %}
 
 {% block content %}
@@ -92,41 +93,8 @@
 {% endblock %}
 
 {% block extra_css %}
-<style>
-.form-label-lims {
-    display: block;
-    font-size: 0.72rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    color: var(--text-muted);
-    margin-bottom: 8px;
-}
-.summary-row {
-    display: flex;
-    justify-content: space-between;
-    padding: 0.45rem 0;
-    border-bottom: 1px solid var(--border);
-    gap: 1rem;
-}
-.summary-row:last-child { border-bottom: none; }
-.summary-label { font-size:0.72rem; font-weight:600; text-transform:uppercase; letter-spacing:0.06em; color:var(--text-muted); }
-.summary-val   { font-size:0.85rem; color:var(--text); font-weight:500; text-align:right; }
-
-.qty-step-btn {
-    width: 36px; height: 36px;
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    background: var(--surface-alt);
-    font-size: 1.1rem;
-    color: var(--text);
-    cursor: pointer;
-    display: flex; align-items: center; justify-content: center;
-    flex-shrink: 0;
-    transition: background 0.1s;
-}
-.qty-step-btn:hover { background: var(--border); }
-</style>
+<link rel="stylesheet"
+      href="{% static 'css/inventory_adjust.css' %}">
 {% endblock %}
 
 {% block extra_js %}

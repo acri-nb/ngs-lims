@@ -1,0 +1,86 @@
+
+/* static/sample_import.css */
+.step-num {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    background: var(--accent);
+    color: #fff;
+    font-size: 0.72rem;
+    font-weight: 700;
+    margin-right: 6px;
+    flex-shrink: 0;
+}
+
+/*  CSV COLUMNS  */
+.csv-columns { display: flex; flex-direction: column; gap: 6px; }
+.csv-col {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px;
+    background: var(--surface-alt);
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    font-size: 0.8rem;
+}
+.csv-col.required { border-left: 3px solid var(--accent); }
+.csv-col-name  { font-family:'IBM Plex Mono',monospace; font-weight:600; color:var(--text); flex-shrink:0; }
+.csv-req       { color:var(--danger); font-weight:700; flex-shrink:0; }
+.csv-col-desc  { color:var(--text-muted); font-size:0.75rem; }
+
+/*  DROP ZONE */
+.drop-zone {
+    border: 2px dashed var(--border);
+    border-radius: 10px;
+    padding: 2.5rem 1.5rem;
+    text-align: center;
+    transition: all 0.2s;
+    cursor: pointer;
+}
+.drop-zone.drag-over {
+    border-color: var(--accent);
+    background: rgba(0,180,216,0.04);
+}
+.drop-icon { font-size: 2rem; color: var(--border); margin-bottom: 0.5rem; display: block; }
+.drop-text { font-weight: 600; color: var(--text); font-size: 0.9rem; }
+.drop-sub  { font-size: 0.78rem; color: var(--text-muted); margin: 4px 0; }
+.file-preview {
+    margin-top: 0.75rem;
+    padding: 6px 12px;
+    background: rgba(0,180,216,0.08);
+    border: 1px solid rgba(0,180,216,0.2);
+    border-radius: 6px;
+    font-size: 0.8rem;
+    color: var(--accent);
+    font-family: 'IBM Plex Mono', monospace;
+}
+
+/* PREVIEW TABLE */
+.preview-error td { background: rgba(230,57,70,0.04); }
+.table-lims tbody tr:last-child td { border-bottom: none; }
+
+.instruction-item {
+    display:flex;
+    gap:12px;
+    margin-bottom:1rem;
+    align-items:flex-start;
+}
+
+.instruction-item:last-child {
+    margin-bottom:0;
+}
+
+.instruction-icon {
+    width:34px;
+    height:34px;
+    border-radius:6px;
+    background:rgba(0,180,216,0.08);
+    color:var(--accent);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    flex-shrink:0;
+}

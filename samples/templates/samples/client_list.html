@@ -1,5 +1,6 @@
 {% extends 'base.html' %}
 {% block title %}Clients | NGS-LIMS{% endblock %}
+{% load static %}
 
 {% block content %}
 <div class="page-header">
@@ -62,93 +63,7 @@
 {% endblock %}
 
 {% block extra_css %}
-<style>
-.client-card-link { text-decoration: none; display: block; }
 
-.client-card {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    overflow: hidden;
-    transition: box-shadow 0.15s, border-color 0.15s;
-}
-.client-card:hover {
-    box-shadow: 0 4px 16px rgba(0,0,0,0.08);
-    border-color: var(--accent);
-}
-
-.client-card-header {
-    display: flex;
-    align-items: center;
-    gap: 0.85rem;
-    padding: 1rem 1.1rem;
-    border-bottom: 1px solid var(--border);
-}
-
-.client-avatar {
-    width: 40px; height: 40px;
-    border-radius: 10px;
-    background: rgba(0,180,216,0.12);
-    color: var(--accent);
-    font-family: 'IBM Plex Mono', monospace;
-    font-weight: 600;
-    font-size: 1.1rem;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-}
-
-.client-info { flex: 1; min-width: 0; }
-.client-name {
-    font-weight: 600;
-    font-size: 0.925rem;
-    color: var(--text);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-.client-org {
-    font-size: 0.78rem;
-    color: var(--text-muted);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-.client-arrow { color: var(--border); font-size: 0.75rem; flex-shrink: 0; }
-.client-card:hover .client-arrow { color: var(--accent); }
-
-.client-card-stats {
-    display: flex;
-    align-items: center;
-    padding: 0.7rem 1.1rem;
-    background: var(--surface-alt);
-}
-.cstat { flex: 1; text-align: center; }
-.cstat-val {
-    display: block;
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 1.1rem;
-    font-weight: 600;
-    color: var(--text);
-    line-height: 1;
-}
-.cstat-label {
-    display: block;
-    font-size: 0.68rem;
-    text-transform: uppercase;
-    letter-spacing: 0.07em;
-    color: var(--text-muted);
-    margin-top: 2px;
-}
-.cstat-divider { width: 1px; height: 28px; background: var(--border); }
-
-.empty-state {
-    text-align: center;
-    padding: 4rem 1rem;
-    color: var(--text-muted);
-}
-.empty-state i { font-size: 2.5rem; margin-bottom: 0.75rem; display: block; color: var(--border); }
-.empty-state p { margin-bottom: 1rem; }
-</style>
+<link rel="stylesheet"
+      href="{% static 'css/client_list.css' %}">
 {% endblock %}

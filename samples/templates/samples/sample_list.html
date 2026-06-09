@@ -1,5 +1,6 @@
 {% extends 'base.html' %}
 {% load lims_extras %}
+{% load static %}
 {% block title %}Samples | NGS-LIMS{% endblock %}
 
 {% block content %}
@@ -285,144 +286,10 @@
 {% endblock %}
 
 {% block extra_css %}
-<style>
-/* ── SORTABLE HEADERS ── */
-th.sortable a {
-    color: var(--text-muted);
-    text-decoration: none;
-    display: flex;
-    align-items: center;
-    gap: 5px;
-    transition: color 0.15s;
-}
-th.sortable a:hover { color: var(--accent); }
-th.sortable.sorted-asc a,
-th.sortable.sorted-desc a { color: var(--text); }
-.sort-icon { font-size: 0.65rem; opacity: 0.5; }
-th.sortable.sorted-asc .sort-icon,
-th.sortable.sorted-desc .sort-icon { opacity: 1; color: var(--accent); }
-
-/* ── CLICKABLE ROWS ── */
-.sample-row { cursor: pointer; }
-.sample-row:hover td { background: rgba(0,180,216,0.04); }
-
-/* ── BULK BAR ── */
-.bulk-bar {
-    background: var(--bs-border-color);
-    border-radius: 8px;
-    padding: 0.65rem 1.1rem;
-    margin-bottom: 0.75rem;
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    animation: slideDown 0.15s ease;
-}
-@keyframes slideDown { from { opacity:0; transform:translateY(-8px); } to { opacity:1; transform:none; } }
-.bulk-count {
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 0.82rem;
-    color: var(--text-muted);
-    font-weight: 600;
-    white-space: nowrap;
-}
-.bulk-bar .btn-outline-lims {
-    border-color: ar(--accent);
-    color: rgba(255,255,255,0.8);
-    background: ar(--accent);
-    font-size: 0.78rem;
-}
-.bulk-bar .btn-outline-lims:hover {
-    background: ar(--accent);
-    color: #fff;
-    border-color: rgba(73, 60, 60, 0.4);
-}
-
-/* ── PAGINATION ── */
-.table-pagination {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 0.65rem 1.25rem;
-    border-top: 1px solid var(--border);
-    background: var(--surface);
-    border-radius: 0 0 8px 8px;
-}
-.pag-info { font-size: 0.78rem; color: var(--text-muted); font-family: 'IBM Plex Mono', monospace; }
-.pag-controls { display: flex; gap: 4px; align-items: center; }
-.pag-btn {
-    display: inline-flex; align-items: center; justify-content: center;
-    min-width: 30px; height: 30px; padding: 0 6px;
-    border: 1px solid var(--border); border-radius: 5px;
-    font-size: 0.78rem; color: var(--text-muted);
-    text-decoration: none; background: var(--surface);
-    transition: all 0.15s;
-}
-.pag-btn:hover   { border-color: var(--accent); color: var(--accent); }
-.pag-btn.active  { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
-.pag-btn.disabled{ opacity: 0.35; pointer-events: none; }
-
-/* ── LAST ROW BORDER FIX ── */
-.table-lims tbody tr:last-child td { border-bottom: none; }
-</style>
+<link rel="stylesheet"
+      href="{% static 'css/sample_list.css' %}">
 {% endblock %}
 
 {% block extra_js %}
-<script>
-// ── ROW CLICK → navigate to detail ──
-function handleRowClick(e, row) {
-    if (e.target.type === 'checkbox') return;
-    const id = row.dataset.id;
-    window.location = `/samples/${id}/`;
-}
-
-// ── SELECT ALL ──
-function toggleAll(master) {
-    document.querySelectorAll('.row-check').forEach(cb => cb.checked = master.checked);
-    updateBulkBar();
-}
-
-// ── UPDATE BULK BAR ──
-function updateBulkBar() {
-    const checked = document.querySelectorAll('.row-check:checked');
-    const bar     = document.getElementById('bulkBar');
-    document.getElementById('bulkCount').textContent = `${checked.length} selected`;
-    bar.style.display = checked.length > 0 ? 'flex' : 'none';
-    document.getElementById('selectAll').indeterminate =
-        checked.length > 0 && checked.length < document.querySelectorAll('.row-check').length;
-    document.getElementById('selectAll').checked = checked.length === document.querySelectorAll('.row-check').length;
-}
-
-function clearSelection() {
-    document.querySelectorAll('.row-check, #selectAll').forEach(cb => cb.checked = false);
-    updateBulkBar();
-}
-
-// ── BULK ACTION ──
-function bulkAction(action) {
-    const checked = document.querySelectorAll('.row-check:checked');
-    if (!checked.length) return;
-    document.getElementById('bulkActionInput').value = action;
-    document.getElementById('bulkForm').submit();
-}
-
-// ── EXPORT SELECTED AS CSV ──
-function exportSelected() {
-    const ids = [...document.querySelectorAll('.row-check:checked')].map(cb => cb.value);
-    if (!ids.length) return;
-    window.location = `/samples/export/?ids=${ids.join(',')}`;
-}
-
-// ── COLUMN VISIBILITY TOGGLE ──
-document.querySelectorAll('.col-toggle').forEach(cb => {
-    cb.addEventListener('change', function() {
-        const col = parseInt(this.dataset.col);
-        const show = this.checked;
-        // toggle nth-child column (header + all rows)
-        document.querySelectorAll(
-            `#sampleTable thead tr th:nth-child(${col}),
-             #sampleTable tbody tr td:nth-child(${col})`
-        ).forEach(cell => cell.style.display = show ? '' : 'none');
-    });
-});
-</script>
+<script src="{% static 'js/sample_list.js' %}"></script>
 {% endblock %}

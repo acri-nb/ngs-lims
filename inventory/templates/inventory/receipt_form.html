@@ -1,4 +1,6 @@
 {% extends 'base.html' %}
+{% load static %}
+
 {% block title %}Log Receipt | NGS-LIMS{% endblock %}
 
 {% block content %}
@@ -256,228 +258,21 @@
 {% endblock %}
 
 {% block extra_css %}
-<style>
-.form-label-lims {
-    display: block;
-    font-size: 0.72rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    color: var(--text-muted);
-    margin-bottom: 5px;
-}
-.req { color: var(--danger); }
-
-.form-control-lims,
-.form-select-lims {
-    border-color: var(--border);
-    font-size: 0.875rem;
-    color: var(--text);
-    background: var(--surface-alt);
-    border-radius: 6px;
-}
-.form-control-lims:focus,
-.form-select-lims:focus {
-    border-color: var(--accent);
-    box-shadow: 0 0 0 3px rgba(0,180,216,0.1);
-    background: var(--surface);
-}
-
-.field-hint {
-    font-size: 0.72rem;
-    color: var(--text-muted);
-    margin-top: 4px;
-}
-
-/* ── CONDITION PICKER ── */
-.condition-picker { display: flex; gap: 8px; }
-.cond-option { cursor: pointer; }
-.cond-radio { display: none; }
-.cond-btn {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 4px;
-    padding: 8px 14px;
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    background: var(--surface-alt);
-    font-size: 0.72rem;
-    font-weight: 600;
-    color: var(--text-muted);
-    transition: all 0.15s;
-    cursor: pointer;
-}
-.cond-btn i { font-size: 1rem; }
-.cond-radio:checked + .cond-btn {
-    border-color: var(--accent);
-    background: rgba(0,180,216,0.1);
-    color: var(--accent);
-}
-
-/* ── UNIT GRID ── */
-.unit-grid { display: flex; flex-direction: column; gap: 8px; }
-.unit-group-label {
-    font-size: 0.65rem;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    color: var(--text-muted);
-    margin-bottom: 4px;
-    font-family: 'IBM Plex Mono', monospace;
-}
-.unit-group-btns { display: flex; flex-wrap: wrap; gap: 6px; }
-.unit-btn {
-    background: var(--surface-alt);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    padding: 4px 12px;
-    font-size: 0.8rem;
-    font-family: 'IBM Plex Mono', monospace;
-    font-weight: 500;
-    color: var(--text-muted);
-    cursor: pointer;
-    transition: all 0.15s;
-}
-.unit-btn:hover  { border-color: var(--accent); color: var(--accent); }
-.unit-btn.active {
-    background: rgba(0,180,216,0.12);
-    border-color: var(--accent);
-    color: var(--accent);
-    font-weight: 600;
-}
-
-/*SUMMARY SIDEBAR */
-.summary-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    padding: 0.5rem 0;
-    border-bottom: 1px solid var(--border);
-    gap: 1rem;
-}
-.summary-row:last-child { border-bottom: none; }
-.summary-label {
-    font-size: 0.72rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    color: var(--text-muted);
-    flex-shrink: 0;
-}
-.summary-val {
-    font-size: 0.82rem;
-    color: var(--text);
-    text-align: right;
-    font-weight: 500;
-}
-</style>
+<link rel="stylesheet"
+      href="{% static 'css/receipt_form.css' %}">
 {% endblock %}
 
 {% block extra_js %}
-<script>
 
+<script>
 // SUPPLIER FILTER based on selected product
 const supplierMap = {};
 {% for product in products %}
 supplierMap[{{ product.product_id }}] = [{{ product.supplier_ids }}];
 {% endfor %}
-
-function updateSuppliers() {
-    const sel     = document.getElementById('productSelect');
-    const opt     = sel.options[sel.selectedIndex];
-    const pid     = parseInt(sel.value);
-    const supSel  = document.getElementById('supplierSelect');
-    const opts    = supSel.querySelectorAll('.supplier-opt');
-    const refNum  = opt ? opt.dataset.ref : '';
-
-    // Show ref number
-    if (pid && refNum) {
-        document.getElementById('refNum').textContent = refNum;
-        document.getElementById('refPreview').style.display = '';
-    } else {
-        document.getElementById('refPreview').style.display = 'none';
-    }
-
-    // Filter suppliers
-    const validIds = supplierMap[pid] || [];
-    supSel.value = '';
-    supSel.options[0].text = validIds.length ? '— Select supplier —' : '— No suppliers linked —';
-    opts.forEach(o => {
-        const show = validIds.includes(parseInt(o.value));
-        o.style.display = show ? '' : 'none';
-    });
-
-    // Auto-select if only one supplier
-    const visible = [...opts].filter(o => o.style.display !== 'none');
-    if (visible.length === 1) supSel.value = visible[0].value;
-
-    updateSummary();
-}
-
-// UNIT PICKER
-function selectUnit(val, btn, isCustom) {
-    if (!isCustom) {
-        document.querySelectorAll('.unit-btn').forEach(b => b.classList.remove('active'));
-        document.getElementById('customUnit').value = '';
-        if (btn) btn.classList.add('active');
-    }
-    document.getElementById('unitHidden').value = val;
-    updatePreview();
-    updateSummary();
-}
-
-function updatePreview() {
-    const qty  = document.getElementById('qtyInput').value;
-    const unit = document.getElementById('unitHidden').value;
-    const prev = document.getElementById('unitPreview');
-    const text = document.getElementById('unitPreviewText');
-    if (qty && unit) {
-        text.textContent = `${qty} ${unit}`;
-        prev.style.display = '';
-    } else {
-        prev.style.display = 'none';
-    }
-}
-
-// LIVE SUMMARY SIDEBAR 
-function updateSummary() {
-    const productSel  = document.getElementById('productSelect');
-    const supplierSel = document.getElementById('supplierSelect');
-    const qty         = document.getElementById('qtyInput').value;
-    const unit        = document.getElementById('unitHidden').value;
-    const locationSel = document.querySelector('[name="location"]');
-    const expiryIn    = document.querySelector('[name="expiration_date"]');
-    const condChecked = document.querySelector('[name="receiving_condition"]:checked');
-
-    const productText  = productSel.options[productSel.selectedIndex]?.text  || '—';
-    const supplierText = supplierSel.options[supplierSel.selectedIndex]?.text || '—';
-    const locationText = locationSel.options[locationSel.selectedIndex]?.text || '—';
-    const expiryText   = expiryIn.value ? new Date(expiryIn.value).toLocaleDateString('en-US', {month:'short',day:'numeric',year:'numeric'}) : 'No expiry';
-    const condText     = condChecked ? condChecked.value : '—';
-
-    document.getElementById('sum-product').textContent   = productText === '— Select product —' ? '—' : productText;
-    document.getElementById('sum-supplier').textContent  = supplierText === '— Select supplier —' ? '—' : supplierText;
-    document.getElementById('sum-qty').textContent       = (qty && unit) ? `${qty} ${unit}` : '—';
-    document.getElementById('sum-condition').textContent = condText;
-    document.getElementById('sum-location').textContent  = locationText === '— Select location —' ? '—' : locationText;
-    document.getElementById('sum-expiry').textContent    = expiryText;
-
-    // Enable submit if required fields filled
-    const ready = productSel.value && supplierSel.value && qty && unit &&
-                  document.querySelector('[name="lot_number"]').value &&
-                  locationSel.value &&
-                  document.querySelector('[name="date_received"]').value;
-    document.getElementById('submitBtn').disabled = !ready;
-}
-
-// Attach live updates to all inputs
-document.querySelectorAll('input, select').forEach(el => {
-    el.addEventListener('input',  updateSummary);
-    el.addEventListener('change', updateSummary);
-});
-document.getElementById('qtyInput').addEventListener('input', () => {
-    updatePreview();
-    updateSummary();
-});
 </script>
+
+
+<script src="{% static 'js/receipt_form.js' %}"></script>
+
 {% endblock %}

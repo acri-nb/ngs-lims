@@ -1,5 +1,6 @@
 {% extends 'base.html' %}
 {% load lims_extras %}
+{% load static %}
 {% block title %}{{ sample.sample_name }} | NGS-LIMS{% endblock %}
 
 {% block content %}
@@ -336,39 +337,6 @@
 {% endblock %}
 
 {% block extra_css %}
-<style>
-.detail-label {
-    width: 140px;
-    font-size: 0.72rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    color: var(--text-muted);
-    vertical-align: middle;
-    background: var(--surface-alt);
-}
-
-/* PIPELINE MINI */
-.pipeline-mini {
-    display: flex;
-    align-items: center;
-    padding: 0.25rem 0;
-}
-.pm-step { display: flex; flex-direction: column; align-items: center; gap: 4px; }
-.pm-dot {
-    width: 12px; height: 12px;
-    border-radius: 50%;
-    border: 2px solid var(--border);
-    background: var(--surface-alt);
-}
-.pm-step.done   .pm-dot { background: var(--success); border-color: var(--success); }
-.pm-step.active .pm-dot { background: var(--accent);  border-color: var(--accent); }
-.pm-label { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); white-space: nowrap; }
-.pm-step.done   .pm-label { color: var(--success); }
-.pm-step.active .pm-label { color: var(--accent); }
-.pm-line { flex: 1; height: 2px; background: var(--border); margin: 0 4px 14px; }
-.pm-line.done { background: var(--success); }
-
-.table-lims tbody tr:last-child td { border-bottom: none; }
-</style>
+<link rel="stylesheet"
+      href="{% static 'css/sample_detail.css' %}">
 {% endblock %}
