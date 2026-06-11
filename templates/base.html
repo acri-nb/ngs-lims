@@ -461,7 +461,7 @@
         <i class="fas fa-hospital-user"></i> Clients
     </a>
 
-    <a href="{% url 'project-list' %}" class="sidebar-link {% if 'project' in request.resolver_match.url_name %}active{% endif %}">
+    <a href="{% url 'projects-list' %}" class="sidebar-link {% if 'projects' in request.resolver_match.url_name %}active{% endif %}">
 
         <i class="fas fa-project-diagram"></i> Projects
     </a>
@@ -476,7 +476,7 @@
     
     
     <span class="sidebar-section-label">QC</span>
-    <a href="/qc/" class="sidebar-link">
+    <a href="{% url 'qc-project-list' %}" class="sidebar-link {% if 'qc' in request.resolver_match.url_name %}active{% endif %}">
         <i class="fas fa-microscope"></i> QC Batches
     </a>
 

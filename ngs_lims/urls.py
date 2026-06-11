@@ -28,11 +28,12 @@ urlpatterns = [
     
     path('dashboard/', home,                     name='home'),
     path('portal/',    researcher_portal,         name='researcher-portal'),
-    path('portal/projects/<int:project_id>/',researcher_project_detail,name='researcher-project-detail'),
+    path('portal/projects/<int:project_id>/',researcher_project_detail,name='researcher-projects-detail'),
 
     path('',            include('samples.urls')),
     path('locations/', include('locations.urls')),
     path('inventory/', include('inventory.urls')),
+    path('qc/', include('qc.urls')),
     path('accounts/',  include('django.contrib.auth.urls')),
     path('admin/',     admin.site.urls),
     path('__debug__/', include(debug_toolbar.urls)),

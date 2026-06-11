@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block title %}QC — Select Project{% endblock %}
+{% load static %}
+{% block content %}
+
+{% block extra_css %}
+<link rel="stylesheet"
+      href="{% static 'css/qc_project_list.css' %}">
+{% endblock %}
+
+
+<div class="qc-header">
+  <h1><i class="fas fa-microscope" style="color:var(--accent);margin-right:0.5rem;font-size:1.1rem;"></i>QC Batch Assignment</h1>
+  <p>Select a project to assign samples to batches</p>
+</div>
+
+{% if project_data %}
+<div class="project-grid">
+  {% for row in project_data %}
+  <a href="{% url 'qc-batch-board' row.project.pk %}" class="project-card">
+    {% if row.unbatched > 0 %}
+    <span class="unbatched-warning" title="{{ row.unbatched }} samples not yet batched"></span>
+    {% endif %}
+
+    <div class="project-card-header">
+      <div>
+        <div class="project-name">{{ row.project.project_name }}</div>
+        <div class="project-client">{{ row.project.client.client_name }}</div>
+      </div>
+      <span class="seq-badge">{{ row.project.sequencing_type }}</span>
+    </div>
+
+    <div class="type-pills">
+      {% if row.dna_count %}<span class="type-pill pill-dna">{{ row.dna_count }} DNA</span>{% endif %}
+      {% if row.rna_count %}<span class="type-pill pill-rna">{{ row.rna_count }} RNA</span>{% endif %}
+      {% if not row.dna_count and not row.rna_count %}<span style="font-size:0.78rem;color:var(--text-muted);">No samples</span>{% endif %}
+    </div>
+
+    <div class="project-stats">
+      <div class="stat-item">
+        <span class="stat-value">{{ row.total }}</span>
+        <span class="stat-label">Samples</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-value">{{ row.batch_count }}</span>
+        <span class="stat-label">Batches</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-value" style="{% if row.unbatched > 0 %}color:var(--warning){% else %}color:var(--success){% endif %}">{{ row.unbatched }}</span>
+        <span class="stat-label">Unassigned</span>
+      </div>
+    </div>
+
+    <div class="card-arrow"><i class="fas fa-arrow-right"></i> Open board</div>
+  </a>
+  {% endfor %}
+</div>
+
+{% else %}
+<div class="empty-state">
+  <i class="fas fa-folder-open"></i>
+  <p>No projects found. Create a project in the Samples tab first.</p>
+</div>
+{% endif %}
+{% endblock %}

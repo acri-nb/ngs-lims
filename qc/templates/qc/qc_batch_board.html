@@ -1,0 +1,241 @@
+{% extends "base.html" %}
+{% block title %}Batch Board — {{ project.project_name }}{% endblock %}
+{% load static %}
+{% block content %}
+
+
+{% block extra_css %}
+<link rel="stylesheet"
+      href="{% static 'css/qc_batch_board.css' %}">
+{% endblock %}
+
+<!-- BREADCRUMB -->
+<nav style="font-size:.8rem;color:var(--text-muted);margin-bottom:1.25rem;">
+  <a href="{% url 'qc-project-list' %}" style="color:var(--accent);text-decoration:none;">QC</a>
+  <span style="margin:0 .4rem;">/</span>
+  <span>{{ project.project_name }}</span>
+</nav>
+
+<!-- BOARD HEADER -->
+<div class="board-header">
+  <div>
+    <div class="board-title">{{ project.project_name }}</div>
+    <div class="board-subtitle">
+      {{ project.client.client_name }} &nbsp;·&nbsp; {{ project.sequencing_type }}
+      &nbsp;·&nbsp; {{ all_samples|length }} sample{{ all_samples|length|pluralize }}
+    </div>
+  </div>
+  <div class="board-actions">
+    <button class="btn-ghost-sm" id="btnAudit">
+      <i class="fas fa-history"></i> Audit log
+    </button>
+    <button class="btn-outline-sm" id="btnRecommend">
+      <i class="fas fa-magic"></i> Auto split
+    </button>
+    <button class="btn-primary-sm" id="btnAddBatch">
+      <i class="fas fa-plus"></i> New batch
+    </button>
+  </div>
+</div>
+
+<div class="board-content">
+<div class="board-body">
+
+  <!-- LEFT: POOL -->
+  <div class="pool-panel">
+    <div class="pool-panel-header">
+      <span class="pool-title">Unassigned</span>
+      <span class="pool-count" id="poolCount">{{ unassigned|length }}</span>
+    </div>
+    <div class="pool-search">
+      <input type="text" id="poolSearch" placeholder="Search samples…">
+    </div>
+    <div class="pool-filter-row">
+      <button class="filter-btn active" data-filter="all">All</button>
+      <button class="filter-btn dna"    data-filter="DNA">DNA</button>
+      <button class="filter-btn rna"    data-filter="RNA">RNA</button>
+    </div>
+    <div class="pool-list" id="pool"
+         ondragover="onDragOver(event)"
+         ondrop="onDrop(event,'pool')"
+         ondragleave="onDragLeave(event)">
+      {% for sample in unassigned %}
+      <div class="sample-chip"
+           id="chip-{{ sample.sample_id }}"
+           data-id="{{ sample.sample_id }}"
+           data-type="{{ sample.sample_type }}"
+           data-name="{{ sample.sample_name }}"
+           data-case="{{ sample.specimen.case.case_name }}"
+           draggable="true"
+           ondragstart="onDragStart(event)"
+           ondragend="onDragEnd(event)">
+        <span class="chip-handle"><i class="fas fa-grip-vertical"></i></span>
+        <span class="chip-type chip-type-{{ sample.sample_type|lower }}">{{ sample.sample_type }}</span>
+        <div class="chip-info">
+          <div class="chip-name">{{ sample.sample_name }}</div>
+          <div class="chip-case">{{ sample.specimen.case.case_name }}</div>
+        </div>
+      </div>
+      {% endfor %}
+      {% if not unassigned %}
+      <div style="text-align:center;padding:2rem 1rem;color:var(--text-muted);font-size:.82rem;">
+        <i class="fas fa-check-circle" style="color:var(--success);display:block;font-size:1.5rem;margin-bottom:.5rem;"></i>
+        All samples assigned
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- RIGHT: BATCHES -->
+  <div class="batches-panel">
+    <div class="batches-toolbar">
+      <span class="batches-title">Batches</span>
+      <span style="font-size:.75rem;color:var(--text-muted);">
+        <i class="fas fa-info-circle"></i>&nbsp;
+        Changes are saved only when you click <strong>Save</strong>
+      </span>
+    </div>
+    <div class="batches-grid" id="batchesGrid">
+      {% for row in batch_list %}
+      <div class="batch-card {% if row.has_qc %}has-qc{% endif %}"
+           id="batch-card-{{ row.batch.pk }}"
+           data-batch-id="{{ row.batch.pk }}"
+           data-virtual="false">
+        <div class="batch-card-header">
+          <span class="batch-card-name">{{ row.batch.batch_name }}</span>
+          <input type="date" class="batch-date-input"
+                 value="{{ row.batch.date_batched|date:'Y-m-d' }}"
+                 onchange="markDirty()">
+          <button class="batch-delete-btn" onclick="removeCard({{ row.batch.pk }})"
+                  title="Remove batch">
+            <i class="fas fa-trash-alt"></i>
+          </button>
+        </div>
+        <div class="batch-meta">
+          <span class="batch-pill batch-pill-dna" id="dna-count-{{ row.batch.pk }}">{{ row.dna_count }} DNA</span>
+          <span class="batch-pill batch-pill-rna" id="rna-count-{{ row.batch.pk }}">{{ row.rna_count }} RNA</span>
+          <span class="batch-pill batch-pill-total" id="total-count-{{ row.batch.pk }}">{{ row.sample_ids|length }} / 60</span>
+          {% if row.has_qc %}<span class="batch-pill batch-pill-qc"><i class="fas fa-check"></i> Has QC</span>{% endif %}
+          {% if row.sample_ids|length > 60 %}<span class="batch-pill batch-pill-warn">Over 60</span>{% endif %}
+        </div>
+        <div class="batch-drop-zone" id="zone-{{ row.batch.pk }}"
+             data-batch-id="{{ row.batch.pk }}"
+             ondragover="onDragOver(event)"
+             ondrop="onDrop(event,{{ row.batch.pk }})"
+             ondragleave="onDragLeave(event)">
+          {% for sample in all_samples %}{% if sample.sample_id in row.sample_ids %}
+          <div class="sample-chip"
+               id="chip-{{ sample.sample_id }}"
+               data-id="{{ sample.sample_id }}"
+               data-type="{{ sample.sample_type }}"
+               data-name="{{ sample.sample_name }}"
+               data-case="{{ sample.specimen.case.case_name }}"
+               draggable="true"
+               ondragstart="onDragStart(event)"
+               ondragend="onDragEnd(event)">
+            <span class="chip-handle"><i class="fas fa-grip-vertical"></i></span>
+            <span class="chip-type chip-type-{{ sample.sample_type|lower }}">{{ sample.sample_type }}</span>
+            <div class="chip-info">
+              <div class="chip-name">{{ sample.sample_name }}</div>
+              <div class="chip-case">{{ sample.specimen.case.case_name }}</div>
+            </div>
+          </div>
+          {% endif %}{% endfor %}
+          <div class="drop-hint" id="hint-{{ row.batch.pk }}"
+               style="{% if row.sample_ids %}display:none{% endif %}">
+            Drop samples here
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
+</div><!-- /board-body -->
+
+<!-- AUDIT LOG PANEL -->
+<div class="audit-panel" id="auditPanel" style="display:none;">
+  <div class="audit-panel-header">
+    <span class="audit-panel-title"><i class="fas fa-history" style="margin-right:.4rem;"></i>Audit Log</span>
+    <button class="btn-ghost-sm" onclick="document.getElementById('auditPanel').style.display='none'">
+      <i class="fas fa-times"></i> Close
+    </button>
+  </div>
+  <div id="auditEntries">
+    <div style="padding:1.5rem;text-align:center;color:var(--text-muted);font-size:.83rem;">
+      <i class="fas fa-spinner fa-spin"></i> Loading…
+    </div>
+  </div>
+</div>
+
+</div><!-- /board-content -->
+
+<!-- SAVE BAR -->
+<div class="save-bar" id="saveBar">
+  <span class="save-bar-msg dirty" id="saveMsg">Unsaved changes</span>
+  <div style="display:flex;gap:.75rem;align-items:center;">
+    <button class="btn-discard" onclick="reloadPage()">Discard</button>
+    <button class="btn-save-bar" id="btnSave" onclick="openDiffModal()">
+      <i class="fas fa-save"></i> Review & Save
+    </button>
+  </div>
+</div>
+
+<!-- TOAST CONTAINER -->
+<div class="toast-wrap" id="toastWrap"></div>
+
+<!-- DIFF / CONFIRM MODAL -->
+<div class="modal-overlay" id="diffModal">
+  <div class="modal-box">
+    <div class="modal-title"><i class="fas fa-clipboard-check" style="color:var(--success);margin-right:.4rem;"></i>Review Changes</div>
+    <div class="modal-desc">
+      These changes will be saved to the database. Batches marked
+      <strong style="color:var(--success);">Has QC</strong> already have results recorded —
+      re-assigning samples on those batches will not delete any QC data.
+    </div>
+    <div id="diffContent">
+      <div style="text-align:center;padding:1.5rem;color:var(--text-muted);">
+        <i class="fas fa-spinner fa-spin"></i> Calculating diff…
+      </div>
+    </div>
+    <textarea class="notes-field" id="diffNotes" placeholder="Optional: add a note about why these changes were made…"></textarea>
+    <div class="modal-footer">
+      <button class="btn-cancel" onclick="closeDiffModal()">Cancel</button>
+      <button class="btn-apply" id="btnConfirmSave" onclick="confirmSave()">
+        <i class="fas fa-check"></i> Confirm & Save
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- RECOMMEND MODAL -->
+<div class="modal-overlay" id="recModal">
+  <div class="modal-box">
+    <div class="modal-title"><i class="fas fa-magic" style="color:var(--accent);margin-right:.4rem;"></i>Auto Split Recommendation</div>
+    <div class="modal-desc">
+      DNA and RNA are kept in separate batches, max 60 samples each.
+      Applying this will replace your current unsaved layout.
+    </div>
+    <ul class="rec-list" id="recList"></ul>
+    <div class="modal-footer">
+      <button class="btn-cancel" onclick="closeRecModal()">Cancel</button>
+      <button class="btn-apply-rec" onclick="applyRecommendation()">Apply recommendation</button>
+    </div>
+  </div>
+</div>
+
+<!--  DATA  -->
+<script>
+const PROJECT_ID    = {{ project.pk }};
+const SAMPLES_DATA  = {{ samples_json|safe }};
+const RECOMMENDED   = {{ recommended|safe }};
+const DIFF_URL      = "{% url 'qc-diff-preview' project.pk %}";
+const SAVE_URL      = "{% url 'qc-save-board'   project.pk %}";
+const AUDIT_URL     = "{% url 'qc-audit-log'    project.pk %}";
+const CSRF_TOKEN    = "{{ csrf_token }}";
+
+</script>
+
+<script src="{% static 'js/qc_batch_board.js' %}"></script>
+
+{% endblock %}
