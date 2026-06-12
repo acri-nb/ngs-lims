@@ -449,6 +449,8 @@
         </a>
 
     {% else %}
+
+
     <span class="sidebar-section-label">Navigation</span>
 
     <a href="{% url 'home' %}" class="sidebar-link {% if request.resolver_match.url_name == 'home' %}active{% endif %}">
@@ -475,10 +477,13 @@
     </a>
     
     
-    <span class="sidebar-section-label">QC</span>
-    <a href="{% url 'qc-project-list' %}" class="sidebar-link {% if 'qc' in request.resolver_match.url_name %}active{% endif %}">
+    
+    <span class="sidebar-section-label">Workflows</span>
+    <a href="{% url 'qc-batch-list' %}" class="sidebar-link {% if 'qc' in request.resolver_match.url_name %}active{% endif %}">
         <i class="fas fa-microscope"></i> QC Batches
     </a>
+
+
 
     <span class="sidebar-section-label">Lab</span>
     <a href="{% url 'inventory-dashboard' %}" class="sidebar-link {% if 'inventory' in request.resolver_match.url_name %}active{% endif %}">

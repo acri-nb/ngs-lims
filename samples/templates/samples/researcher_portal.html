@@ -26,7 +26,7 @@
 <div class="row g-3">
     {% for item in projects %}
     <div class="col-md-6 col-xl-4">
-        <a href="{% url 'researcher-project-detail' item.project.project_id %}" class="project-card-link">
+        <a href="{% url 'researcher-projects-detail' item.project.project_id %}" class="project-card-link">
             <div class="project-card">
                 <div class="project-card-header">
                     <div class="project-icon">

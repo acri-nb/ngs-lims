@@ -11,7 +11,7 @@
 # =============================================================================
 
 # ── CONFIG ────────────────────────────────────────────────────────────────────
-DB_NAME="ngs_lims"             # your PostgreSQL database name
+DB_NAME="ngs_lims_db"             # your PostgreSQL database name
 DB_USER="postgres"             # your PostgreSQL user
 DB_HOST="localhost"            # usually localhost
 DB_PORT="5432"                 # usually 5432

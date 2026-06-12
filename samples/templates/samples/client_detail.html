@@ -84,7 +84,7 @@
             </thead>
             <tbody>
                 {% for item in projects %}
-                <tr class="project-row" onclick="window.location='{% url 'project-detail' item.project.project_id %}'">
+                <tr class="project-row" onclick="window.location='{% url 'projects-detail' item.project.project_id %}'">
                     <td>
                         <span style="font-weight:600;font-size:0.9rem;">{{ item.project.project_name }}</span>
                     </td>
