@@ -1,0 +1,84 @@
+.page-header {
+  display:flex; align-items:center; justify-content:space-between;
+  margin-bottom:1.5rem; flex-wrap:wrap; gap:1rem;
+}
+.page-title { font-family:'IBM Plex Mono',monospace; font-size:1.35rem; font-weight:600; color:var(--primary); margin:0; }
+.page-subtitle { font-size:.85rem; color:var(--text-muted); margin:.2rem 0 0; }
+
+.btn-assign {
+  background:var(--accent); color:#fff; border:none;
+  padding:.55rem 1.25rem; border-radius:7px; font-size:.875rem; font-weight:600;
+  cursor:pointer; display:inline-flex; align-items:center; gap:.5rem;
+  text-decoration:none; transition:background .15s;
+}
+.btn-assign:hover { background:var(--accent-dark); color:#fff; text-decoration:none; }
+
+/* filter bar */
+.filter-bar { display:flex; gap:.5rem; margin-bottom:1.25rem; flex-wrap:wrap; align-items:center; }
+.filter-bar input {
+  border:1px solid var(--border); border-radius:6px;
+  padding:.4rem .85rem; font-size:.83rem;
+  background:var(--surface-alt); color:var(--text); outline:none;
+  width:220px; transition:border-color .15s;
+}
+.filter-bar input:focus { border-color:var(--accent); }
+.flt-btn {
+  font-size:.76rem; font-family:'IBM Plex Mono',monospace;
+  padding:.3rem .8rem; border-radius:20px; border:1px solid var(--border);
+  cursor:pointer; background:transparent; color:var(--text-muted); font-weight:500; transition:all .12s;
+}
+.flt-btn.active  { background:var(--primary); color:#fff; border-color:var(--primary); }
+.flt-btn.dna.active { background:#0096b4; border-color:#0096b4; }
+.flt-btn.rna.active { background:#c77b39; border-color:#c77b39; }
+
+/* grid */
+.batch-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(300px,1fr)); gap:1.1rem; }
+
+/* card */
+.batch-card {
+  background:var(--surface); border:1px solid var(--border); border-radius:10px;
+  text-decoration:none; color:inherit; display:block;
+  transition:box-shadow .15s, border-color .15s, transform .1s;
+  overflow:hidden;
+}
+.batch-card:hover {
+  box-shadow:0 4px 20px rgba(0,180,216,.12);
+  border-color:var(--accent); transform:translateY(-2px);
+  text-decoration:none; color:inherit;
+}
+
+.bc-header { padding:.85rem 1.1rem; border-bottom:1px solid var(--border); display:flex; align-items:flex-start; justify-content:space-between; gap:.6rem; }
+.bc-name { font-family:'IBM Plex Mono',monospace; font-size:.85rem; font-weight:600; color:var(--primary); }
+.bc-project { font-size:.75rem; color:var(--text-muted); margin-top:.15rem; }
+
+.type-badge { font-family:'IBM Plex Mono',monospace; font-size:.72rem; font-weight:700; padding:.2rem .6rem; border-radius:4px; flex-shrink:0; }
+.type-dna { background:rgba(0,180,216,.12); color:#0096b4; }
+.type-rna { background:rgba(244,162,97,.15); color:#c77b39; }
+.type-unknown { background:var(--surface-alt); color:var(--text-muted); border:1px solid var(--border); }
+
+.bc-body { padding:.85rem 1.1rem; }
+
+/* progress bar */
+.qc-bar-wrap { margin-bottom:.75rem; }
+.qc-bar-label { display:flex; justify-content:space-between; font-size:.73rem; color:var(--text-muted); margin-bottom:.3rem; }
+.qc-bar { height:6px; border-radius:3px; background:var(--surface-alt); border:1px solid var(--border); overflow:hidden; display:flex; }
+.qc-seg-pass    { background:var(--success); }
+.qc-seg-fail    { background:var(--danger); }
+.qc-seg-caution { background:var(--warning); }
+.qc-seg-pending { background:var(--border); }
+
+/* status pills row */
+.status-row { display:flex; gap:.45rem; flex-wrap:wrap; }
+.st-pill { font-size:.7rem; font-family:'IBM Plex Mono',monospace; padding:.15rem .55rem; border-radius:3px; font-weight:600; }
+.st-pass    { background:rgba(45,198,83,.12); color:var(--success); }
+.st-fail    { background:rgba(220,53,69,.1); color:var(--danger); }
+.st-caution { background:rgba(255,193,7,.12); color:#b08000; }
+.st-pending { background:var(--surface-alt); color:var(--text-muted); border:1px solid var(--border); }
+
+.bc-footer { padding:.65rem 1.1rem; border-top:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; font-size:.75rem; color:var(--text-muted); }
+.bc-footer-arrow { color:var(--accent); opacity:0; transition:opacity .15s; }
+.batch-card:hover .bc-footer-arrow { opacity:1; }
+
+/* empty */
+.empty-state { text-align:center; padding:4rem 2rem; color:var(--text-muted); }
+.empty-state i { font-size:2.5rem; margin-bottom:1rem; color:var(--border); display:block; }

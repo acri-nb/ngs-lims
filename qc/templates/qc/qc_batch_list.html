@@ -1,0 +1,129 @@
+{% extends "base.html" %}
+{% block title %}QC Batches{% endblock %}
+{% load static %}
+
+{% block content %}
+
+{% block extra_css %}
+<link rel="stylesheet"
+      href="{% static 'css/qc_batch_list.css' %}">
+{% endblock %}
+
+<div class="page-header">
+  <div>
+    <h1 class="page-title"><i class="fas fa-microscope" style="color:var(--accent);margin-right:.5rem;font-size:1.1rem;"></i>QC Batches</h1>
+    <p class="page-subtitle">Click a batch to view results &nbsp;·&nbsp; Use <em>Assign Batches</em> to create or reorganise</p>
+  </div>
+  <a href="{% url 'qc-project-list' %}" class="btn-assign">
+    <i class="fas fa-layer-group"></i> Assign Batches
+  </a>
+</div>
+
+<div class="filter-bar">
+  <input type="text" id="searchInput" placeholder="Search batches or projects…">
+  <button class="flt-btn active" data-filter="all">All</button>
+  <button class="flt-btn dna"    data-filter="DNA">DNA</button>
+  <button class="flt-btn rna"    data-filter="RNA">RNA</button>
+  <button class="flt-btn"        data-filter="pending" style="color:var(--text-muted);">Has Pending</button>
+</div>
+
+{% if batch_data %}
+<div class="batch-grid" id="batchGrid">
+  {% for row in batch_data %}
+  {% with batch=row.batch %}
+  <a href="{% url 'qc-batch-detail' batch.pk %}"
+     class="batch-card"
+     data-type="{{ batch.batch_type|default:'' }}"
+     data-name="{{ batch.batch_name|lower }}"
+     data-project="{{ batch.project.project_name|lower|default:'' }}"
+     data-pending="{{ row.pending }}">
+
+    <div class="bc-header">
+      <div>
+        <div class="bc-name">{{ batch.batch_name }}</div>
+        <div class="bc-project">
+          {% if batch.project %}{{ batch.project.project_name }} · {{ batch.project.client.client_name }}{% else %}<em>No project</em>{% endif %}
+        </div>
+      </div>
+      {% if batch.batch_type == 'DNA' %}
+        <span class="type-badge type-dna">DNA</span>
+      {% elif batch.batch_type == 'RNA' %}
+        <span class="type-badge type-rna">RNA</span>
+      {% else %}
+        <span class="type-badge type-unknown">—</span>
+      {% endif %}
+    </div>
+
+    <div class="bc-body">
+      {% if row.total > 0 %}
+      <div class="qc-bar-wrap">
+        <div class="qc-bar-label">
+          <span>QC Progress</span>
+          <span>{{ row.total }} sample{{ row.total|pluralize }}</span>
+        </div>
+        <div class="qc-bar">
+          {% if row.passed  %}<div class="qc-seg-pass"    style="width:{% widthratio row.passed  row.total 100 %}%"></div>{% endif %}
+          {% if row.failed  %}<div class="qc-seg-fail"    style="width:{% widthratio row.failed  row.total 100 %}%"></div>{% endif %}
+          {% if row.caution %}<div class="qc-seg-caution" style="width:{% widthratio row.caution row.total 100 %}%"></div>{% endif %}
+          {% if row.pending %}<div class="qc-seg-pending" style="width:{% widthratio row.pending row.total 100 %}%"></div>{% endif %}
+        </div>
+      </div>
+      <div class="status-row">
+        {% if row.passed  %}<span class="st-pill st-pass">    ✓ {{ row.passed }}  Pass</span>{% endif %}
+        {% if row.failed  %}<span class="st-pill st-fail">    ✕ {{ row.failed }}  Fail</span>{% endif %}
+        {% if row.caution %}<span class="st-pill st-caution"> ⚠ {{ row.caution }} Caution</span>{% endif %}
+        {% if row.pending %}<span class="st-pill st-pending"> ○ {{ row.pending }} Pending</span>{% endif %}
+      </div>
+      {% else %}
+      <div style="font-size:.8rem;color:var(--text-muted);font-style:italic;">No samples assigned</div>
+      {% endif %}
+    </div>
+
+    <div class="bc-footer">
+      <span><i class="fas fa-calendar-alt" style="margin-right:.3rem;"></i>{{ batch.date_batched|date:"M j, Y" }}</span>
+      <span><i class="fas fa-user" style="margin-right:.3rem;"></i>{{ batch.created_by.get_full_name|default:batch.created_by.username }}</span>
+      <span class="bc-footer-arrow"><i class="fas fa-arrow-right"></i></span>
+    </div>
+
+  </a>
+  {% endwith %}
+  {% endfor %}
+</div>
+
+{% else %}
+<div class="empty-state">
+  <i class="fas fa-vials"></i>
+  <p>No batches yet.</p>
+  <a href="{% url 'qc-project-list' %}" class="btn-assign" style="display:inline-flex;margin-top:.5rem;">
+    <i class="fas fa-layer-group"></i> Assign your first batch
+  </a>
+</div>
+{% endif %}
+
+<script>
+const searchInput = document.getElementById('searchInput');
+const filterBtns  = document.querySelectorAll('.flt-btn');
+let activeFilter  = 'all';
+
+function applyFilter() {
+  const q = searchInput ? searchInput.value.toLowerCase() : '';
+  document.querySelectorAll('.batch-card').forEach(card => {
+    const matchType = activeFilter === 'all'
+      || (activeFilter === 'pending' && parseInt(card.dataset.pending) > 0)
+      || card.dataset.type === activeFilter;
+    const matchText = card.dataset.name.includes(q) || card.dataset.project.includes(q);
+    card.style.display = (matchType && matchText) ? '' : 'none';
+  });
+}
+
+if (searchInput) searchInput.addEventListener('input', applyFilter);
+filterBtns.forEach(btn => {
+  btn.addEventListener('click', () => {
+    filterBtns.forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    activeFilter = btn.dataset.filter;
+    applyFilter();
+  });
+});
+</script>
+{% endblock %}

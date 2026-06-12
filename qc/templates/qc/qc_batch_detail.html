@@ -1,0 +1,260 @@
+{% extends "base.html" %}
+{% block title %}{{ batch.batch_name }}{% endblock %}
+{% load static %}
+
+{% block content %}
+{% block extra_css %}
+<link rel="stylesheet"
+      href="{% static 'css/qc_batch_detail.css' %}">
+{% endblock %}
+
+<!-- BREADCRUMB -->
+<nav style="font-size:.8rem;color:var(--text-muted);margin-bottom:1.25rem;">
+  <a href="{% url 'qc-batch-list' %}" style="color:var(--accent);text-decoration:none;">QC Batches</a>
+  <span style="margin:0 .4rem;">/</span>
+  <span>{{ batch.batch_name }}</span>
+</nav>
+
+<!-- HEADER -->
+<div class="detail-header">
+  <div class="detail-title-block">
+    <div style="display:flex;align-items:center;gap:.75rem;flex-wrap:wrap;">
+      <h1 class="detail-batch-name">{{ batch.batch_name }}</h1>
+      {% if batch.batch_type == 'DNA' %}<span class="type-badge type-dna">DNA Batch</span>
+      {% elif batch.batch_type == 'RNA' %}<span class="type-badge type-rna">RNA Batch</span>
+      {% endif %}
+    </div>
+    <div class="detail-meta">
+      {% if batch.project %}
+      <span><i class="fas fa-project-diagram"></i> {{ batch.project.project_name }} &nbsp;·&nbsp; {{ batch.project.client.client_name }}</span>
+      {% endif %}
+      <span><i class="fas fa-calendar-alt"></i> {{ batch.date_batched|date:"F j, Y" }}</span>
+      <span><i class="fas fa-user"></i> {{ batch.created_by.get_full_name|default:batch.created_by.username }}</span>
+    </div>
+  </div>
+
+  <div style="display:flex;gap:.65rem;flex-wrap:wrap;align-items:flex-start;">
+    <a href="{% url 'qc-batch-list' %}" class="btn-back">
+      <i class="fas fa-arrow-left"></i> All Batches
+    </a>
+    {% if batch.project %}
+    <a href="{% url 'qc-batch-board' batch.project.pk %}" class="btn-back" style="border-color:var(--accent);color:var(--accent);">
+      <i class="fas fa-edit"></i> Edit Assignments
+    </a>
+    {% endif %}
+    <!-- Export & Import -->
+    <button class="btn-export" onclick="exportCSV()">
+      <i class="fas fa-file-download"></i> Export CSV
+    </button>
+    <button class="btn-import" onclick="openImportModal()">
+      <i class="fas fa-file-upload"></i> Import Results
+    </button>
+  </div>
+</div>
+
+<!-- SUMMARY CARDS -->
+<div class="summary-row">
+  <div class="sum-card sum-total">
+    <div class="sum-value" id="cnt-total">{{ qc_results.count }}</div>
+    <div class="sum-label">Total</div>
+  </div>
+  <div class="sum-card sum-pass">
+    <div class="sum-value" id="cnt-pass">—</div>
+    <div class="sum-label">Pass</div>
+  </div>
+  <div class="sum-card sum-fail">
+    <div class="sum-value" id="cnt-fail">—</div>
+    <div class="sum-label">Fail</div>
+  </div>
+  <div class="sum-card sum-caution">
+    <div class="sum-value" id="cnt-caution">—</div>
+    <div class="sum-label">Caution</div>
+  </div>
+  <div class="sum-card sum-pending">
+    <div class="sum-value" id="cnt-pending">—</div>
+    <div class="sum-label">Pending</div>
+  </div>
+</div>
+
+<!-- QC TABLE -->
+<div class="table-wrap">
+  <div class="table-toolbar">
+    <span class="table-title">
+      {% if batch.batch_type == 'DNA' %}<i class="fas fa-dna" style="margin-right:.4rem;color:#0096b4;"></i>DNA QC Results
+      {% elif batch.batch_type == 'RNA' %}<i class="fas fa-wave-square" style="margin-right:.4rem;color:#c77b39;"></i>RNA QC Results
+      {% else %}QC Results{% endif %}
+    </span>
+    <input type="text" class="table-search" id="tableSearch" placeholder="Search samples…">
+  </div>
+
+  {% if qc_results %}
+  <div style="overflow-x:auto;">
+  <table id="qcTable">
+    <thead>
+      <tr>
+        <th>Sample</th>
+        <th>Case</th>
+        <th>Specimen</th>
+        <th>Qubit (nM)</th>
+        {% if batch.batch_type == 'RNA' %}
+        <th>RIN</th>
+        <th>DV200 (%)</th>
+        {% elif batch.batch_type == 'DNA' %}
+        <th>Nanodrop 260/280</th>
+        <th>Nanodrop 260/230</th>
+        {% else %}
+        <th>RIN</th><th>DV200 (%)</th>
+        <th>Nanodrop 260/280</th><th>Nanodrop 260/230</th>
+        {% endif %}
+        <th>Status</th>
+        <th>Notes</th>
+        <th>Last edited</th>
+      </tr>
+    </thead>
+    <tbody id="qcTbody">
+      {% for qc in qc_results %}
+      <tr data-search="{{ qc.sample.sample_name|lower }} {{ qc.sample.specimen.case.case_name|lower }}"
+          data-sample="{{ qc.sample.sample_name }}"
+          data-qubit="{% if qc.qubit_nm is not None %}{{ qc.qubit_nm }}{% endif %}"
+          data-rin="{% if qc.rin is not None %}{{ qc.rin }}{% endif %}"
+          data-dv200="{% if qc.dv200 is not None %}{{ qc.dv200 }}{% endif %}"
+          data-nd280="{% if qc.nanodrop_260_280 is not None %}{{ qc.nanodrop_260_280 }}{% endif %}"
+          data-nd230="{% if qc.nanodrop_260_230 is not None %}{{ qc.nanodrop_260_230 }}{% endif %}">
+        <td class="mono">{{ qc.sample.sample_name }}</td>
+        <td>{{ qc.sample.specimen.case.case_name }}</td>
+        <td>{{ qc.sample.specimen.specimen_type.specimen_type }}</td>
+
+        <td class="mono">
+          {% if qc.qubit_nm is not None %}<span class="col-qubit">{{ qc.qubit_nm }}</span>
+          {% else %}<span class="null-val">—</span>{% endif %}
+        </td>
+
+        {% if batch.batch_type == 'RNA' %}
+        <td class="mono">
+          {% if qc.rin is not None %}
+            {% if qc.rin >= 5 %}<span class="col-ok">{{ qc.rin }}</span>
+            {% elif qc.rin >= 2 %}<span class="col-warn">{{ qc.rin }}</span>
+            {% else %}<span class="col-bad">{{ qc.rin }}</span>{% endif %}
+          {% else %}<span class="null-val">—</span>{% endif %}
+        </td>
+        <td class="mono">
+          {% if qc.dv200 is not None %}
+            {% if qc.dv200 >= 62 %}<span class="col-ok">{{ qc.dv200 }}</span>
+            {% elif qc.dv200 >= 40 %}<span class="col-warn">{{ qc.dv200 }}</span>
+            {% else %}<span class="col-bad">{{ qc.dv200 }}</span>{% endif %}
+          {% else %}<span class="null-val">—</span>{% endif %}
+        </td>
+
+        {% elif batch.batch_type == 'DNA' %}
+        <td class="mono">
+          {% if qc.nanodrop_260_280 is not None %}
+            {% if qc.nanodrop_260_280 > 1.79 %}<span class="col-ok">{{ qc.nanodrop_260_280 }}</span>
+            {% else %}<span class="col-warn">{{ qc.nanodrop_260_280 }}</span>{% endif %}
+          {% else %}<span class="null-val">—</span>{% endif %}
+        </td>
+        <td class="mono">
+          {% if qc.nanodrop_260_230 is not None %}
+            {% if qc.nanodrop_260_230 > 1.7 %}<span class="col-ok">{{ qc.nanodrop_260_230 }}</span>
+            {% elif qc.nanodrop_260_230 > 1.4 %}<span class="col-warn">{{ qc.nanodrop_260_230 }}</span>
+            {% else %}<span class="col-bad">{{ qc.nanodrop_260_230 }}</span>{% endif %}
+          {% else %}<span class="null-val">—</span>{% endif %}
+        </td>
+
+        {% else %}
+        <td class="mono">{% if qc.rin is not None %}{{ qc.rin }}{% else %}<span class="null-val">—</span>{% endif %}</td>
+        <td class="mono">{% if qc.dv200 is not None %}{{ qc.dv200 }}{% else %}<span class="null-val">—</span>{% endif %}</td>
+        <td class="mono">{% if qc.nanodrop_260_280 is not None %}{{ qc.nanodrop_260_280 }}{% else %}<span class="null-val">—</span>{% endif %}</td>
+        <td class="mono">{% if qc.nanodrop_260_230 is not None %}{{ qc.nanodrop_260_230 }}{% else %}<span class="null-val">—</span>{% endif %}</td>
+        {% endif %}
+
+        <td>
+          <span class="status-badge status-{{ qc.qc_status }}">
+            {% if qc.qc_status == 'Pass' %}✓
+            {% elif qc.qc_status == 'Fail' %}✕
+            {% elif qc.qc_status == 'Caution' %}⚠
+            {% else %}○{% endif %}
+            {{ qc.qc_status }}
+          </span>
+        </td>
+        <td style="font-size:.78rem;color:var(--text-muted);max-width:160px;">
+          {{ qc.notes|default:"—"|truncatechars:60 }}
+        </td>
+        <td style="font-size:.75rem;color:var(--text-muted);white-space:nowrap;">
+          {{ qc.updated_at|date:"M j, Y" }}<br>
+          <span style="font-size:.72rem;">{{ qc.edited_by.get_full_name|default:qc.edited_by.username }}</span>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+
+  {% else %}
+  <div class="empty-table">
+    <i class="fas fa-vials" style="font-size:2rem;margin-bottom:.75rem;display:block;color:var(--border);"></i>
+    No QC records yet for this batch.
+    {% if batch.project %}
+    <br><a href="{% url 'qc-batch-board' batch.project.pk %}" style="color:var(--accent);">Assign samples</a> to this batch first.
+    {% endif %}
+  </div>
+  {% endif %}
+</div>
+
+<!-- ── IMPORT MODAL ──────────────────────────────────────────── -->
+<div class="modal-overlay" id="importModal">
+  <div class="modal-box">
+    <div class="modal-title"><i class="fas fa-file-upload" style="color:var(--accent);margin-right:.4rem;"></i>Import QC Results</div>
+    <div class="modal-desc">
+      Upload a filled-in CSV to update this batch. Only samples belonging to
+      <strong>{{ batch.batch_name }}</strong> will be updated — unknown IDs are skipped.
+    </div>
+
+    <!-- Expected format hint -->
+    <div class="result-section-title" style="margin-bottom:.35rem;">Expected columns</div>
+    {% if batch.batch_type == 'DNA' %}
+    <div class="schema-box">sample_id, qubit(ng/uL), nanodrop(260/280), nanodrop(260/230)</div>
+    {% elif batch.batch_type == 'RNA' %}
+    <div class="schema-box">sample_id, qubit(ng/uL), RIN, dv200</div>
+    {% else %}
+    <div class="schema-box">sample_id, qubit(ng/uL), RIN, dv200, nanodrop(260/280), nanodrop(260/230)</div>
+    {% endif %}
+    <p style="font-size:.78rem;color:var(--text-muted);margin-bottom:1rem;">
+      Leave a cell blank to keep the existing value.
+      Qubit values should be in <strong>ng/µL</strong>.
+    </p>
+
+    <!-- Drop zone -->
+    <div class="drop-zone" id="dropZone" onclick="document.getElementById('csvInput').click()">
+      <i class="fas fa-cloud-upload-alt"></i>
+      Click or drag a CSV file here
+      <div class="file-name" id="fileNameDisplay" style="display:none;"></div>
+    </div>
+    <input type="file" id="csvInput" accept=".csv" style="display:none;">
+
+    <!-- Result output (shown after import) -->
+    <div class="import-result" id="importResult" style="display:none;"></div>
+
+    <div class="modal-footer">
+      <button class="btn-modal-cancel" onclick="closeImportModal()">Close</button>
+      <button class="btn-modal-ok" id="btnDoImport" disabled onclick="doImport()">
+        <i class="fas fa-upload"></i> Upload & Import
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST CONTAINER -->
+<div class="toast-wrap" id="toastWrap"></div>
+
+<script>
+const BATCH_TYPE   = "{{ batch.batch_type }}";
+const BATCH_NAME   = "{{ batch.batch_name }}";
+const IMPORT_URL   = "{% url 'qc-import-results' batch.pk %}";
+const CSRF_TOKEN   = "{{ csrf_token }}";
+
+
+</script>
+
+<script src="{% static 'js/qc_batch_detail.js' %}"></script>
+
+{% endblock %}

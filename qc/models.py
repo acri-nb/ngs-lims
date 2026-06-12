@@ -353,10 +353,11 @@ class SampleQC(models.Model):
                     'dv200': 'DV200 should not be set for DNA samples.'
                 })
 
-    def save(self, *args, **kwargs):
-        self.full_clean()
-
-        # Auto-calculate status whenever a QC record is saved
+    def save(self, *args, skip_validation=False, **kwargs):
+        # skip_validation=True is used when creating a blank PENDING stub
+        # (all metrics null) from the batch board — there is nothing to validate yet.
+        if not skip_validation:
+            self.full_clean()
         self.qc_status = self.calculate_qc_status()
         super().save(*args, **kwargs)
 
@@ -394,88 +395,3 @@ class SampleQC(models.Model):
         on_delete=models.PROTECT,
         related_name='qc_results'
     )
-
-    # TODO: decide decimal precision for all metrics
-    qubit_nm         = models.FloatField(null=True, blank=True)
-    rin              = models.FloatField(null=True, blank=True)
-    dv200            = models.FloatField(null=True, blank=True)
-    nanodrop_260_280 = models.FloatField(null=True, blank=True)
-    nanodrop_260_230 = models.FloatField(null=True, blank=True)
-
-    qc_status = models.CharField(max_length=20, choices=QC_STATUS_CHOICES, default=PENDING)
-    notes     = models.TextField(blank=True, default='')
-
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-    edited_by  = models.ForeignKey(User, on_delete=models.PROTECT, related_name='sample_qc_edited')
-
-    def calculate_qc_status(self) -> str:
-        sample_type = self.sample.sample_type
-
-        if sample_type == 'DNA':
-            if any(v is None for v in [self.qubit_nm, self.nanodrop_260_280, self.nanodrop_260_230]):
-                return self.PENDING
-            qubit_total = self.qubit_nm * 100
-            if qubit_total > 100 and self.nanodrop_260_280 > 1.79 and self.nanodrop_260_230 > 1.7:
-                return self.PASS
-            elif self.nanodrop_260_230 > 1.4:
-                return self.CAUTION
-            else:
-                return self.FAIL
-
-        elif sample_type == 'RNA':
-            if self.qubit_nm is None:
-                return self.PENDING
-            if self.rin is None and self.dv200 is None:
-                return self.PENDING
-            qubit_total = self.qubit_nm * 40
-            rin   = self.rin   if self.rin   is not None else 0
-            dv200 = self.dv200 if self.dv200 is not None else 0
-            passes_quantity = qubit_total > 100
-            passes_quality  = (rin > 5 or (rin > 2 and dv200 > 55) or dv200 > 62)
-            if passes_quantity and passes_quality:
-                return self.PASS
-            elif (1.99 <= rin < 5) and (40 <= dv200 < 55):
-                return self.CAUTION
-            else:
-                return self.FAIL
-
-        return self.PENDING
-
-    def clean(self):
-        super().clean()
-        if not self.sample:
-            return
-        sample_type = self.sample.sample_type
-
-        if self.qubit_nm is None:
-            raise ValidationError({'qubit_nm': 'Qubit nm should be set'})
-        if self.qubit_nm is not None and self.qubit_nm <= 0:
-            raise ValidationError({'qubit_nm': 'Qubit nm must be a positive number.'})
-        if self.rin is not None and self.rin <= 0:
-            raise ValidationError({'rin': 'RIN must be a positive number.'})
-        if self.dv200 is not None and self.dv200 <= 0:
-            raise ValidationError({'dv200': 'DV200 must be a positive number.'})
-        if self.nanodrop_260_230 is not None and self.nanodrop_260_230 <= 0:
-            raise ValidationError({'nanodrop_260_230': 'Nanodrop 260/230 must be a positive number.'})
-        if self.nanodrop_260_280 is not None and self.nanodrop_260_280 <= 0:
-            raise ValidationError({'nanodrop_260_280': 'Nanodrop 260/280 must be a positive number.'})
-
-        if sample_type == 'RNA':
-            if self.nanodrop_260_230 is not None:
-                raise ValidationError({'nanodrop_260_230': 'Nanodrop 260/230 should not be set for RNA samples.'})
-            if self.nanodrop_260_280 is not None:
-                raise ValidationError({'nanodrop_260_280': 'Nanodrop 260/280 should not be set for RNA samples.'})
-        elif sample_type == 'DNA':
-            if self.rin is not None:
-                raise ValidationError({'rin': 'RIN should not be set for DNA samples.'})
-            if self.dv200 is not None:
-                raise ValidationError({'dv200': 'DV200 should not be set for DNA samples.'})
-
-    def save(self, *args, **kwargs):
-        self.full_clean()
-        self.qc_status = self.calculate_qc_status()
-        super().save(*args, **kwargs)
-
-    def __str__(self):
-        return f"QC {self.sample}({self.qc_status})"
