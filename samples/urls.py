@@ -15,7 +15,9 @@ urlpatterns = [
     path('cases/', views.case_list, name='case-list'),
     path('cases/<int:case_id>/', views.case_detail, name='case-detail'),
     path('clients/', views.client_list , name='client-list'),
+    path("clients/new/", views.client_create, name="client-create"),
     path('clients/<int:client_pk>/', views.client_detail, name='client-detail'),
     path( "projects/", views.project_list, name="projects-list"),
     path( "projects/<int:project_id>/", views.project_detail, name="projects-detail" ),
+    path( "projects/new/",views.project_create,name="projects-create"),
 ]

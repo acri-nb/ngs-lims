@@ -16,7 +16,7 @@ from locations.models import Location
 from qc.models import SampleQC
 
 from django.http import JsonResponse,HttpResponse
-from .forms import SampleAddForm
+from .forms import SampleAddForm, ClientForm, ProjectForm
 
 def home(request):
     """
@@ -924,6 +924,116 @@ def ajax_cases_for_project(request):
 
 from django.db.models import Count
 
+@login_required
+def case_list(request):
+
+    cases = (
+        Case.objects
+        .select_related("client")
+        .annotate(
+
+            specimen_count=Count(
+                "specimens",
+                distinct=True
+            ),
+
+            sample_count=Count(
+                "specimens__samples",
+                distinct=True
+            ),
+
+            dna_count=Count(
+                "specimens__samples",
+                filter=Q(
+                    specimens__samples__sample_type="DNA"
+                ),
+                distinct=True
+            ),
+
+            rna_count=Count(
+                "specimens__samples",
+                filter=Q(
+                    specimens__samples__sample_type="RNA"
+                ),
+                distinct=True
+            ),
+
+            qc_pass=Count(
+                "specimens__samples__qc_results",
+                filter=Q(
+                    specimens__samples__qc_results__qc_status="Pass"
+                ),
+                distinct=True
+            ),
+
+            qc_fail=Count(
+                "specimens__samples__qc_results",
+                filter=Q(
+                    specimens__samples__qc_results__qc_status="Fail"
+                ),
+                distinct=True
+            ),
+
+            qc_caution=Count(
+                "specimens__samples__qc_results",
+                filter=Q(
+                    specimens__samples__qc_results__qc_status="Caution"
+                ),
+                distinct=True
+            ),
+
+            qc_pending=Count(
+                "specimens__samples__qc_results",
+                filter=Q(
+                    specimens__samples__qc_results__qc_status="Pending"
+                ),
+                distinct=True
+            ),
+        )
+        .order_by("case_name")
+    )
+
+    # calculate percentages in memory
+    for case in cases:
+
+        # If a sample has no QC record yet,
+        # count it as pending
+        case.qc_pending = max(
+            case.sample_count
+            - case.qc_pass
+            - case.qc_fail
+            - case.qc_caution,
+            0
+        )
+
+        total = (
+            case.qc_pass
+            + case.qc_fail
+            + case.qc_caution
+            + case.qc_pending
+        )
+
+        if total:
+            case.qc_pass_pct = round(case.qc_pass * 100 / total)
+            case.qc_fail_pct = round(case.qc_fail * 100 / total)
+            case.qc_caution_pct = round(case.qc_caution * 100 / total)
+            case.qc_pending_pct = round(case.qc_pending * 100 / total)
+        else:
+            case.qc_pass_pct = 0
+            case.qc_fail_pct = 0
+            case.qc_caution_pct = 0
+            case.qc_pending_pct = 0
+
+    clients = Client.objects.order_by("client_name")
+
+    return render(
+        request,
+        "samples/case_list.html",
+        {
+            "cases": cases,
+            "clients": clients,
+        }
+    )
 
 @login_required
 def case_detail(request, case_id):
@@ -961,46 +1071,49 @@ def case_detail(request, case_id):
         }
     )
 
-@login_required
-def case_list(request):
-    from django.db.models import Count, Q
-    from qc.models import SampleQC
 
-    cases = Case.objects.select_related('client').order_by('case_name')
 
-    case_data = []
-    for case in cases:
-        samples      = Sample.objects.filter(specimen__case=case)
-        sample_count = samples.count()
-        dna_count    = samples.filter(sample_type='DNA').count()
-        rna_count    = samples.filter(sample_type='RNA').count()
+from django.shortcuts import render, redirect
+from django.contrib import messages
 
-        qc_qs      = SampleQC.objects.filter(sample__specimen__case=case)
-        qc_pass    = qc_qs.filter(qc_status='Pass').count()
-        qc_fail    = qc_qs.filter(qc_status='Fail').count()
-        qc_caution = qc_qs.filter(qc_status='Caution').count()
-        qc_pending = max(sample_count - qc_qs.exclude(qc_status='Pending').count(), 0)
+def client_create(request):
+    if request.method == "POST":
+        form = ClientForm(request.POST)
 
-        total = qc_pass + qc_fail + qc_caution + qc_pending
-        def pct(n): return round((n / total * 100) if total > 0 else 0)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Client created.")
+            return redirect("client-list")
 
-        case.specimen_count  = case.specimens.count()
-        case.sample_count    = sample_count
-        case.dna_count       = dna_count
-        case.rna_count       = rna_count
-        case.qc_pass         = qc_pass
-        case.qc_fail         = qc_fail
-        case.qc_caution      = qc_caution
-        case.qc_pending      = qc_pending
-        case.qc_pass_pct     = pct(qc_pass)
-        case.qc_fail_pct     = pct(qc_fail)
-        case.qc_caution_pct  = pct(qc_caution)
-        case.qc_pending_pct  = pct(qc_pending)
-        case_data.append(case)
+    else:
+        form = ClientForm()
 
-    clients = Client.objects.order_by('client_name')
+    return render(
+        request,
+        "samples/client_create.html",
+        {"form": form}
+    )
 
-    return render(request, 'samples/case_list.html', {
-        'cases':   case_data,
-        'clients': clients,
-    })
+def project_create(request):
+
+    if request.method == "POST":
+        form = ProjectForm(request.POST)
+
+        if form.is_valid():
+            form.save()
+
+            messages.success(
+                request,
+                "Project created."
+            )
+
+            return redirect("project-list")
+
+    else:
+        form = ProjectForm()
+
+    return render(
+        request,
+        "samples/project_create.html",
+        {"form": form}
+    )

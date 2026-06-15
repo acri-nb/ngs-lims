@@ -28,9 +28,6 @@ if (tableSearch) {
 
 //  EXPORT CSV 
 // Reads sample data directly from the table row data-* attributes.
-// Qubit stored as nM → convert back to ng/µL for the lab:
-//   DNA: nM × 100 µL elution  → ng/µL
-//   RNA: nM × 40  µL elution  → ng/µL
 function exportCSV() {
   let headers, rows_data = [];
 

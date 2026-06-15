@@ -1,7 +1,6 @@
 from django import forms
 from locations.models import Location
-from .models import Sample,Project,Case,SpecimenType
-
+from .models import Sample,Project,Case,SpecimenType,Client
 
 class BulkLocationForm(forms.Form):
     location = forms.ModelChoiceField(
@@ -120,3 +119,60 @@ class SampleAddForm(forms.Form):
                 self.fields['case'].empty_label = '— Select case —'
             except (ValueError, Project.DoesNotExist):
                 pass
+
+class ClientForm(forms.ModelForm):
+    class Meta:
+        model  = Client
+        fields = ["client_name", "organisation_name"]
+        widgets = {
+            "client_name": forms.TextInput(attrs={
+                "class":       "form-control form-control-lims",
+                "placeholder": "Dr. Jane Smith...",
+            }),
+            "organisation_name": forms.TextInput(attrs={
+                "class":       "form-control form-control-lims",
+                "placeholder": "Atlantic Cancer Research Institute...",
+            }),
+        }
+
+
+class ProjectForm(forms.ModelForm):
+
+    SEQUENCING_CHOICES = [
+        ("Long", "Long"),
+        ("Short", "Short"),
+        ("WGS", "WGS"),
+        ("CUSTOM", "Custom"),
+    ]
+
+    sequencing_choice = forms.ChoiceField(
+        choices=SEQUENCING_CHOICES,
+        widget=forms.Select(attrs={
+            "class": "form-select form-select-lims",
+            "id":    "id_sequencing_choice",
+        }),
+    )
+
+    custom_sequencing = forms.CharField(
+        required=False,
+        widget=forms.TextInput(attrs={
+            "class":       "form-control form-control-lims",
+            "placeholder": "Describe the sequencing type…",
+            "id":          "id_custom_sequencing",
+        }),
+    )
+
+    class Meta:
+        model  = Project
+        fields = ["project_name", "client", "sequencing_choice", "custom_sequencing"]
+        widgets = {
+            "project_name": forms.TextInput(attrs={
+                "class":       "form-control form-control-lims",
+                "placeholder": "LungCancer...",
+                "id":          "id_project_name",
+            }),
+            "client": forms.Select(attrs={
+                "class": "form-select form-select-lims",
+                "id":    "id_client",
+            }),
+        }

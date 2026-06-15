@@ -5,7 +5,7 @@
 {% block content %}
 <div class="page-header">
     <h1 class="page-title"><i class="fas fa-hospital-user"></i> Clients</h1>
-    <a href="{% url 'admin:samples_client_add' %}" class="btn btn-accent">
+    <a href="{% url 'client-create' %}" class="btn btn-accent">
         <i class="fas fa-plus me-1"></i> New Client
     </a>
 </div>
@@ -22,7 +22,7 @@
 <div class="empty-state">
     <i class="fas fa-hospital-user"></i>
     <p>No clients yet.</p>
-    <a href="{% url 'admin:samples_client_add' %}" class="btn btn-accent btn-sm">Add first client</a>
+    <a href="{% url 'client-create' %}" class="btn btn-accent btn-sm">Add first client</a>
 </div>
 {% else %}
 <div class="row g-3">

@@ -1,0 +1,164 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}New Project | NGS-LIMS{% endblock %}
+
+{% block content %}
+
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'projects-list' %}">Projects</a></li>
+        <li class="breadcrumb-item active">New Project</li>
+    </ol>
+</nav>
+
+<div class="page-header">
+    <h1 class="page-title"><i class="fas fa-project-diagram"></i> New Project</h1>
+</div>
+
+{% if messages %}
+    {% for message in messages %}
+    <div class="alert alert-{{ message.tags }} alert-dismissible fade show">
+        {{ message }}<button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+    {% endfor %}
+{% endif %}
+
+<form method="post" id="projectForm">
+{% csrf_token %}
+
+<div class="row g-4">
+
+    <!-- LEFT: FORM FIELDS -->
+    <div class="col-lg-7">
+
+        <!-- PROJECT INFO -->
+        <div class="card mb-3">
+            <div class="card-header">
+                <i class="fas fa-folder-open"></i> Project Information
+            </div>
+            <div class="card-body p-4">
+                <div class="row g-3">
+
+                    <div class="col-12">
+                        <label class="form-label-lims" for="id_project_name">
+                            Project Name <span class="req">*</span>
+                        </label>
+                        {{ form.project_name }}
+                        {% if form.project_name.errors %}
+                        <div class="field-error">{{ form.project_name.errors.0 }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="col-12">
+                        <label class="form-label-lims" for="id_client">
+                            Client <span class="req">*</span>
+                        </label>
+                        {{ form.client }}
+                        {% if form.client.errors %}
+                        <div class="field-error">{{ form.client.errors.0 }}</div>
+                        {% endif %}
+                    </div>
+
+                </div>
+            </div>
+        </div>
+
+        <!-- SEQUENCING TYPE -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <i class="fas fa-dna"></i> Sequencing Type
+            </div>
+            <div class="card-body p-4">
+                <div class="row g-3">
+
+                    <div class="col-12">
+                        <label class="form-label-lims" for="id_sequencing_choice">
+                            Type <span class="req">*</span>
+                        </label>
+                        {{ form.sequencing_choice }}
+                        {% if form.sequencing_choice.errors %}
+                        <div class="field-error">{{ form.sequencing_choice.errors.0 }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="col-12" id="custom-seq-wrapper" style="display:none;">
+                        <label class="form-label-lims" for="id_custom_sequencing">
+                            Custom Sequencing Type <span class="req">*</span>
+                        </label>
+                        {{ form.custom_sequencing }}
+                        <div class="field-hint">Specify the sequencing type not listed above.</div>
+                        {% if form.custom_sequencing.errors %}
+                        <div class="field-error">{{ form.custom_sequencing.errors.0 }}</div>
+                        {% endif %}
+                    </div>
+
+                </div>
+            </div>
+        </div>
+
+        <div class="d-flex gap-2 justify-content-end">
+            <a href="{% url 'projects-list' %}" class="btn btn-outline-lims px-4">Cancel</a>
+            <button type="submit" class="btn btn-accent px-4">
+                <i class="fas fa-save me-1"></i> Create Project
+            </button>
+        </div>
+
+    </div>
+
+</div>
+</form>
+
+{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/project_create.css' %}">
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+    const projectInput  = document.getElementById("id_project_name");
+    const clientSel     = document.getElementById("id_client");
+    const seqSel        = document.getElementById("id_sequencing_choice");
+    const customWrapper = document.getElementById("custom-seq-wrapper");
+    const customInput   = document.getElementById("id_custom_sequencing");
+
+    // Custom sequencing toggle
+    function toggleCustom() {
+        const show = seqSel.value === "CUSTOM";
+        customWrapper.style.display = show ? "block" : "none";
+        if (!show && customInput) customInput.value = "";
+        updatePreview();
+    }
+
+    // Live preview
+    function updatePreview() {
+        const name      = projectInput?.value.trim() || "—";
+        const clientTxt = clientSel?.options[clientSel.selectedIndex]?.text || "—";
+        let   seqTxt    = seqSel?.options[seqSel.selectedIndex]?.text || "—";
+
+        if (seqSel?.value === "CUSTOM" && customInput?.value.trim()) {
+            seqTxt = customInput.value.trim();
+        }
+
+        const preview = document.getElementById("previewName");
+        preview.textContent = name || "—";
+        preview.classList.toggle("placeholder", !name || name === "—");
+
+        document.getElementById("sum-client").textContent =
+            (clientTxt === "---------" || !clientSel?.value) ? "—" : clientTxt;
+        document.getElementById("sum-seq").textContent =
+            (seqTxt === "---------" || !seqSel?.value) ? "—" : seqTxt;
+    }
+
+    seqSel?.addEventListener("change", toggleCustom);
+    projectInput?.addEventListener("input", updatePreview);
+    clientSel?.addEventListener("change", updatePreview);
+    customInput?.addEventListener("input", updatePreview);
+
+    // Init
+    toggleCustom();
+    updatePreview();
+});
+</script>
+{% endblock %}

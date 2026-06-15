@@ -1,0 +1,118 @@
+
+.form-label-lims {
+    display: block;
+    font-size: 0.72rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-muted);
+    margin-bottom: 5px;
+}
+
+.req   { color: var(--danger); }
+
+.field-hint {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    margin-top: 4px;
+}
+
+.field-error {
+    font-size: 0.78rem;
+    color: var(--danger);
+    margin-top: 4px;
+}
+
+.form-control,
+.form-select {
+    border-color: var(--border);
+    font-size: 0.875rem;
+    color: var(--text);
+    background: var(--surface-alt);
+    border-radius: 6px;
+    max-width: 300px;
+}
+
+.form-control:focus,
+.form-select:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(0, 180, 216, 0.1);
+    background: var(--surface);
+    color: var(--text);
+}
+
+.btn-outline-lims {
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    background: transparent;
+    border-radius: 7px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    transition: all 0.15s;
+}
+
+.btn-outline-lims:hover {
+    background: var(--surface-alt);
+    color: var(--text);
+    border-color: var(--text-muted);
+}
+
+.name-preview {
+    background: var(--surface-alt);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1rem;
+    text-align: center;
+}
+
+.name-preview-label {
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-muted);
+    font-family: 'IBM Plex Mono', monospace;
+    margin-bottom: 6px;
+}
+
+.name-preview-value {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--accent);
+    word-break: break-all;
+    min-height: 24px;
+    transition: color 0.15s;
+}
+
+.name-preview-value.placeholder {
+    color: var(--border);
+}
+
+.summary-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    padding: 0.45rem 0;
+    border-bottom: 1px solid var(--border);
+    gap: 1rem;
+}
+
+.summary-row:last-child {
+    border-bottom: none;
+}
+
+.summary-label {
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-muted);
+    flex-shrink: 0;
+}
+
+.summary-val {
+    font-size: 0.82rem;
+    color: var(--text);
+    text-align: right;
+    font-weight: 500;
+}
