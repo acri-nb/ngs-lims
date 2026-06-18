@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import SampleQCBatch, BatchSample, SampleQC
+from .models import SampleQCBatch, BatchSample, SampleQC, BatchAuditLog
 
 from django import forms
 from django.shortcuts import render, redirect
@@ -250,3 +250,62 @@ class SampleQCAdmin(admin.ModelAdmin):
             'classes': ('collapse',),
         }),
     )
+
+@admin.register(BatchAuditLog)
+class BatchAuditLogAdmin(admin.ModelAdmin):
+    list_display = (
+        "id",
+        "action",
+        "project",
+        "batch",
+        "performed_by",
+        "timestamp",
+    )
+
+    list_filter = (
+        "action",
+        "project",
+        "performed_by",
+        "timestamp",
+    )
+
+    search_fields = (
+        "project__name",
+        "batch__batch_name",
+        "performed_by__username",
+        "notes",
+    )
+
+    readonly_fields = (
+        "project",
+        "batch",
+        "action",
+        "performed_by",
+        "timestamp",
+        "diff_json",
+        "notes",
+    )
+
+    ordering = ("-timestamp",)
+
+    date_hierarchy = "timestamp"
+
+    fieldsets = (
+        ("Main", {
+            "fields": (
+                "action",
+                "project",
+                "batch",
+                "performed_by",
+                "timestamp",
+            )
+        }),
+        ("Details", {
+            "fields": (
+                "notes",
+                "diff_json",
+            )
+        }),
+    )
+
+    

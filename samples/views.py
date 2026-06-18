@@ -433,53 +433,6 @@ def project_detail(request, project_id):
         context
     )
 
-@login_required
-def import_samples(request):
-    if request.method == "POST":
-        csv_file = request.FILES.get("file")
-
-        if not csv_file:
-            messages.error(request, "No file provided.")
-            return redirect("sample-import")
-
-        try:
-            decoded_file = csv_file.read().decode("utf-8")
-            io_string = io.StringIO(decoded_file)
-            reader = csv.DictReader(io_string)
-
-            created = 0
-
-            for row in reader:
-                # required fields 
-                project = Project.objects.get(project_id=row["project_id"])
-                specimen = Specimen.objects.get(specimen_id=row["specimen_id"])
-
-                location = None
-                if row.get("location_id"):
-                    location = Location.objects.get(location_id=row["location_id"])
-
-                sample = Sample.objects.create(
-                    project=project,
-                    specimen=specimen,
-                    location=location,
-                    sample_type=row.get("sample_type", "DNA"),
-                    receiving_condition=row.get("receiving_condition", ""),
-                    volume_received=row.get("volume_received") or None,
-                    concentration=row.get("concentration") or None,
-                    notes=row.get("notes", "")
-                )
-
-                created += 1
-
-            messages.success(request, f"Imported {created} samples.")
-            return redirect("sample-list")
-
-        except Exception as e:
-            messages.error(request, f"Import failed: {e}")
-
-    return render(request, "samples/import_samples.html")
-
-
 # SAMPLE DETAIL 
 
 @login_required
@@ -574,7 +527,7 @@ def sample_export_csv(request):
 
     writer = csv.writer(response)
     writer.writerow([
-        'sample_name', 'sample_type', 'case_name', 'specimen_type', 'concentration', 'volume',
+        'sampleID', 'sample_name', 'case_name', 'specimen_type', 'concentration', 'volume',
         'project', 'date_received', 'receiving_condition',
         'location', 'qc_status', 'notes'
     ])
@@ -633,6 +586,7 @@ CSV_COLUMNS = [
 def sample_import(request):
     preview_rows = []
     preview_errors = []
+    project_id = None
 
     projects = Project.objects.select_related('client').order_by('project_name')
 
@@ -642,166 +596,132 @@ def sample_import(request):
         project_id = request.POST.get('project')
         action = request.POST.get('action', 'preview')
 
-        if not csv_file:
-            messages.error(request, 'Please select a CSV file.')
+        # Resolve CSV — fresh upload takes priority, fall back to session cache
+        if csv_file:
+            if not csv_file.name.endswith('.csv'):
+                messages.error(request, 'File must be a CSV file.')
+                return render(request, 'samples/sample_import.html', {
+                    'projects': projects,
+                    'preview_rows': [],
+                    'preview_errors': [],
+                    'selected_project_id': project_id,
+                    'has_cached_csv': bool(request.session.get('csv_cache')),
+                })
+            decoded = csv_file.read().decode('utf-8')
+            request.session['csv_cache'] = decoded
 
-        elif not project_id:
-            messages.error(request, 'Please select a project.')
-
-        elif not csv_file.name.endswith('.csv'):
-            messages.error(request, 'File must be a CSV file.')
+        elif request.session.get('csv_cache'):
+            decoded = request.session['csv_cache']
 
         else:
+            messages.error(request, 'Please select a CSV file.')
+            return render(request, 'samples/sample_import.html', {
+                'projects': projects,
+                'preview_rows': [],
+                'preview_errors': [],
+                'selected_project_id': project_id,
+                'has_cached_csv': False,
+            })
 
-            try:
-                project = Project.objects.select_related('client').get(
-                    project_id=project_id
-                )
+        if not project_id:
+            messages.error(request, 'Please select a project.')
+            return render(request, 'samples/sample_import.html', {
+                'projects': projects,
+                'preview_rows': [],
+                'preview_errors': [],
+                'selected_project_id': None,
+                'has_cached_csv': bool(request.session.get('csv_cache')),
+            })
 
-                decoded = csv_file.read().decode('utf-8')
-                reader = csv.DictReader(io.StringIO(decoded))
-                rows = list(reader)
+        try:
+            project = Project.objects.select_related('client').get(project_id=project_id)
 
-                required_columns = [
-                    'CaseID',
-                    'SpecimenType',
-                    'NucleidType',
-                    'Concentration(ng/ul)',
-                    'Volume(uL)',
-                ]
+            reader = csv.DictReader(io.StringIO(decoded))
+            rows = list(reader)
 
-                # Validate headers
-                if rows:
-                    missing = [
-                        col for col in required_columns
-                        if col not in rows[0]
-                    ]
+            required_columns = [
+                'CaseID',
+                'SpecimenType',
+                'NucleidType',
+                'Concentration(ng/ul)',
+                'Volume(uL)',
+            ]
 
-                    if missing:
-                        messages.error(
-                            request,
-                            f"Missing required column(s): {', '.join(missing)}"
-                        )
+            if rows:
+                missing = [col for col in required_columns if col not in rows[0]]
+                if missing:
+                    messages.error(request, f"Missing required column(s): {', '.join(missing)}")
 
-                for row in rows:
+            for row in rows:
+                error = None
+                case_name     = row.get('CaseID', '').strip()
+                specimen_type = row.get('SpecimenType', '').strip()
+                nucleid_type  = row.get('NucleidType', '').strip().upper()
+                concentration = row.get('Concentration(ng/ul)', '').strip()
+                volume        = row.get('Volume(uL)', '').strip()
 
-                    error = None
+                if not case_name:
+                    error = "Missing CaseID"
+                elif not specimen_type:
+                    error = "Missing SpecimenType"
+                elif nucleid_type not in ('DNA', 'RNA'):
+                    error = "NucleidType must be DNA or RNA"
 
-                    case_name = row.get('CaseID', '').strip()
-                    specimen_type = row.get('SpecimenType', '').strip()
-                    nucleid_type = row.get('NucleidType', '').strip().upper()
-                    concentration = row.get('Concentration(ng/ul)', '').strip()
-                    volume = row.get('Volume(uL)', '').strip()
+                preview_rows.append({
+                    'case_name':    case_name,
+                    'specimen_type': specimen_type,
+                    'sample_type':  nucleid_type,
+                    'concentration': concentration,
+                    'volume':       volume,
+                    'error':        error,
+                    'raw':          row,
+                })
+                if error:
+                    preview_errors.append(error)
 
-                    if not case_name:
-                        error = "Missing CaseID"
+            if action == 'import' and not preview_errors:
+                created = 0
+                for item in preview_rows:
+                    row = item['raw']
 
-                    elif not specimen_type:
-                        error = "Missing SpecimenType"
-
-                    elif nucleid_type not in ('DNA', 'RNA'):
-                        error = "NucleidType must be DNA or RNA"
-
-                    preview_rows.append({
-                        'case_name': case_name,
-                        'specimen_type': specimen_type,
-                        'sample_type': nucleid_type,
-                        'concentration': concentration,
-                        'volume': volume,
-                        'error': error,
-                        'raw': row,
-                    })
-
-                    if error:
-                        preview_errors.append(error)
-
-               
-                # IMPORT
-                if action == 'import' and not preview_errors:
-
-                    created = 0
-
-                    for item in preview_rows:
-
-                        row = item['raw']
-
-                        case_name = row['CaseID'].strip()
-                        specimen_type_name = row['SpecimenType'].strip()
-
-                        sample_type = row['NucleidType'].strip().upper()
-
-                        concentration = (
-                            float(row['Concentration(ng/ul)'])
-                            if row.get('Concentration(ng/ul)')
-                            else None
-                        )
-
-                        volume = (
-                            float(row['Volume(uL)'])
-                            if row.get('Volume(uL)')
-                            else None
-                        )
-
-                        # CASE
-
-                        case, _ = Case.objects.get_or_create(
-                            case_name=case_name,
-                            defaults={
-                                'client': project.client
-                            }
-                        )
-
-                        # SPECIMEN TYPE
-
-                        spec_type, _ = SpecimenType.objects.get_or_create(
-                            specimen_type=specimen_type_name
-                        )
-
-                        # SPECIMEN
-
-                        specimen, _ = Specimen.objects.get_or_create(
-                            case=case,
-                            specimen_type=spec_type
-                        )
-
-                        # SAMPLE
-                        Sample.objects.create(
-                            specimen=specimen,
-                            project=project,
-                            sample_type=sample_type,
-                            concentration=concentration,
-                            volume_received=volume,
-                        )
-
-                        created += 1
-
-                    messages.success(
-                        request,
-                        f"Successfully imported {created} sample(s)."
+                    case, _ = Case.objects.get_or_create(
+                        case_name=row['CaseID'].strip(),
+                        defaults={'client': project.client}
                     )
-
-                    return redirect('sample-list')
-
-                elif action == 'import' and preview_errors:
-
-                    messages.error(
-                        request,
-                        f"Fix {len(preview_errors)} error(s) before importing."
+                    spec_type, _ = SpecimenType.objects.get_or_create(
+                        specimen_type=row['SpecimenType'].strip()
                     )
+                    specimen, _ = Specimen.objects.get_or_create(
+                        case=case,
+                        specimen_type=spec_type
+                    )
+                    Sample.objects.create(
+                        specimen=specimen,
+                        project=project,
+                        sample_type=row['NucleidType'].strip().upper(),
+                        concentration=float(row['Concentration(ng/ul)']) if row.get('Concentration(ng/ul)') else None,
+                        volume_received=float(row['Volume(uL)']) if row.get('Volume(uL)') else None,
+                    )
+                    created += 1
 
-            except Exception as e:
-                messages.error(request, f"Import failed: {e}")
+                messages.success(request, f"Successfully imported {created} sample(s).")
+                request.session.pop('csv_cache', None)
+                return redirect('sample-list')
 
-    return render(
-        request,
-        'samples/sample_import.html',
-        {
-            'projects': projects,
-            'preview_rows': preview_rows,
-            'preview_errors': preview_errors,
-        }
-    )
+            elif action == 'import' and preview_errors:
+                messages.error(request, f"Fix {len(preview_errors)} error(s) before importing.")
 
+        except Exception as e:
+            messages.error(request, f"Import failed: {e}")
+
+    return render(request, 'samples/sample_import.html', {
+        'projects':          projects,
+        'preview_rows':      preview_rows,
+        'preview_errors':    preview_errors,
+        'selected_project_id': project_id,
+        'has_cached_csv':    bool(request.session.get('csv_cache')),
+    })
+    
 @login_required
 def sample_import_template(request):
     response = HttpResponse(content_type='text/csv')
@@ -820,13 +740,13 @@ def sample_import_template(request):
     ])
 
     examples = [
-        ['Y1V9RH', 'smallEVs',   'RNA', '250.7564', '788'],
-        ['WYL6O2', 'LargeEVs',   'RNA', '387.5995', '425'],
-        ['08Q2T8', 'FrzT',       'DNA', '243.9815', '612'],
-        ['MCF10A', 'FFPE',       'RNA', '175.2200', '500'],
-        ['MCF10A', 'Cells',      'DNA', '86.4200',  '100'],
-        ['PDX-001','EV',         'DNA', '42.5000',  '50'],
-        ['CTRL01', 'Bld',        'RNA', '12.9000',  '250'],
+        ['EXAMPLE1', 'smallEVs',   'RNA', '250.7564', '788'],
+        ['EXAMPLE2', 'LargeEVs',   'RNA', '387.5995', '425'],
+        ['EXAMPLE3', 'FrzT',       'DNA', '243.9815', '612'],
+        ['EXAMPLE4', 'FFPE',       'RNA', '175.2200', '500'],
+        ['EXAMPLE5', 'Cells',      'DNA', '86.4200',  '100'],
+        ['EXAMPLE6','EV',         'DNA', '42.5000',  '50'],
+        ['EXAMPLE7', 'Bld',        'RNA', '12.9000',  '250'],
     ]
 
     for row in examples:
@@ -1107,7 +1027,7 @@ def project_create(request):
                 "Project created."
             )
 
-            return redirect("project-list")
+            return redirect("projects-list")
 
     else:
         form = ProjectForm()

@@ -161,7 +161,20 @@ class ProjectForm(forms.ModelForm):
             "id":          "id_custom_sequencing",
         }),
     )
+    def save(self, commit=True):
+        project = super().save(commit=False)
 
+        seq = self.cleaned_data["sequencing_choice"]
+
+        if seq == "CUSTOM":
+            project.sequencing_type = self.cleaned_data["custom_sequencing"]
+        else:
+            project.sequencing_type = seq
+
+        if commit:
+            project.save()
+
+        return project
     class Meta:
         model  = Project
         fields = ["project_name", "client", "sequencing_choice", "custom_sequencing"]

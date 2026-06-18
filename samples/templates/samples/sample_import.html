@@ -13,7 +13,6 @@
     <h1 class="page-title"><i class="fas fa-file-csv"></i> Import Samples from CSV</h1>
 </div>
 
-
 <div class="row g-4">
 <div class="col-lg-7">
 
@@ -44,8 +43,7 @@
         </div>
     </div>
 
-  
-    <!--UPLOAD -->
+    <!-- UPLOAD -->
     <div class="card mb-3">
         <div class="card-header">
             <span class="step-num">2</span> Upload your CSV file
@@ -56,51 +54,65 @@
 
                 <div class="mb-3">
                     <label class="form-label">Project</label>
-                
                     <select name="project" class="form-select" required>
                         <option value="">Select project...</option>
-                    
                         {% for project in projects %}
-                        <option value="{{ project.project_id }}">
+                        <option value="{{ project.project_id }}"
+                            {% if project.project_id|stringformat:"s" == selected_project_id %}selected{% endif %}>
                             {{ project.project_name }}
                         </option>
                         {% endfor %}
                     </select>
                 </div>
-            
+
                 <!-- Drop zone -->
-                <div class="drop-zone" id="dropZone"
+                <div class="drop-zone {% if has_cached_csv %}drop-zone--loaded{% endif %}"
+                     id="dropZone"
                      ondragover="event.preventDefault(); this.classList.add('drag-over')"
                      ondragleave="this.classList.remove('drag-over')"
                      ondrop="handleDrop(event)">
-                    <i class="fas fa-cloud-upload-alt drop-icon"></i>
-                    <div class="drop-text">Drag & drop your CSV here</div>
-                    <div class="drop-sub">or</div>
-                    <label class="btn btn-outline-lims btn-sm mt-2" style="cursor:pointer;">
-                        Browse file
+
+                    {% if has_cached_csv %}
+                        <i class="fas fa-check-circle drop-icon" id="dropIcon"></i>
+                        <div class="drop-text" id="dropText">File loaded from previous preview</div>
+                        <div class="drop-sub" id="dropSub">Upload a new file to replace it</div>
+                    {% else %}
+                        <i class="fas fa-cloud-upload-alt drop-icon" id="dropIcon"></i>
+                        <div class="drop-text" id="dropText">Drag &amp; drop your CSV here</div>
+                        <div class="drop-sub" id="dropSub">or</div>
+                    {% endif %}
+
+                    <label class="btn btn-outline-lims btn-sm mt-2" style="cursor:pointer;" id="browseLabel">
+                        {% if has_cached_csv %}Replace file{% else %}Browse file{% endif %}
                         <input type="file" name="csv_file" id="csvFile"
                                accept=".csv" style="display:none;"
                                onchange="previewFile(this)">
                     </label>
-                    <div id="filePreview" class="file-preview" style="display:none;"></div>
+
+                    <div id="fileChip" class="file-preview mt-2"
+                         style="display:{% if has_cached_csv %}block{% else %}none{% endif %};">
+                        {% if has_cached_csv %}
+                            <i class="fas fa-file-csv"></i> CSV loaded — ready to import
+                        {% endif %}
+                    </div>
                 </div>
-            
+
                 <div class="d-flex gap-2 mt-3">
                     <button type="submit" name="action" value="preview"
                             class="btn btn-outline-lims flex-grow-1">
-                        Preview
+                        <i class="fas fa-eye me-1"></i> Preview
                     </button>
-                
                     <button type="submit" name="action" value="import"
                             class="btn btn-accent flex-grow-1">
-                        Import
+                        <i class="fas fa-file-import me-1"></i> Import
                     </button>
                 </div>
+
             </form>
         </div>
     </div>
 
-    <!-- PREVIEW TABLE  -->
+    <!-- PREVIEW TABLE -->
     {% if preview_rows %}
     <div class="card">
         <div class="card-header">
@@ -119,10 +131,9 @@
                         <th>#</th>
                         <th>Case ID</th>
                         <th>Specimen type</th>
-                        <th>Nucleid Type</th>
+                        <th>Nucleic type</th>
                         <th>Concentration</th>
                         <th>Volume</th>
-                        
                     </tr>
                 </thead>
                 <tbody>
@@ -131,30 +142,15 @@
                         <td style="font-family:'IBM Plex Mono',monospace;font-size:0.75rem;color:var(--text-muted);">
                             {{ forloop.counter }}
                         </td>
-                    
-                        <td style="font-size:0.82rem;">
-                            {{ row.case_name }}
-                        </td>
-                    
-                        <td style="font-size:0.82rem;">
-                            {{ row.specimen_type }}
-                        </td>
-                    
+                        <td style="font-size:0.82rem;">{{ row.case_name }}</td>
+                        <td style="font-size:0.82rem;">{{ row.specimen_type }}</td>
                         <td>
                             <span class="lims-badge badge-{{ row.sample_type|lower }}">
                                 {{ row.sample_type }}
                             </span>
                         </td>
-                    
-                        <td style="font-size:0.82rem;">
-                            {{ row.concentration }}
-                        </td>
-                    
-                        <td style="font-size:0.82rem;">
-                            {{ row.volume }}
-                        </td>
-                    
-                        
+                        <td style="font-size:0.82rem;">{{ row.concentration }}</td>
+                        <td style="font-size:0.82rem;">{{ row.volume }}</td>
                     </tr>
                     {% endfor %}
                 </tbody>
@@ -167,13 +163,11 @@
 
 <!-- INSTRUCTIONS -->
 <div class="col-lg-5">
-
     <div class="card mb-3">
         <div class="card-header">
             <i class="fas fa-info-circle me-2"></i>
             Import Instructions
         </div>
-
         <div class="card-body">
 
             <div class="instruction-item">
@@ -238,16 +232,49 @@
 
         </div>
     </div>
+</div>
 
 </div>
 {% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet"
-      href="{% static 'css/sample_import.css' %}">
+<link rel="stylesheet" href="{% static 'css/sample_import.css' %}">
 {% endblock %}
 
 {% block extra_js %}
-
 <script src="{% static 'js/sample_list.js' %}"></script>
+<script>
+function previewFile(input) {
+    const file = input.files[0];
+    if (!file) return;
+
+    const zone = document.getElementById('dropZone');
+    const icon = document.getElementById('dropIcon');
+    const text = document.getElementById('dropText');
+    const sub  = document.getElementById('dropSub');
+    const chip = document.getElementById('fileChip');
+    const lbl  = document.getElementById('browseLabel');
+
+    zone.classList.add('drop-zone--loaded');
+    icon.className = 'fas fa-check-circle drop-icon';
+    text.textContent = file.name;
+    sub.textContent  = (file.size / 1024).toFixed(1) + ' KB';
+
+    chip.style.display = 'block';
+    chip.innerHTML = '<i class="fas fa-file-csv"></i> CSV loaded — ready to import';
+
+    lbl.childNodes[0].textContent = 'Replace file ';
+}
+
+function handleDrop(event) {
+    event.preventDefault();
+    event.currentTarget.classList.remove('drag-over');
+    const file = event.dataTransfer.files[0];
+    if (file && file.name.endsWith('.csv')) {
+        const input = document.getElementById('csvFile');
+        input.files = event.dataTransfer.files;
+        previewFile(input);
+    }
+}
+</script>
 {% endblock %}

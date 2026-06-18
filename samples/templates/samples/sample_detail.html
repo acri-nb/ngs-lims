@@ -73,10 +73,6 @@
                             <td>{{ sample.date_received|lab_date }}</td>
                         </tr>
                         <tr>
-                            <td class="detail-label">Receiving condition</td>
-                            <td>{{ sample.receiving_condition|dash_if_none }}</td>
-                        </tr>
-                        <tr>
                             <td class="detail-label">Volume received</td>
                             <td>
                                 {% if sample.volume_received %}
@@ -92,6 +88,12 @@
                                 {% else %}—{% endif %}
                             </td>
                         </tr>
+
+                        <tr>
+                            <td class="detail-label">Receiving condition</td>
+                            <td>{{ sample.receiving_condition|dash_if_none }}</td>
+                        </tr>
+
                         <tr>
                             <td class="detail-label">Storage location</td>
                             <td>

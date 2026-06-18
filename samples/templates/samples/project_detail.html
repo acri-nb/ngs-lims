@@ -16,12 +16,13 @@
     </ol>
 </nav>
 
-<!-- PROJECT HEADER -->
 <div class="page-header">
+
     <div>
         <h1 class="page-title mb-0">
             <i class="fas fa-project-diagram"></i> {{ project.project_name }}
         </h1>
+
         <div style="font-size:0.82rem;color:var(--text-muted);margin-top:4px;">
             <span class="lims-badge badge-dna me-2">{{ project.sequencing_type }}</span>
             <i class="fas fa-university me-1"></i>{{ project.client.client_name }}
@@ -29,9 +30,19 @@
             <i class="fas fa-calendar me-1"></i>Created {{ project.date_created|lab_date }}
         </div>
     </div>
-    <a href="{% url 'admin:samples_sample_add' %}" class="btn btn-accent">
-        <i class="fas fa-plus me-1"></i> Add Sample
-    </a>
+
+    <div class="d-flex gap-2">
+
+        <a href="{% url 'sample-import' %}" class="btn btn-outline-lims">
+            <i class="fas fa-file-csv me-1"></i> Import Sample CSV
+        </a>
+
+        <a href="{% url 'sample-add' %}" class="btn btn-accent">
+            <i class="fas fa-plus me-1"></i> New Sample
+        </a>
+
+    </div>
+
 </div>
 
 <!-- PIPELINE SUMMARY CARDS -->

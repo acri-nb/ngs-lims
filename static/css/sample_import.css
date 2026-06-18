@@ -84,3 +84,17 @@
     justify-content:center;
     flex-shrink:0;
 }
+
+.drop-zone--loaded {
+    border-color: var(--bs-success);
+    background-color: rgba(var(--bs-success-rgb), 0.05);
+}
+
+.drop-zone--loaded .drop-icon {
+    color: var(--bs-success);
+}
+
+.drop-zone--loaded .drop-text {
+    color: var(--bs-success);
+    font-weight: 500;
+}

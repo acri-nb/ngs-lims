@@ -60,7 +60,7 @@ def qc_batch_detail(request, batch_id):
     qc_results = (
         batch.qc_results
         .select_related('sample__specimen__case', 'sample__specimen__specimen_type', 'edited_by')
-        .order_by('sample__sample_name')
+        .order_by('-sample__sample_id')
     )
     return render(request, 'qc/qc_batch_detail.html', {
         'batch':      batch,
@@ -104,7 +104,7 @@ def qc_batch_board(request, project_id):
         project.samples
         .select_related('specimen__case', 'specimen__specimen_type')
         .prefetch_related('qc_results', 'batch_memberships__batch')
-        .order_by('sample_type', 'sample_name')
+        .order_by('-sample_id')
     )
 
     # Only batches that belong to this project
