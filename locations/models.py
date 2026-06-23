@@ -226,7 +226,7 @@ class Rack(models.Model):
         verbose_name_plural = "Racks"
 
     def __str__(self):
-        return f"{self.rack_name} @ {self.location.location_name}"
+        return f"{self.rack_name} @ {self.location.locationName}"
 
     @property
     def capacity(self):

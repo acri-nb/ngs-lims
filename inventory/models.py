@@ -166,6 +166,7 @@ class InventoryReceipt(models.Model):
 
     class Meta:
         ordering = ['-date_received']
+        unique_together = ('product', 'lot_number')   # same lot can't be received twice for same product
         verbose_name = "Inventory Receipt"
         verbose_name_plural = "Inventory Receipts"
 
@@ -219,5 +220,3 @@ class Inventory(models.Model):
 
     def __str__(self):
         return f"{self.product} @ {self.location} — qty: {self.quantity_on_hand}"
-
-

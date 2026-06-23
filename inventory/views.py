@@ -2,6 +2,7 @@ from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.utils import timezone
+from django.db import IntegrityError
 from datetime import timedelta
 
 from .models import Inventory, InventoryReceipt, Product, Supplier, ProductSupplier
@@ -152,6 +153,11 @@ def inventory_receipt_add(request):
             location  = Location.objects.get(pk=request.POST['location'])
             received_by = User.objects.get(pk=request.POST['received_by'])
 
+            # Validate supplier is actually linked to this product
+            if not ProductSupplier.objects.filter(product=product, supplier=supplier).exists():
+                messages.error(request, f"{supplier.supplier_name} is not a registered supplier for {product.product_name}.")
+                raise ValueError("Supplier-product mismatch")
+
             expiry = request.POST.get('expiration_date') or None
 
             receipt = InventoryReceipt(
@@ -171,6 +177,8 @@ def inventory_receipt_add(request):
             messages.success(request, f"Receipt logged: {product.product_name} — Lot {receipt.lot_number}.")
             return redirect('inventory-dashboard')
 
+        except IntegrityError:
+            messages.error(request, f"Lot number '{request.POST.get('lot_number')}' has already been received for this product. Check the existing receipts.")
         except Exception as e:
             messages.error(request, f"Could not save receipt: {e}")
 

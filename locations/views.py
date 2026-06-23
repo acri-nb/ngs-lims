@@ -2,15 +2,16 @@ from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib import messages
 from django.utils import timezone
 from django.db.models import Avg, Max, Min, Count
+from django.db import IntegrityError
 from datetime import timedelta
 
 from .models import Location, TempLog
 from django.core.paginator import Paginator
 from django.core.exceptions import ValidationError
-
+from django.contrib.auth.decorators import login_required
 
 # LOCATION LIST (/locations/)
-
+@login_required
 def location_list(request):
     """
     Shows all locations as cards.
@@ -37,7 +38,7 @@ def location_list(request):
 
 
 # ADD TEMP LOG (POST only)
-
+@login_required
 def add_temp_log(request, location_pk):
     """
     Handles the quick-log form submission from either the list or history page.
@@ -51,29 +52,43 @@ def add_temp_log(request, location_pk):
     next_url = request.POST.get('next', 'location-list')
 
     try:
-        log = TempLog(
-            location=location,
-            current_temp_c=request.POST['current_temp_c'],
-            max_temp_c=request.POST['max_temp_c'],
-            min_temp_c=request.POST['min_temp_c'],
-        )
+        today = timezone.localdate()
 
-        # Only set humidity for room-temp locations
-        if location.storageType == Location.ROOMTEMPATURE:
-            max_h = request.POST.get('max_humidity') or None
-            min_h = request.POST.get('min_humidity') or None
-            log.max_humidity = max_h
-            log.min_humidity = min_h
+        # Check for an existing log before attempting to save
+        existing = TempLog.objects.filter(location=location, date_logged=today).first()
+        if existing:
+            edit_url = f"/locations/log/{existing.temp_log_id}/edit/"
+            messages.warning(
+                request,
+                f"{location.locationName} has already been logged today. "
+                f"<a href='{edit_url}'>Edit today's log</a> if you need to correct it."
+            )
+        else:
+            log = TempLog(
+                location=location,
+                current_temp_c=request.POST['current_temp_c'],
+                max_temp_c=request.POST['max_temp_c'],
+                min_temp_c=request.POST['min_temp_c'],
+            )
 
-        log.logged_by = request.user
-        log.save()   # calls full_clean() via model's save()
-        messages.success(request, f"Temperature logged for {location.locationName}.")
+            # Only set humidity for room-temp locations
+            if location.storageType == Location.ROOMTEMPATURE:
+                max_h = request.POST.get('max_humidity') or None
+                min_h = request.POST.get('min_humidity') or None
+                log.max_humidity = max_h
+                log.min_humidity = min_h
+
+            log.logged_by = request.user
+            log.save()   # calls full_clean() via model's save()
+            messages.success(request, f"Temperature logged for {location.locationName}.")
 
     except ValidationError as e:
         # Flatten the error dict into readable messages
         for field, errors in e.message_dict.items():
             for error in errors:
                 messages.error(request, f"{field}: {error}")
+    except IntegrityError:
+        messages.warning(request, f"{location.locationName} has already been logged today.")
     except Exception as e:
         messages.error(request, f"Could not save log: {e}")
 
@@ -84,7 +99,7 @@ def add_temp_log(request, location_pk):
 
 
 # LOCATION HISTORY (/locations/<pk>/history/)
-
+@login_required
 def location_log_history(request, location_pk):
     """
     Full temperature log history for a single location.
@@ -124,6 +139,7 @@ def location_log_history(request, location_pk):
     })
 
 # For /locations/history/ 
+@login_required
 def location_history_index(request):
     locations = Location.objects.all().order_by('storageType', 'locationName')
     today = timezone.localdate()

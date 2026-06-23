@@ -62,6 +62,14 @@ class Case(models.Model):
     )
     case_name = models.CharField(max_length=255)
 
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=['client', 'case_name'],
+                name='unique_case_per_client'
+            )
+        ]
+
     def __str__(self):
         return self.case_name
 
@@ -113,7 +121,13 @@ class Specimen(models.Model):
     #    (EV, _('EV')),
     #]
     #specimen_origin = models.CharField(max_length=255, choices=SPECIMEN_ORIGIN_CHOICES)
-
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=['case', 'specimen_type'],
+                name='unique_specimen_per_case'
+            )
+        ]
     def __str__(self):
         return f"{self.case.case_name}—{self.specimen_type.specimen_type}"
 

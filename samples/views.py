@@ -686,7 +686,7 @@ def sample_import(request):
 
                     case, _ = Case.objects.get_or_create(
                         case_name=row['CaseID'].strip(),
-                        defaults={'client': project.client}
+                        client=project.client
                     )
                     spec_type, _ = SpecimenType.objects.get_or_create(
                         specimen_type=row['SpecimenType'].strip()
