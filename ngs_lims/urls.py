@@ -34,6 +34,7 @@ urlpatterns = [
     path('locations/', include('locations.urls')),
     path('inventory/', include('inventory.urls')),
     path('qc/', include('qc.urls')),
+    path('libprep/', include('library.urls')),
     path('accounts/',  include('django.contrib.auth.urls')),
     path('admin/',     admin.site.urls),
     path('__debug__/', include(debug_toolbar.urls)),

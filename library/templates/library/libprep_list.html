@@ -1,0 +1,140 @@
+{% extends "base.html" %}
+{% block title %}Library Prep Batches | NGS-LIMS{% endblock %}
+{% load static %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/libprep.css' %}">
+{% endblock %}
+
+{% block content %}
+
+<div class="page-header">
+  <div>
+    <h1 class="page-title">
+      <i class="fas fa-flask" style="color:var(--accent);margin-right:.5rem;font-size:1.1rem;"></i>
+      Library Prep
+    </h1>
+    <p class="page-subtitle">Click a batch to view the plate layout and sample details</p>
+  </div>
+  <!--FILTER BAR -->
+  <button class="btn-assign" disabled title="Coming soon">
+    <i class="fas fa-plus"></i> New Batch
+  </button>
+</div>
+
+<!-- FILTER BAR -->
+<div class="filter-bar">
+  <input type="text" id="searchInput" placeholder="Search batches or projects…">
+  <button class="flt-btn active" data-filter="all">All</button>
+  <button class="flt-btn" data-filter="DNA">DNA</button>
+  <button class="flt-btn" data-filter="RNA">RNA</button>
+  <button class="flt-btn" data-filter="pending" style="color:var(--text-muted);">Has Pending</button>
+</div>
+
+{% if batch_data %}
+<div class="batch-grid" id="batchGrid">
+  {% for row in batch_data %}
+  {% with batch=row.batch %}
+
+  <a href="{% url 'libprep-detail' batch.pk %}"
+     class="batch-card"
+     data-type="{{ batch.workflowType.sample_type|default:'' }}"
+     data-name="{{ batch.plate.plate_name|lower|default:'' }}"
+     data-project="{{ batch.project.project_name|lower|default:'' }}"
+     data-pending="{{ row.pending }}">
+
+    <!-- CARD HEADER -->
+    <div class="bc-header">
+      <div>
+        <div class="bc-name">
+          {{ batch.plate.plate_name|default:"Unnamed Batch" }}
+        </div>
+        <div class="bc-project">
+          {% if batch.project %}
+            {{ batch.project.project_name }}
+            {% if batch.project.client %} · {{ batch.project.client.client_name }}{% endif %}
+          {% else %}
+            <em>No project linked</em>
+          {% endif %}
+        </div>
+      </div>
+
+      <!-- Workflow badge -->
+      <span class="type-badge type-{{ batch.workflowType.sample_type|lower|default:'unknown' }}">
+        {{ batch.workflowType.sample_type|default:"—" }}
+      </span>
+    </div>
+
+    <!-- CARD BODY: progress bar -->
+    <div class="bc-body">
+      {% if row.total > 0 %}
+      <div class="qc-bar-wrap">
+        <div class="qc-bar-label">
+          <span>{{ batch.workflowType.workflowType }}</span>
+          <span>{{ row.total }} sample{{ row.total|pluralize }}</span>
+        </div>
+        <div class="qc-bar">
+          {% if row.prepped  %}<div class="qc-seg-pass"    style="width:{% widthratio row.prepped  row.total 100 %}%"></div>{% endif %}
+          {% if row.skipped  %}<div class="qc-seg-fail"    style="width:{% widthratio row.skipped  row.total 100 %}%"></div>{% endif %}
+          {% if row.requeued %}<div class="qc-seg-caution" style="width:{% widthratio row.requeued row.total 100 %}%"></div>{% endif %}
+          {% if row.pending  %}<div class="qc-seg-pending" style="width:{% widthratio row.pending  row.total 100 %}%"></div>{% endif %}
+        </div>
+      </div>
+      <div class="status-row">
+        {% if row.prepped  %}<span class="st-pill st-pass">    ✓ {{ row.prepped }}  Prepped</span>{% endif %}
+        {% if row.skipped  %}<span class="st-pill st-fail">    ✕ {{ row.skipped }}  Skipped</span>{% endif %}
+        {% if row.requeued %}<span class="st-pill st-caution"> ↺ {{ row.requeued }} Requeued</span>{% endif %}
+        {% if row.pending  %}<span class="st-pill st-pending"> ○ {{ row.pending }}  Pending</span>{% endif %}
+      </div>
+      {% else %}
+        <div style="font-size:.8rem;color:var(--text-muted);font-style:italic;">No samples assigned yet</div>
+      {% endif %}
+    </div>
+
+    <!-- CARD FOOTER -->
+    <div class="bc-footer">
+      <span><i class="fas fa-calendar-alt" style="margin-right:.3rem;"></i>{{ batch.datePrepped|date:"M j, Y"|default:"—" }}</span>
+      <span><i class="fas fa-user" style="margin-right:.3rem;"></i>{{ batch.createdBy.get_full_name|default:batch.createdBy.username|default:"—" }}</span>
+      <span class="bc-footer-arrow"><i class="fas fa-arrow-right"></i></span>
+    </div>
+
+  </a>
+  {% endwith %}
+  {% endfor %}
+</div>
+
+{% else %}
+<div class="empty-state">
+  <i class="fas fa-flask"></i>
+  <p>No library prep batches yet.</p>
+</div>
+{% endif %}
+
+<script>
+const searchInput = document.getElementById('searchInput');
+const filterBtns  = document.querySelectorAll('.flt-btn');
+let activeFilter  = 'all';
+
+function applyFilter() {
+  const q = searchInput ? searchInput.value.toLowerCase() : '';
+  document.querySelectorAll('.batch-card').forEach(card => {
+    const matchType = activeFilter === 'all'
+      || (activeFilter === 'pending' && parseInt(card.dataset.pending) > 0)
+      || card.dataset.type.toUpperCase() === activeFilter;
+    const matchText = card.dataset.name.includes(q) || card.dataset.project.includes(q);
+    card.style.display = (matchType && matchText) ? '' : 'none';
+  });
+}
+
+if (searchInput) searchInput.addEventListener('input', applyFilter);
+filterBtns.forEach(btn => {
+  btn.addEventListener('click', () => {
+    filterBtns.forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    activeFilter = btn.dataset.filter;
+    applyFilter();
+  });
+});
+</script>
+
+{% endblock %}

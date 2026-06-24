@@ -1,0 +1,273 @@
+{% extends "base.html" %}
+{% block title %}{{ batch.plate.plate_name|default:"Batch" }} | Library Prep{% endblock %}
+{% load static %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/libprep.css' %}">
+{% endblock %}
+
+{% block content %}
+
+<!-- BREADCRUMB -->
+<nav aria-label="breadcrumb">
+  <ol class="breadcrumb">
+    <li class="breadcrumb-item"><a href="{% url 'libprep-list' %}">Library Prep</a></li>
+    <li class="breadcrumb-item active">{{ batch.plate.plate_name|default:"Batch #"|add:batch.pk|stringformat:"s" }}</li>
+  </ol>
+</nav>
+
+<!-- PAGE HEADER -->
+<div class="page-header">
+  <div>
+    <h1 class="page-title">
+      <i class="fas fa-th" style="color:var(--accent);margin-right:.5rem;font-size:1.1rem;"></i>
+      {{ batch.plate.plate_name|default:"Library Prep Batch" }}
+    </h1>
+    <p class="page-subtitle">
+      {{ batch.workflowType.workflowType }}
+      {% if batch.project %} · {{ batch.project.project_name }}{% endif %}
+      {% if batch.datePrepped %} · {{ batch.datePrepped|date:"M j, Y" }}{% endif %}
+    </p>
+  </div>
+</div>
+
+<!-- STAT PILLS -->
+<div class="stat-row">
+  <div class="stat-pill">
+    <span class="stat-val">{{ total }}</span>
+    <span class="stat-lbl">Total Wells</span>
+  </div>
+  <div class="stat-pill st-pass-pill">
+    <span class="stat-val">{{ prepped }}</span>
+    <span class="stat-lbl">Prepped</span>
+  </div>
+  <div class="stat-pill st-pending-pill">
+    <span class="stat-val">{{ pending }}</span>
+    <span class="stat-lbl">Pending</span>
+  </div>
+  {% if batch.workflowType %}
+  <div class="stat-pill">
+    <span class="stat-val">{{ batch.workflowType.target_input_ng|floatformat:0 }} ng</span>
+    <span class="stat-lbl">Target Input</span>
+  </div>
+  <div class="stat-pill">
+    <span class="stat-val">{{ batch.workflowType.target_volume_ul|floatformat:0 }} µL</span>
+    <span class="stat-lbl">Target Volume</span>
+  </div>
+  {% endif %}
+</div>
+
+<!-- MAIN LAYOUT-->
+<div class="plate-layout">
+
+  <!-- PLATE BOARD -->
+  <div class="plate-wrap">
+    <div class="plate-board">
+
+      <!-- Column headers -->
+      <div class="plate-col-headers">
+        <div class="plate-row-label"></div><!-- spacer for row label -->
+        {% for col in cols %}
+        <div class="plate-col-label">{{ col }}</div>
+        {% endfor %}
+      </div>
+
+      <!-- Rows -->
+      {% for row in grid %}
+      <div class="plate-row">
+        <div class="plate-row-label">{{ row.row_letter }}</div>
+        {% for cell in row.cells %}
+        <button
+          class="well {% if cell.occupied %}well-occupied{% if cell.is_control %} well-control{% endif %}{% else %}well-empty{% endif %}"
+          data-pos="{{ cell.position }}"
+          {% if cell.occupied %}
+          data-sample-name="{{ cell.sample.sampleQC.sample.sample_name|default:'Control' }}"
+          data-well-type="{{ cell.sample.plateWell.well_type|default:'' }}"
+          data-action="{{ cell.sample.prepAction }}"
+          data-conc="{{ cell.sample.concentrationInput|default:'' }}"
+          data-vol-sample="{{ cell.sample.volumeSample_ul|default:'' }}"
+          data-vol-diluent="{{ cell.sample.volumeDiluent_ul|default:'' }}"
+          data-actual-input="{{ cell.sample.actual_Input_ng|default:'' }}"
+          data-speedvac="{{ cell.sample.speedVacRequired|yesno:'true,false' }}"
+          data-pcr="{{ cell.sample.PCRCycles|default:'' }}"
+          data-index-udi="{{ cell.sample.libraryIndex.udi_number|default:'' }}"
+          data-index-set="{{ cell.sample.libraryIndex.plateSet|default:'' }}"
+          data-index-well="{{ cell.sample.libraryIndex.well|default:'' }}"
+          data-index-i7="{{ cell.sample.libraryIndex.i7Sequence|default:'' }}"
+          data-index-i5="{{ cell.sample.libraryIndex.i5Sequence|default:'' }}"
+          {% endif %}
+          onclick="selectWell(this)"
+          title="{{ cell.position }}{% if cell.occupied %}: {{ cell.sample.sampleQC.sample.sample_name|default:'Control' }}{% endif %}"
+        >
+          <span class="well-pos">{{ cell.position }}</span>
+          {% if cell.occupied %}
+            {% if cell.is_control %}
+              <span class="well-icon">⊕</span>
+            {% elif cell.sample.prepAction == 'prep' %}
+              <span class="well-icon">✓</span>
+            {% elif cell.sample.prepAction == 'skip' %}
+              <span class="well-icon">✕</span>
+            {% else %}
+              <span class="well-icon">·</span>
+            {% endif %}
+          {% endif %}
+        </button>
+        {% endfor %}
+      </div>
+      {% endfor %}
+
+    </div><!-- /plate-board -->
+
+    <!-- LEGEND -->
+    <div class="plate-legend">
+      <span class="legend-item"><span class="legend-dot dot-empty"></span>Empty</span>
+      <span class="legend-item"><span class="legend-dot dot-prep"></span>Prepped</span>
+      <span class="legend-item"><span class="legend-dot dot-pending"></span>Pending</span>
+      <span class="legend-item"><span class="legend-dot dot-skip"></span>Skipped</span>
+      <span class="legend-item"><span class="legend-dot dot-control"></span>Control</span>
+    </div>
+
+  </div><!-- /plate-wrap -->
+
+  <!-- DETAIL PANEL -->
+  <div class="detail-panel" id="detailPanel">
+    <div class="detail-empty" id="detailEmpty">
+      <i class="fas fa-mouse-pointer"></i>
+      <p>Click a well to see sample details</p>
+    </div>
+
+    <div class="detail-content" id="detailContent" style="display:none;">
+
+      <div class="detail-header">
+        <div>
+          <div class="detail-pos" id="dPos">—</div>
+          <div class="detail-name" id="dName">—</div>
+        </div>
+        <span class="detail-badge" id="dBadge"></span>
+      </div>
+
+      <div style="height:1px;background:var(--border);margin:.75rem 0;"></div>
+
+      <!-- Volume section -->
+      <div class="detail-section-label">Volume Calculation</div>
+      <div class="detail-grid">
+        <div class="detail-row">
+          <span class="detail-lbl">Concentration</span>
+          <span class="detail-val" id="dConc">—</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-lbl">Volume Sample</span>
+          <span class="detail-val" id="dVolSample">—</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-lbl">Volume Diluent</span>
+          <span class="detail-val" id="dVolDiluent">—</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-lbl">Actual Input</span>
+          <span class="detail-val" id="dActualInput">—</span>
+        </div>
+        <div class="detail-row" id="dSpeedVacRow">
+          <span class="detail-lbl">SpeedVac</span>
+          <span class="detail-val" id="dSpeedVac">—</span>
+        </div>
+      </div>
+
+      <div style="height:1px;background:var(--border);margin:.75rem 0;"></div>
+
+      <!-- Index section -->
+      <div class="detail-section-label">Library Index</div>
+      <div class="detail-grid">
+        <div class="detail-row">
+          <span class="detail-lbl">UDI</span>
+          <span class="detail-val" id="dUDI">—</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-lbl">Set / Well</span>
+          <span class="detail-val" id="dIndexSetWell">—</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-lbl">i7 Sequence</span>
+          <span class="detail-val mono" id="dI7">—</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-lbl">i5 Sequence</span>
+          <span class="detail-val mono" id="dI5">—</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-lbl">PCR Cycles</span>
+          <span class="detail-val" id="dPCR">—</span>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+
+<script>
+let activeWell = null;
+
+function selectWell(btn) {
+  // Deselect previous
+  if (activeWell) activeWell.classList.remove('well-selected');
+
+  if (activeWell === btn) {
+    // Toggle off
+    activeWell = null;
+    document.getElementById('detailEmpty').style.display   = '';
+    document.getElementById('detailContent').style.display = 'none';
+    return;
+  }
+
+  activeWell = btn;
+  btn.classList.add('well-selected');
+
+  const isEmpty = !btn.classList.contains('well-occupied');
+  document.getElementById('detailEmpty').style.display   = isEmpty ? '' : 'none';
+  document.getElementById('detailContent').style.display = isEmpty ? 'none' : '';
+
+  if (isEmpty) return;
+
+  // Populate panel
+  const d = btn.dataset;
+
+  document.getElementById('dPos').textContent  = d.pos  || '—';
+  document.getElementById('dName').textContent = d.sampleName || '—';
+
+  // Badge
+  const badge = document.getElementById('dBadge');
+  const actionLabels = { prep: 'Prepped', skip: 'Skipped', requeue: 'Requeued' };
+  const actionClasses = { prep: 'badge-pass', skip: 'badge-fail', requeue: 'badge-caution' };
+  badge.textContent  = actionLabels[d.action] || d.wellType || '—';
+  badge.className    = 'detail-badge ' + (actionClasses[d.action] || '');
+
+  // Volume
+  set('dConc',       d.conc       ? d.conc + ' ng/µL' : '—');
+  set('dVolSample',  d.volSample  ? d.volSample + ' µL' : '—');
+  set('dVolDiluent', d.volDiluent ? d.volDiluent + ' µL' : '—');
+  set('dActualInput',d.actualInput? d.actualInput + ' ng' : '—');
+
+  const svRow = document.getElementById('dSpeedVacRow');
+  if (d.speedvac === 'true') {
+    svRow.style.display = '';
+    set('dSpeedVac', '<span style="color:var(--warning);font-weight:600;">⚠ Required</span>');
+  } else {
+    svRow.style.display = 'none';
+  }
+
+  // Index
+  set('dUDI',        d.indexUdi       || '—');
+  set('dIndexSetWell', (d.indexSet && d.indexWell) ? `Set ${d.indexSet.toUpperCase()} / ${d.indexWell}` : '—');
+  set('dI7',         d.indexI7  || '—');
+  set('dI5',         d.indexI5  || '—');
+  set('dPCR',        d.pcr      ? d.pcr + ' cycles' : '—');
+}
+
+function set(id, html) {
+  const el = document.getElementById(id);
+  if (el) el.innerHTML = html;
+}
+</script>
+
+{% endblock %}
