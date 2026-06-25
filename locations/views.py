@@ -5,12 +5,17 @@ from django.db.models import Avg, Max, Min, Count
 from django.db import IntegrityError
 from datetime import timedelta
 
+
+from django.http import JsonResponse
+from django.db.models import Q, Prefetch
+
+from .models import Location, Rack, Plate, PlateWell
 from .models import Location, TempLog
 from django.core.paginator import Paginator
 from django.core.exceptions import ValidationError
 from django.contrib.auth.decorators import login_required
 
-# LOCATION LIST (/locations/)
+# LOCATION LIST (/locations/) logs tab
 @login_required
 def location_list(request):
     """
@@ -175,3 +180,245 @@ def edit_temp_log(request, log_pk):
         return redirect('location-log-history', location_pk=log.location.pk)
 
     return render(request, 'locations/edit_log.html', {'log': log})
+
+PLATE_ROWS = list('ABCDEFGH')       # 8 rows
+PLATE_COLS = [f'{c:02d}' for c in range(1, 13)]   # 01-12
+
+
+def _build_96_grid(plate):
+    """
+    Return a list of row dicts for a 96-well plate.
+    Each cell: {'position': 'A01', 'well': <PlateWell|None>, 'occupied': bool}
+    """
+    wells_qs = plate.wells.select_related(
+        'sample',
+        'sample__specimen',
+        'sample__specimen__case',
+        'sample__specimen__case__client',
+    ).prefetch_related(
+        'libraryPrepSamples',
+        'libraryPrepSamples__libPrepBatch',
+        'libraryPrepSamples__libraryIndex',
+        'libraryPrepSamples__qcResult',
+        'sample__qc_results',
+    )
+    well_map = {w.well_position: w for w in wells_qs}
+
+    grid = []
+    for row in PLATE_ROWS:
+        cells = []
+        for col in PLATE_COLS:
+            pos  = f'{row}{col}'
+            well = well_map.get(pos)
+            cells.append({
+                'position': pos,
+                'well':     well,
+                'occupied': well is not None and well.well_type != 'empty',
+            })
+        grid.append({'row_letter': row, 'cells': cells})
+    return grid
+
+
+def rack_detail(request, rack_pk):
+    
+    rack = get_object_or_404(
+        Rack.objects.select_related('location').prefetch_related('plates__wells'),
+        pk=rack_pk,
+    )
+    plate_map = {p.rack_location: p for p in rack.plates.all() if p.rack_location}
+    rows = [chr(65 + r) for r in range(rack.rows)]
+    cols = list(range(1, rack.cols + 1))
+
+    grid = []
+    for row in rows:
+        row_cells = []
+        for col in cols:
+            slot  = f'{row}{col}'
+            plate = plate_map.get(slot)
+            count = plate.wells.filter(
+                well_type__in=['sample', 'library', 'sequencing', 'control']
+            ).count() if plate else 0
+            row_cells.append({
+                'slot':  slot,
+                'plate': plate,
+                'count': count,
+                'empty': plate is None,
+            })
+        grid.append({'row': row, 'cells': row_cells})
+
+    return render(request, 'locations/rack_detail.html', {
+        'rack': rack,
+        'grid': grid,
+        'cols': cols,
+    })
+
+
+def plate_detail(request, plate_pk):
+    """96-well plate board click a well to see its contents."""
+    plate = get_object_or_404(
+        Plate.objects.select_related('location', 'rack'),
+        pk=plate_pk,
+    )
+    grid = _build_96_grid(plate)
+
+    total    = plate.wells.count()
+    occupied = plate.wells.exclude(well_type='empty').count()
+
+    return render(request, 'locations/plate_detail.html', {
+        'plate':    plate,
+        'grid':     grid,
+        'cols':     PLATE_COLS,
+        'total':    total,
+        'occupied': occupied,
+        'empty':    96 - occupied,
+    })
+
+
+def well_detail(request, well_pk):
+    """
+    Single well: shows sample info + full pipeline summary.
+    more detail will be added later.
+    """
+    well = get_object_or_404(
+        PlateWell.objects.select_related(
+            'plate',
+            'plate__rack',
+            'plate__location',
+            'sample',
+            'sample__specimen',
+            'sample__specimen__case',
+            'sample__specimen__case__client',
+            'sample__project',
+            'sample__project__client',
+            'sample__location',
+        ).prefetch_related(
+            'sample__qc_results__batch',
+            'libraryPrepSamples__libPrepBatch__workflowType',
+            'libraryPrepSamples__libraryIndex',
+            'libraryPrepSamples__qcResult',
+        ),
+        pk=well_pk,
+    )
+
+    sample      = well.sample
+    qc_results  = sample.qc_results.all().order_by('-created_at') if sample else []
+    lib_samples = well.libraryPrepSamples.all() if sample else []
+
+    return render(request, 'locations/well_detail.html', {
+        'well':        well,
+        'sample':      sample,
+        'qc_results':  qc_results,
+        'lib_samples': lib_samples,
+    })
+
+
+def inventory_search(request):
+    """
+    AJAX endpoint — returns JSON list of matches.
+    Searches by sample name, plate name, UDI number.
+    GET ?q=<query>
+    """
+    q = request.GET.get('q', '').strip()
+    results = []
+
+    if len(q) >= 2:
+        # Search wells by sample name
+        wells = PlateWell.objects.select_related(
+            'plate', 'plate__rack', 'plate__location', 'sample'
+        ).filter(
+            Q(sample__sample_name__icontains=q) |
+            Q(plate__plate_name__icontains=q)   |
+            Q(libraryPrepSamples__libraryIndex__udi_number__icontains=q)
+        ).distinct()[:20]
+
+        for w in wells:
+            results.append({
+                'well_pk':      w.pk,
+                'well_pos':     w.well_position,
+                'well_type':    w.well_type,
+                'plate_name':   w.plate.plate_name,
+                'plate_pk':     w.plate.pk,
+                'rack_name':    w.plate.rack.rack_name if w.plate.rack else '—',
+                'location':     w.plate.location.locationName if w.plate.location else '—',
+                'sample_name':  w.sample.sample_name if w.sample else '—',
+                'sample_type':  w.sample.sample_type if w.sample else '—',
+            })
+
+    return JsonResponse({'results': results, 'count': len(results)})
+
+
+"""
+Rack slot convention
+---------------------
+rack_location on Plate uses:  "A1T" (top) or "A1B" (bottom)
+Validator in models.py should be updated to:
+    regex=r"^[A-D][1-4][TB]?$"
+so old plain "A1" records still pass validation, and new records
+can use "A1T" / "A1B".
+"""
+
+def inventory_home(request):
+    """
+    Shows all racks as cards (one card per rack).
+    Each card shows the 4×4 slot grid where every slot has
+    a TOP and BOTTOM sub-cell (max 2 plates per slot = 32 total).
+    Location name is shown inside each rack card — no location
+    section headers, empty locations are hidden.
+    """
+    racks = Rack.objects.select_related('location').prefetch_related(
+        'plates__wells'
+    ).order_by('location__locationName', 'rack_name')
+
+    rack_data = []
+    for rack in racks:
+        # Build plate lookup keyed by rack_location string
+        # If a plate has plain "A1" (no suffix) we treat it as Top.
+        plate_map = {}
+        for p in rack.plates.all():
+            key = p.rack_location.upper() if p.rack_location else ''
+            if key:
+                plate_map[key] = p
+
+        rows = [chr(65 + r) for r in range(rack.rows)]   # A, B, C, D
+        cols = list(range(1, rack.cols + 1))               # 1, 2, 3, 4
+
+        grid = []
+        for row in rows:
+            row_cells = []
+            for col in cols:
+                base = f'{row}{col}'
+                # Try suffixed first, fall back to bare key for legacy data
+                top_plate  = plate_map.get(f'{base}T') or plate_map.get(base)
+                bot_plate  = plate_map.get(f'{base}B')
+
+                def _count(plate):
+                    if not plate:
+                        return 0
+                    return plate.wells.filter(
+                        well_type__in=['sample', 'library', 'sequencing', 'control']
+                    ).count()
+
+                row_cells.append({
+                    'slot':       base,
+                    'top':        top_plate,
+                    'top_count':  _count(top_plate),
+                    'bot':        bot_plate,
+                    'bot_count':  _count(bot_plate),
+                    'both_empty': top_plate is None and bot_plate is None,
+                })
+            grid.append({'row': row, 'cells': row_cells})
+
+        total_plates   = rack.plates.count()
+        total_capacity = rack.rows * rack.cols * 2   # ×2 for top/bottom
+
+        rack_data.append({
+            'rack':           rack,
+            'grid':           grid,
+            'cols':           cols,
+            'total_plates':   total_plates,
+            'total_capacity': total_capacity,
+        })
+
+    return render(request, 'locations/rack_home.html', {
+        'rack_data': rack_data,
+    })

@@ -1,0 +1,309 @@
+{% extends "base.html" %}
+{% block title %}{{ well.well_position }} – {{ plate.plate_name }} | Inventory{% endblock %}
+{% load static %}
+{% load lims_extras %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/rack.css' %}">
+{% endblock %}
+
+{% block content %}
+
+<nav aria-label="breadcrumb">
+  <ol class="breadcrumb">
+    <li class="breadcrumb-item"><a href="{% url 'rack-home' %}">Inventory</a></li>
+    <li class="breadcrumb-item"><a href="{% url 'plate-detail' well.plate.pk %}">{{ well.plate.plate_name }}</a></li>
+    <li class="breadcrumb-item active">{{ well.well_position }}</li>
+  </ol>
+</nav>
+
+<div class="page-header">
+  <div>
+    <h1 class="page-title mb-0">
+      <span class="sample-id" style="font-size:1.2rem;">
+        {% if sample %}{{ sample.sample_name }}{% else %}Well {{ well.well_position }}{% endif %}
+      </span>
+    </h1>
+    <div class="mt-1 d-flex gap-2 align-items-center flex-wrap">
+      {% if sample %}
+      <span class="lims-badge badge-{{ sample.sample_type|lower }}">{{ sample.sample_type }}</span>
+      {% endif %}
+      <span class="lims-badge badge-{{ well.well_type }}">{{ well.get_well_type_display }}</span>
+      {% with latest_qc=sample.qc_results.first %}
+      {% if latest_qc %}
+      <span class="lims-badge badge-{{ latest_qc.qc_status|lower }}">QC: {{ latest_qc.qc_status }}</span>
+      {% else %}
+      <span class="lims-badge badge-pending">No QC</span>
+      {% endif %}
+      {% endwith %}
+    </div>
+  </div>
+  <div class="d-flex gap-2">
+    {% if sample %}
+    <a href="{% url 'sample-detail' sample.sample_id %}" class="btn btn-outline-lims">
+      <i class="fas fa-vial me-1"></i> Full Sample Record
+    </a>
+    {% endif %}
+    <a href="{% url 'plate-detail' well.plate.pk %}" class="btn btn-outline-lims">
+      <i class="fas fa-arrow-left me-1"></i> Back to Plate
+    </a>
+  </div>
+</div>
+
+<div class="row g-3">
+
+  <!-- LEFT -->
+  <div class="col-lg-7">
+
+    <!-- WELL LOCATION -->
+    <div class="card mb-3">
+      <div class="card-header"><i class="fas fa-map-marker-alt"></i> Storage Location</div>
+      <div class="card-body p-0">
+        <table class="table table-lims mb-0">
+          <tbody>
+            <tr>
+              <td class="detail-label">Location</td>
+              <td>{{ well.plate.location.locationName|default:"—" }}
+                {% if well.plate.location %}
+                <span style="font-size:.75rem;color:var(--text-muted);"> ({{ well.plate.location.storageType }})</span>
+                {% endif %}
+              </td>
+            </tr>
+            <tr>
+              <td class="detail-label">Rack</td>
+              <td>
+                {% if well.plate.rack %}
+                {{ well.plate.rack.rack_name }}
+                {% if well.plate.rack_location %}[{{ well.plate.rack_location }}]{% endif %}
+                {% else %}—{% endif %}
+              </td>
+            </tr>
+            <tr>
+              <td class="detail-label">Plate</td>
+              <td>
+                <a href="{% url 'plate-detail' well.plate.pk %}" style="color:var(--accent);text-decoration:none;">
+                  {{ well.plate.plate_name }}
+                </a>
+              </td>
+            </tr>
+            <tr>
+              <td class="detail-label">Well</td>
+              <td><span class="sample-id" style="font-size:.9rem;">{{ well.well_position }}</span></td>
+            </tr>
+            <tr>
+              <td class="detail-label">Well Type</td>
+              <td>{{ well.get_well_type_display }}</td>
+            </tr>
+            {% if well.volume_ul %}
+            <tr>
+              <td class="detail-label">Volume</td>
+              <td>{{ well.volume_ul }} µL</td>
+            </tr>
+            {% endif %}
+            {% if well.concentration_nm %}
+            <tr>
+              <td class="detail-label">Concentration</td>
+              <td>{{ well.concentration_nm }} nM</td>
+            </tr>
+            {% endif %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    {% if sample %}
+    <!-- SAMPLE INFO -->
+    <div class="card mb-3">
+      <div class="card-header"><i class="fas fa-vial"></i> Sample Details</div>
+      <div class="card-body p-0">
+        <table class="table table-lims mb-0">
+          <tbody>
+            <tr>
+              <td class="detail-label">Sample ID</td>
+              <td><span class="sample-id">{{ sample.sample_name }}</span></td>
+            </tr>
+            <tr>
+              <td class="detail-label">Type</td>
+              <td><span class="lims-badge badge-{{ sample.sample_type|lower }}">{{ sample.sample_type }}</span></td>
+            </tr>
+            <tr>
+              <td class="detail-label">Date Received</td>
+              <td>{{ sample.date_received|lab_date }}</td>
+            </tr>
+            <tr>
+              <td class="detail-label">Volume Received</td>
+              <td>{% if sample.volume_received %}{{ sample.volume_received }} µL{% else %}—{% endif %}</td>
+            </tr>
+            <tr>
+              <td class="detail-label">Concentration</td>
+              <td>{% if sample.concentration %}{{ sample.concentration }} ng/µL{% else %}—{% endif %}</td>
+            </tr>
+            <tr>
+              <td class="detail-label">Condition</td>
+              <td>{{ sample.receiving_condition|default:"—" }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- QC RESULTS -->
+    <div class="card mb-3">
+      <div class="card-header">
+        <i class="fas fa-microscope"></i> Sample QC
+        <span style="margin-left:auto;font-size:.75rem;color:var(--text-muted);font-weight:400;">
+          {{ qc_results|length }} result{{ qc_results|length|pluralize }}
+        </span>
+      </div>
+      {% if qc_results %}
+      <div class="table-responsive">
+        <table class="table table-lims">
+          <thead>
+            <tr>
+              <th>Batch</th>
+              <th>Qubit</th>
+              {% if sample.sample_type == 'DNA' %}<th>260/280</th><th>260/230</th>
+              {% else %}<th>RIN</th><th>DV200</th>{% endif %}
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for qc in qc_results %}
+            <tr>
+              <td><span class="sample-id" style="font-size:.75rem;">{{ qc.batch.batch_name }}</span></td>
+              <td style="font-family:'IBM Plex Mono',monospace;font-size:.85rem;">{{ qc.qubit_nm|default:"—" }}</td>
+              {% if sample.sample_type == 'DNA' %}
+              <td style="font-family:'IBM Plex Mono',monospace;font-size:.85rem;">{{ qc.nanodrop_260_280|default:"—" }}</td>
+              <td style="font-family:'IBM Plex Mono',monospace;font-size:.85rem;">{{ qc.nanodrop_260_230|default:"—" }}</td>
+              {% else %}
+              <td style="font-family:'IBM Plex Mono',monospace;font-size:.85rem;">{{ qc.rin|default:"—" }}</td>
+              <td style="font-family:'IBM Plex Mono',monospace;font-size:.85rem;">{{ qc.dv200|default:"—" }}</td>
+              {% endif %}
+              <td><span class="lims-badge badge-{{ qc.qc_status|lower }}">{{ qc.qc_status }}</span></td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <div class="text-center py-4 text-muted" style="font-size:.85rem;">
+        <i class="fas fa-microscope mb-2 d-block" style="color:var(--border);font-size:1.5rem;"></i>No QC results yet.
+      </div>
+      {% endif %}
+    </div>
+
+    <!-- LIBRARY PREP -->
+    {% if lib_samples %}
+    <div class="card mb-3">
+      <div class="card-header"><i class="fas fa-flask"></i> Library Prep</div>
+      <div class="table-responsive">
+        <table class="table table-lims">
+          <thead>
+            <tr><th>Batch</th><th>Workflow</th><th>Index (UDI)</th><th>PCR</th><th>Action</th></tr>
+          </thead>
+          <tbody>
+            {% for ls in lib_samples %}
+            <tr>
+              <td>
+                <a href="{% url 'libprep-detail' ls.libPrepBatch.pk %}"
+                   style="color:var(--accent);text-decoration:none;font-size:.8rem;">
+                  {{ ls.libPrepBatch }}
+                </a>
+              </td>
+              <td style="font-size:.82rem;">{{ ls.libPrepBatch.workflowType }}</td>
+              <td>
+                {% if ls.libraryIndex %}
+                <span class="sample-id" style="font-size:.72rem;">{{ ls.libraryIndex.udi_number }}</span>
+                <span style="font-size:.7rem;color:var(--text-muted);">[{{ ls.libraryIndex.plateSet }}{{ ls.libraryIndex.well }}]</span>
+                {% else %}—{% endif %}
+              </td>
+              <td style="font-family:'IBM Plex Mono',monospace;font-size:.82rem;">
+                {{ ls.PCRCycles|default:"—" }}
+              </td>
+              <td>
+                <span class="lims-badge badge-{{ ls.prepAction|lower }}">{{ ls.prepAction }}</span>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    {% endif %}
+    {% endif %}{# /if sample #}
+
+  </div>
+
+  <!-- RIGHT -->
+  <div class="col-lg-5">
+
+    <!-- PIPELINE STAGE -->
+    <div class="card mb-3">
+      <div class="card-header"><i class="fas fa-stream"></i> Pipeline Stage</div>
+      <div class="card-body p-3">
+        <div class="pipeline-mini">
+          <div class="pm-step done">
+            <div class="pm-dot"></div>
+            <div class="pm-label">Received</div>
+          </div>
+          <div class="pm-line {% if qc_results %}done{% endif %}"></div>
+          <div class="pm-step {% if qc_results %}done{% else %}active{% endif %}">
+            <div class="pm-dot"></div>
+            <div class="pm-label">Sample QC</div>
+          </div>
+          <div class="pm-line {% if lib_samples %}done{% endif %}"></div>
+          <div class="pm-step {% if lib_samples %}done{% else %}pending{% endif %}">
+            <div class="pm-dot"></div>
+            <div class="pm-label">Lib Prep</div>
+          </div>
+          <div class="pm-line"></div>
+          <div class="pm-step pending">
+            <div class="pm-dot"></div>
+            <div class="pm-label">Sequencing</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    {% if sample %}
+    <!-- CASE / PROJECT -->
+    <div class="card mb-3">
+      <div class="card-header"><i class="fas fa-folder-open"></i> Case & Project</div>
+      <div class="card-body p-0">
+        <table class="table table-lims mb-0">
+          <tbody>
+            {% if sample.specimen.case.client %}
+            <tr>
+              <td class="detail-label">Client</td>
+              <td style="font-size:.85rem;">{{ sample.specimen.case.client.client_name }}</td>
+            </tr>
+            {% endif %}
+            <tr>
+              <td class="detail-label">Case</td>
+              <td style="font-size:.85rem;">{{ sample.specimen.case.case_name|default:"—" }}</td>
+            </tr>
+            <tr>
+              <td class="detail-label">Specimen</td>
+              <td style="font-size:.85rem;">{{ sample.specimen.specimen_type|default:"—" }}</td>
+            </tr>
+            {% if sample.project %}
+            <tr>
+              <td class="detail-label">Project</td>
+              <td>
+                <a href="{% url 'projects-detail' sample.project.project_id %}"
+                   style="color:var(--accent);text-decoration:none;font-size:.85rem;">
+                  {{ sample.project.project_name }}
+                </a>
+              </td>
+            </tr>
+            {% endif %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    {% endif %}
+
+  </div>
+</div>
+
+{% endblock %}

@@ -1,0 +1,202 @@
+{% extends "base.html" %}
+{% block title %}{{ plate.plate_name }} | Inventory{% endblock %}
+{% load static %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/rack.css' %}">
+{% endblock %}
+
+{% block content %}
+
+<nav aria-label="breadcrumb">
+  <ol class="breadcrumb">
+    <li class="breadcrumb-item"><a href="{% url 'rack-home' %}">Racks </a> </li>
+    <li class="breadcrumb-item active">{{ plate.plate_name }}</li>
+  </ol>
+</nav>
+
+<div class="page-header">
+  <div>
+    <h1 class="page-title">
+      <i class="fas fa-th" style="color:var(--accent);margin-right:.5rem;font-size:1.1rem;"></i>
+      {{ plate.plate_name }}
+    </h1>
+    <p class="page-subtitle">
+      
+      {% if plate.rack %}{{ plate.rack.rack_name }} [{{ plate.rack_location }}]{% endif %}
+      {% if plate.location %} · {{ plate.location.locationName }}{% endif %}
+    </p>
+  </div>
+</div>
+
+<!-- STAT PILLS -->
+<div class="stat-row">
+  <div class="stat-pill">
+    <span class="stat-val">96</span>
+    <span class="stat-lbl">Total Wells</span>
+  </div>
+  <div class="stat-pill st-pass-pill">
+    <span class="stat-val">{{ occupied }}</span>
+    <span class="stat-lbl">Occupied</span>
+  </div>
+  <div class="stat-pill">
+    <span class="stat-val">{{ empty }}</span>
+    <span class="stat-lbl">Empty</span>
+  </div>
+</div>
+
+<!-- PLATE LAYOUT -->
+<div class="plate-layout">
+
+  <!-- 96-WELL BOARD -->
+  <div class="plate-wrap">
+    <div class="plate-board">
+
+      <div class="plate-col-headers">
+        <div class="plate-row-label"></div>
+        {% for col in cols %}
+        <div class="plate-col-label">{{ col }}</div>
+        {% endfor %}
+      </div>
+
+      {% for row in grid %}
+      <div class="plate-row">
+        <div class="plate-row-label">{{ row.row_letter }}</div>
+        {% for cell in row.cells %}
+        <button
+          class="well {% if cell.occupied %}well-{{ cell.well.well_type }}{% else %}well-empty{% endif %}"
+          data-pos="{{ cell.position }}"
+          data-well-pk="{% if cell.well %}{{ cell.well.pk }}{% endif %}"
+          data-well-type="{% if cell.well %}{{ cell.well.well_type }}{% endif %}"
+          data-sample-name="{% if cell.well and cell.well.sample %}{{ cell.well.sample.sample_name }}{% endif %}"
+          data-sample-type="{% if cell.well and cell.well.sample %}{{ cell.well.sample.sample_type }}{% endif %}"
+          data-vol="{% if cell.well %}{{ cell.well.volume_ul|default:'' }}{% endif %}"
+          data-conc="{% if cell.well %}{{ cell.well.concentration_nm|default:'' }}{% endif %}"
+          onclick="selectWell(this)"
+          title="{{ cell.position }}{% if cell.occupied %}: {{ cell.well.sample.sample_name|default:'—' }}{% endif %}"
+        >
+          <span class="well-pos">{{ cell.position }}</span>
+          {% if cell.occupied %}
+            {% if cell.well.well_type == 'sample' %}<span class="well-dot"></span>
+            {% elif cell.well.well_type == 'library' %}<span class="well-dot dot-lib"></span>
+            {% elif cell.well.well_type == 'control' %}<span class="well-dot dot-ctrl"></span>
+            {% elif cell.well.well_type == 'sequencing' %}<span class="well-dot dot-seq"></span>
+            {% endif %}
+          {% endif %}
+        </button>
+        {% endfor %}
+      </div>
+      {% endfor %}
+
+    </div>
+
+    <!-- LEGEND -->
+    <div class="plate-legend">
+      <span class="legend-item"><span class="legend-dot dot-empty"></span>Empty</span>
+      <span class="legend-item"><span class="legend-dot" style="background:rgba(0,180,216,.6);"></span>Sample</span>
+      <span class="legend-item"><span class="legend-dot" style="background:rgba(34,197,94,.6);"></span>Library</span>
+      <span class="legend-item"><span class="legend-dot" style="background:rgba(245,158,11,.6);"></span>Control</span>
+      <span class="legend-item"><span class="legend-dot" style="background:rgba(160,100,255,.6);"></span>Sequencing</span>
+    </div>
+  </div>
+
+  <!-- DETAIL PANEL -->
+  <div class="detail-panel" id="detailPanel">
+    <div class="detail-empty" id="detailEmpty">
+      <i class="fas fa-mouse-pointer"></i>
+      <p>Click a well to view contents</p>
+    </div>
+    <div class="detail-content" id="detailContent" style="display:none;">
+
+      <div class="detail-header">
+        <div>
+          <div class="detail-pos"  id="dPos">—</div>
+          <div class="detail-name" id="dName">—</div>
+        </div>
+        <span class="detail-badge" id="dBadge"></span>
+      </div>
+
+      <div class="divider"></div>
+
+      <div class="detail-section-label">Well Info</div>
+      <div class="detail-grid">
+        <div class="detail-row">
+          <span class="detail-lbl">Type</span>
+          <span class="detail-val" id="dType">—</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-lbl">Sample Type</span>
+          <span class="detail-val" id="dSampleType">—</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-lbl">Volume</span>
+          <span class="detail-val" id="dVol">—</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-lbl">Conc. (nM)</span>
+          <span class="detail-val" id="dConc">—</span>
+        </div>
+      </div>
+
+      <div class="divider"></div>
+
+      <a class="detail-full-link" id="dFullLink" href="#">
+        <i class="fas fa-external-link-alt me-1"></i> View full well details
+      </a>
+
+    </div>
+  </div>
+
+</div>
+
+<script>
+let activeWell = null;
+
+function selectWell(btn) {
+  if (activeWell) activeWell.classList.remove('well-selected');
+  if (activeWell === btn) {
+    activeWell = null;
+    document.getElementById('detailEmpty').style.display   = '';
+    document.getElementById('detailContent').style.display = 'none';
+    return;
+  }
+  activeWell = btn;
+  btn.classList.add('well-selected');
+
+  const empty = !btn.dataset.wellPk;
+  document.getElementById('detailEmpty').style.display   = empty ? '' : 'none';
+  document.getElementById('detailContent').style.display = empty ? 'none' : '';
+  if (empty) return;
+
+  const d = btn.dataset;
+  const typeLabels = {
+    sample: 'Sample', library: 'Library Prep',
+    control: 'Control', sequencing: 'Sequencing', empty: 'Empty'
+  };
+  const typeColors = {
+    sample: 'badge-info', library: 'badge-pass',
+    control: 'badge-caution', sequencing: 'badge-purple', empty: ''
+  };
+
+  document.getElementById('dPos').textContent  = d.pos;
+  document.getElementById('dName').textContent = d.sampleName || '—';
+
+  const badge = document.getElementById('dBadge');
+  badge.textContent = typeLabels[d.wellType] || d.wellType;
+  badge.className   = 'detail-badge ' + (typeColors[d.wellType] || '');
+
+  set('dType',       typeLabels[d.wellType] || '—');
+  set('dSampleType', d.sampleType || '—');
+  set('dVol',        d.vol  ? d.vol  + ' µL' : '—');
+  set('dConc',       d.conc ? d.conc + ' nM' : '—');
+
+  document.getElementById('dFullLink').href = `/locations/rack/plate/well/${d.wellPk}/`;
+}
+
+function set(id, html) {
+  const el = document.getElementById(id);
+  if (el) el.innerHTML = html;
+}
+</script>
+
+{% endblock %}

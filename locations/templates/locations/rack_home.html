@@ -1,0 +1,191 @@
+{% extends "base.html" %}
+{% block title %}Inventory | NGS-LIMS{% endblock %}
+{% load static %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/rack.css' %}">
+{% endblock %}
+
+{% block content %}
+
+<div class="page-header">
+  <div>
+    <h1 class="page-title">
+      <i class="fas fa-boxes" style="color:var(--accent);margin-right:.5rem;font-size:1.1rem;"></i>
+      Storage Inventory
+    </h1>
+    <p class="page-subtitle">
+      Click any plate to view its well layout
+    </p>
+  </div>
+</div>
+
+<!-- GLOBAL SEARCH -->
+<div class="inv-search-wrap">
+  <div class="inv-search-box">
+    <i class="fas fa-search inv-search-icon"></i>
+    <input type="text" id="globalSearch"
+           placeholder="Search sample ID, plate name, or UDI number…"
+           autocomplete="off">
+    <span class="inv-search-clear" id="searchClear" style="display:none;">
+      <i class="fas fa-times"></i>
+    </span>
+  </div>
+  <div class="inv-search-results" id="searchResults" style="display:none;"></div>
+</div>
+
+<!-- RACK CARDS GRID -->
+{% if rack_data %}
+<div class="inv-rack-grid">
+  {% for rd in rack_data %}
+  {% with rack=rd.rack %}
+
+  <div class="inv-rack-card">
+
+    <!-- CARD HEADER -->
+    <div class="inv-rack-card-header">
+      <div class="inv-rack-card-title">
+        <i class="fas fa-layer-group" style="color:var(--accent);font-size:.85rem;"></i>
+        {{ rack.rack_name }}
+      </div>
+      <div class="inv-rack-card-meta">
+        <span class="inv-loc-badge">
+          <i class="fas fa-snowflake" style="font-size:.6rem;"></i>
+          {{ rack.location.locationName }}
+        </span>
+        <span class="inv-rack-occ">
+          {{ rd.total_plates }}<span style="color:var(--border);">/</span>{{ rd.total_capacity }}
+        </span>
+      </div>
+    </div>
+
+    <!-- RACK GRID -->
+    <div class="rack-grid">
+
+      <div class="rack-col-headers">
+        <div class="rack-row-lbl"></div>
+        {% for col in rd.cols %}
+        <div class="rack-col-lbl">{{ col }}</div>
+        {% endfor %}
+      </div>
+
+      {% for row in rd.grid %}
+      <div class="rack-row">
+        <div class="rack-row-lbl">{{ row.row }}</div>
+        {% for cell in row.cells %}
+
+        <div class="rack-slot-wrap" title="Slot {{ cell.slot }}">
+
+          <!-- TOP -->
+          <div class="rack-sub-slot rack-sub-top {% if cell.top %}rack-sub-occ{% endif %}">
+            {% if cell.top %}
+            <a href="{% url 'plate-detail' cell.top.pk %}" class="rack-plate-link">
+              <div class="rack-plate-name">{{ cell.top.plate_name|truncatechars:24 }}</div>
+              <div class="rack-plate-count">
+                
+              </div>
+            </a>
+            {% else %}
+            <div class="rack-empty-sub">—</div>
+            {% endif %}
+          </div>
+
+          <div class="rack-sub-divider"></div>
+
+          <!-- BOTTOM -->
+          <div class="rack-sub-slot rack-sub-bot {% if cell.bot %}rack-sub-occ{% endif %}">
+            {% if cell.bot %}
+            <a href="{% url 'plate-detail' cell.bot.pk %}" class="rack-plate-link">
+              <div class="rack-plate-name">{{ cell.bot.plate_name|truncatechars:24 }}</div>
+              <div class="rack-plate-count">
+                {% if cell.bot_count > 0 %}
+                  <span class="rack-occ-dot"></span>{{ cell.bot_count }} wells
+                {% else %}
+                  <span class="rack-plate-empty-hint">empty</span>
+                {% endif %}
+              </div>
+            </a>
+            {% else %}
+            <div class="rack-empty-sub">—</div>
+            {% endif %}
+          </div>
+
+        </div>
+        {% endfor %}
+      </div>
+      {% endfor %}
+
+    </div><!-- /rack-grid -->
+
+    <div class="inv-rack-card-footer">
+      <span>{{ rack.location.storageType }}</span>
+      
+    </div>
+
+  </div>
+  {% endwith %}
+  {% endfor %}
+</div>
+
+{% else %}
+<div class="empty-state">
+  <i class="fas fa-boxes"></i>
+  <p>No racks configured yet.</p>
+</div>
+{% endif %}
+
+<script>
+const SEARCH_URL = "{% url 'rack-search' %}";
+const input      = document.getElementById('globalSearch');
+const results    = document.getElementById('searchResults');
+const clearBtn   = document.getElementById('searchClear');
+let   debounce   = null;
+
+input.addEventListener('input', () => {
+  const q = input.value.trim();
+  clearBtn.style.display = q ? '' : 'none';
+  clearTimeout(debounce);
+  if (q.length < 2) { results.style.display = 'none'; return; }
+  debounce = setTimeout(() => doSearch(q), 280);
+});
+
+clearBtn.addEventListener('click', () => {
+  input.value = '';
+  clearBtn.style.display = 'none';
+  results.style.display  = 'none';
+});
+
+async function doSearch(q) {
+  const resp = await fetch(`${SEARCH_URL}?q=${encodeURIComponent(q)}`);
+  const data = await resp.json();
+  renderResults(data.results);
+}
+
+function renderResults(items) {
+  if (!items.length) {
+    results.innerHTML = '<div class="sr-empty">No matches found</div>';
+    results.style.display = '';
+    return;
+  }
+  results.innerHTML = items.map(r => `
+    <a class="sr-row" href="/locations/inventory/well/${r.well_pk}/">
+      <div class="sr-left">
+        <span class="sr-sample">${r.sample_name}</span>
+        <span class="sr-type ${r.sample_type.toLowerCase()}">${r.sample_type}</span>
+      </div>
+      <div class="sr-right">
+        <span class="sr-well">${r.well_pos}</span>
+        <span class="sr-plate">${r.plate_name}</span>
+        <span class="sr-loc">${r.location} › ${r.rack_name}</span>
+      </div>
+    </a>
+  `).join('');
+  results.style.display = '';
+}
+
+document.addEventListener('click', e => {
+  if (!e.target.closest('.inv-search-wrap')) results.style.display = 'none';
+});
+</script>
+
+{% endblock %}
