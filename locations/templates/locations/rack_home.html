@@ -168,7 +168,7 @@ function renderResults(items) {
     return;
   }
   results.innerHTML = items.map(r => `
-    <a class="sr-row" href="/locations/inventory/well/${r.well_pk}/">
+    <a class="sr-row" href="/locations/rack/plate/well/${r.well_pk}/">
       <div class="sr-left">
         <span class="sr-sample">${r.sample_name}</span>
         <span class="sr-type ${r.sample_type.toLowerCase()}">${r.sample_type}</span>

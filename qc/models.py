@@ -59,7 +59,7 @@ class SampleQCBatch(models.Model):
 
     def _generate_batch_name(self, project_name: str) -> str:
         hex_id = format(self.id, '04X')   # ← self.id not self.batch_id
-        return f"{project_name}-BATCH-{hex_id}"
+        return f"{project_name}-SampleQC-{hex_id}"
 
     def save(self, *args, **kwargs):
         if not self.batch_name:
