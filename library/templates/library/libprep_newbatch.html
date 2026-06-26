@@ -1,0 +1,339 @@
+{% extends "base.html" %}
+{% block title %}New Batch — {{ project.project_name }} | Library Prep{% endblock %}
+{% load static %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/libprep_newbatch.css' %}">
+{% endblock %}
+
+{% block content %}
+
+<nav aria-label="breadcrumb">
+  <ol class="breadcrumb">
+    <li class="breadcrumb-item"><a href="{% url 'libprep-list' %}">Library Prep</a></li>
+    <li class="breadcrumb-item"><a href="{% url 'libprep-project-list' %}">New Batch</a></li>
+    <li class="breadcrumb-item active">{{ project.project_name }}</li>
+  </ol>
+</nav>
+
+<div class="nb-page-header">
+  <div>
+    <h1 class="nb-title">
+      <i class="fas fa-flask" style="color:var(--accent);margin-right:.5rem;font-size:1rem;"></i>
+      New Prep Batch — {{ project.project_name }}
+    </h1>
+    <p class="nb-subtitle">
+      {{ project.client.client_name }}
+      {% if project.sequencing_type %} · {{ project.sequencing_type }}{% endif %}
+      · Drag samples onto the plate · Drag back to sidebar or between wells to rearrange
+    </p>
+  </div>
+  <div class="nb-header-actions">
+    <button class="nb-btn-secondary" onclick="clearPlate()">
+      <i class="fas fa-times"></i> Clear
+    </button>
+    <button class="nb-btn-save" id="saveBtn" onclick="saveBatch()" disabled>
+      <i class="fas fa-save"></i> Save Batch
+    </button>
+  </div>
+</div>
+
+<!-- HIDDEN FORM submitted by JS -->
+<form id="batchForm" method="post" action="{% url 'libprep-new-batch' project.pk %}">
+  {% csrf_token %}
+  <input type="hidden" name="workflow_type_id" id="fWorkflow">
+  <input type="hidden" name="date_prepped"     id="fDate">
+  <input type="hidden" name="placements"       id="fPlacements">
+  <input type="hidden" name="notes"            id="fNotes">
+</form>
+
+<!-- OPTIONS BAR -->
+<div class="nb-options-bar">
+  <div class="nb-option-group">
+    <label class="nb-option-label">Workflow Type</label>
+    <select class="nb-select" id="workflowSelect">
+      <option value="">— select —</option>
+      {% for wf in workflow_types %}
+      <option value="{{ wf.pk }}" data-type="{{ wf.sample_type }}">{{ wf.workflowType }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="nb-option-group">
+    <label class="nb-option-label">Date Prepped</label>
+    <input type="date" class="nb-input-date" id="datePrepInput" value="{{ today }}">
+  </div>
+  <div class="nb-option-group nb-option-grow">
+    <label class="nb-option-label">Notes (optional)</label>
+    <input type="text" class="nb-input-text" id="notesInput"
+           placeholder="e.g. KAPA run 3, low-input samples…">
+  </div>
+  <div class="nb-stat-mini">
+    <span class="nb-stat-num" id="statCount">0</span>
+    <span class="nb-stat-lbl">on plate</span>
+  </div>
+</div>
+
+<!-- BUILDER -->
+<div class="nb-builder">
+
+  <!--  LEFT SIDEBAR  -->
+  <div class="nb-sidebar" id="sidebarRoot">
+
+    <!-- CONTROLS BOX (always rendered; hidden for DNA by JS) -->
+    <div class="nb-controls-box" id="controlsBox">
+      <div class="nb-section-header" style="position:static;">
+        <i class="fas fa-flask-vial" style="font-size:.7rem;"></i>
+        Controls
+        <span style="font-size:.62rem;color:var(--text-muted);font-weight:400;margin-left:.25rem;">(RNA batches)</span>
+      </div>
+      <div class="nb-controls-list">
+
+        <!-- Positive control -->
+        <div class="nb-sample-card nb-card-control"
+             draggable="true"
+             data-qc-id="pos"
+             data-sample-name="Positive Control"
+             data-status="control"
+             data-is-control="true"
+             id="card-pos"
+             ondragstart="onDragStart(event)">
+          <div class="nb-sc-name">Positive Control</div>
+          <div class="nb-sc-meta">+</div>
+          <span class="nb-sc-badge nb-sc-control">Control</span>
+        </div>
+
+        <!-- Negative control -->
+        <div class="nb-sample-card nb-card-control"
+             draggable="true"
+             data-qc-id="neg"
+             data-sample-name="Negative Control"
+             data-status="control"
+             data-is-control="true"
+             id="card-neg"
+             ondragstart="onDragStart(event)">
+          <div class="nb-sc-name">Negative Control</div>
+          <div class="nb-sc-meta">−</div>
+          <span class="nb-sc-badge nb-sc-control">Control</span>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- PASS -->
+    <div class="nb-section-header">
+      <span class="nb-dot nb-dot-pass"></span>Pass
+      <span class="nb-section-count">{{ qc_pass|length }}</span>
+    </div>
+    <div class="nb-sample-list nb-droppable-list"
+         id="listPass"
+         data-status="pass"
+         ondragover="onListDragOver(event)"
+         ondragleave="onListDragLeave(event)"
+         ondrop="onListDrop(event)">
+      {% for qc in qc_pass %}
+      <div class="nb-sample-card"
+           draggable="true"
+           data-qc-id="{{ qc.pk }}"
+           data-sample-name="{{ qc.sample.sample_name }}"
+           data-conc="{{ qc.qubit_nm|default:'' }}"
+           data-status="pass"
+           data-is-control="false"
+           id="card-{{ qc.pk }}"
+           ondragstart="onDragStart(event)">
+        <div class="nb-sc-name">{{ qc.sample.sample_name }}</div>
+        <div class="nb-sc-meta">
+          {% if qc.qubit_nm %}{{ qc.qubit_nm }} ng/µL{% endif %}
+          {% if qc.sample.sample_type %} · {{ qc.sample.sample_type }}{% endif %}
+        </div>
+        <span class="nb-sc-badge nb-sc-pass">Pass</span>
+      </div>
+      {% empty %}
+      <div class="nb-section-empty">No passing samples</div>
+      {% endfor %}
+    </div>
+
+    <!-- CAUTION -->
+    <div class="nb-section-header">
+      <span class="nb-dot nb-dot-caution"></span>Caution
+      <span class="nb-section-count">{{ qc_caution|length }}</span>
+    </div>
+    <div class="nb-sample-list nb-droppable-list"
+         id="listCaution"
+         data-status="caution"
+         ondragover="onListDragOver(event)"
+         ondragleave="onListDragLeave(event)"
+         ondrop="onListDrop(event)">
+      {% for qc in qc_caution %}
+      <div class="nb-sample-card nb-card-caution"
+           draggable="true"
+           data-qc-id="{{ qc.pk }}"
+           data-sample-name="{{ qc.sample.sample_name }}"
+           data-conc="{{ qc.qubit_nm|default:'' }}"
+           data-status="caution"
+           data-is-control="false"
+           id="card-{{ qc.pk }}"
+           ondragstart="onDragStart(event)">
+        <div class="nb-sc-name">{{ qc.sample.sample_name }}</div>
+        <div class="nb-sc-meta">
+          {% if qc.qubit_nm %}{{ qc.qubit_nm }} ng/µL{% endif %}
+          {% if qc.sample.sample_type %} · {{ qc.sample.sample_type }}{% endif %}
+        </div>
+        <span class="nb-sc-badge nb-sc-caution">Caution</span>
+      </div>
+      {% empty %}
+      <div class="nb-section-empty">No caution samples</div>
+      {% endfor %}
+    </div>
+
+    <!-- FAIL (collapsed) -->
+    <details class="nb-fail-details">
+      <summary class="nb-section-header nb-section-header-btn">
+        <span class="nb-dot nb-dot-fail"></span>Fail
+        <span class="nb-section-count">{{ qc_fail|length }}</span>
+        <i class="fas fa-chevron-down nb-chevron"></i>
+      </summary>
+      <div class="nb-sample-list nb-droppable-list"
+           id="listFail"
+           data-status="fail"
+           ondragover="onListDragOver(event)"
+           ondragleave="onListDragLeave(event)"
+           ondrop="onListDrop(event)">
+        {% for qc in qc_fail %}
+        <div class="nb-sample-card nb-card-fail"
+             draggable="true"
+             data-qc-id="{{ qc.pk }}"
+             data-sample-name="{{ qc.sample.sample_name }}"
+             data-conc="{{ qc.qubit_nm|default:'' }}"
+             data-status="fail"
+             data-is-control="false"
+             id="card-{{ qc.pk }}"
+             ondragstart="onDragStart(event)">
+          <div class="nb-sc-name">{{ qc.sample.sample_name }}</div>
+          <div class="nb-sc-meta">
+            {% if qc.qubit_nm %}{{ qc.qubit_nm }} ng/µL{% endif %}
+          </div>
+          <span class="nb-sc-badge nb-sc-fail">Fail</span>
+        </div>
+        {% empty %}
+        <div class="nb-section-empty">No failed samples</div>
+        {% endfor %}
+      </div>
+    </details>
+
+    <!-- PENDING (collapsed) -->
+    <details class="nb-fail-details">
+      <summary class="nb-section-header nb-section-header-btn">
+        <span class="nb-dot nb-dot-pending"></span>Pending / No QC
+        <span class="nb-section-count">{{ qc_pending|length }}</span>
+        <i class="fas fa-chevron-down nb-chevron"></i>
+      </summary>
+      <div class="nb-sample-list nb-droppable-list"
+           id="listPending"
+           data-status="pending"
+           ondragover="onListDragOver(event)"
+           ondragleave="onListDragLeave(event)"
+           ondrop="onListDrop(event)">
+        {% for qc in qc_pending %}
+        <div class="nb-sample-card nb-card-pending"
+             draggable="true"
+             data-qc-id="{{ qc.pk }}"
+             data-sample-name="{{ qc.sample.sample_name }}"
+             data-conc=""
+             data-status="pending"
+             data-is-control="false"
+             id="card-{{ qc.pk }}"
+             ondragstart="onDragStart(event)">
+          <div class="nb-sc-name">{{ qc.sample.sample_name }}</div>
+          <div class="nb-sc-meta">Pending QC</div>
+          <span class="nb-sc-badge nb-sc-pending">Pending</span>
+        </div>
+        {% empty %}
+        <div class="nb-section-empty">No pending samples</div>
+        {% endfor %}
+      </div>
+    </details>
+
+  </div>
+
+  <!-- RIGHT: PLATE  -->
+  <div class="nb-plate-area">
+    <div class="nb-plate-header">
+      <span class="nb-plate-title">
+        <i class="fas fa-th" style="color:var(--accent);margin-right:.4rem;"></i>
+        48-Well Plate
+      </span>
+      <span class="nb-plate-hint">
+        Drag samples onto wells · Drag between wells to rearrange · Drag back to sidebar to remove
+      </span>
+    </div>
+
+    <div class="nb-plate-wrap">
+      <div class="nb-plate-board">
+
+        <div class="nb-col-headers">
+          <div class="nb-row-label-spacer"></div>
+          {% for col in cols %}
+          <div class="nb-col-label">{{ col }}</div>
+          {% endfor %}
+        </div>
+
+        {% for row_letter in rows %}
+        <div class="nb-plate-row">
+          <div class="nb-row-label">{{ row_letter }}</div>
+          {% for col in cols %}
+          {% with pos=row_letter|add:col %}
+          <div class="nb-well nb-well-empty"
+               data-pos="{{ pos }}"
+               ondragover="onDragOver(event)"
+               ondragleave="onDragLeave(event)"
+               ondrop="onDrop(event)"
+               ondragstart="onWellDragStart(event)">
+            <span class="nb-well-pos">{{ pos }}</span>
+            <span class="nb-well-name"></span>
+          </div>
+          {% endwith %}
+          {% endfor %}
+        </div>
+        {% endfor %}
+
+      </div>
+
+      <div class="nb-legend">
+        <span class="nb-legend-item"><span class="nb-ldot nb-ldot-empty"></span>Empty</span>
+        <span class="nb-legend-item"><span class="nb-ldot nb-ldot-pass"></span>Pass</span>
+        <span class="nb-legend-item"><span class="nb-ldot nb-ldot-caution"></span>Caution</span>
+        <span class="nb-legend-item"><span class="nb-ldot nb-ldot-fail"></span>Fail</span>
+        <span class="nb-legend-item"><span class="nb-ldot nb-ldot-control"></span>Control</span>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- CONFIRM MODAL -->
+<div class="nb-modal-backdrop" id="modalBackdrop" style="display:none;">
+  <div class="nb-modal">
+    <div class="nb-modal-title">
+      <i class="fas fa-save" style="color:var(--accent);margin-right:.5rem;"></i>
+      Confirm Save
+    </div>
+    <div class="nb-modal-body">
+      Saving <strong id="mCount">0</strong> samples to a new prep plate.<br>
+      Workflow: <strong id="mWorkflow">—</strong><br>
+      Date: <strong id="mDate">—</strong>
+    </div>
+    <div class="nb-modal-actions">
+      <button class="nb-btn-secondary" onclick="closeModal()">Cancel</button>
+      <button class="nb-btn-save" onclick="confirmSave()">
+        <i class="fas fa-check"></i> Confirm
+      </button>
+    </div>
+  </div>
+</div>
+
+{% block extra_js %}
+<script src="{% static 'js/libprep_newbatch.js' %}"></script>
+
+{% endblock %}
+
+{% endblock %}

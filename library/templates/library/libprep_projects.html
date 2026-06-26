@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+{% block title %}New Library Prep Batch | Select Project{% endblock %}
+{% load static %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/libprep_projects.css' %}">
+{% endblock %}
+
+{% block content %}
+
+<nav aria-label="breadcrumb">
+  <ol class="breadcrumb">
+    <li class="breadcrumb-item"><a href="{% url 'libprep-list' %}">Library Prep</a></li>
+    <li class="breadcrumb-item active">New Batch — Select Project</li>
+  </ol>
+</nav>
+
+<div class="lp-header">
+  <h1>
+    <i class="fas fa-plus-circle" style="color:var(--accent);margin-right:.5rem;font-size:1.1rem;"></i>
+    New Library Prep Batch
+  </h1>
+  <p>Select a project to begin building a prep plate</p>
+</div>
+
+{% if project_data %}
+<div class="lp-project-grid">
+  {% for row in project_data %}
+  <a href="{% url 'libprep-new-batch' row.project.pk %}" class="lp-project-card">
+
+    <div class="lp-card-header">
+      <div>
+        <div class="lp-project-name">{{ row.project.project_name }}</div>
+        <div class="lp-project-client">{{ row.project.client.client_name }}</div>
+      </div>
+      <span class="lp-seq-badge">{{ row.project.sequencing_type }}</span>
+    </div>
+
+    <div class="lp-type-pills">
+      {% if row.dna_count %}<span class="lp-type-pill lp-pill-dna">{{ row.dna_count }} DNA</span>{% endif %}
+      {% if row.rna_count %}<span class="lp-type-pill lp-pill-rna">{{ row.rna_count }} RNA</span>{% endif %}
+      {% if not row.dna_count and not row.rna_count %}
+        <span style="font-size:.78rem;color:var(--text-muted);">No samples</span>
+      {% endif %}
+    </div>
+
+    <!-- QC status bar -->
+    <div class="lp-bar-wrap">
+      <div class="lp-bar-labels">
+        <span>SampleQC</span>
+        <span>{{ row.qc_total }} total</span>
+      </div>
+      <div class="lp-bar">
+        {% if row.qc_total %}
+          <div class="lp-seg lp-seg-pass"    style="width:{{ row.pct_pass }}%"></div>
+          <div class="lp-seg lp-seg-caution" style="width:{{ row.pct_caution }}%"></div>
+          <div class="lp-seg lp-seg-fail"    style="width:{{ row.pct_fail }}%"></div>
+          <div class="lp-seg lp-seg-pending" style="width:{{ row.pct_pending }}%"></div>
+        {% else %}
+          <div class="lp-seg lp-seg-pending" style="width:100%"></div>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="lp-card-stats">
+      <div class="lp-stat">
+        <span class="lp-stat-val">{{ row.qc_pass }}</span>
+        <span class="lp-stat-lbl">Pass</span>
+      </div>
+      <div class="lp-stat">
+        <span class="lp-stat-val lp-caution">{{ row.qc_caution }}</span>
+        <span class="lp-stat-lbl">Caution</span>
+      </div>
+      <div class="lp-stat">
+        <span class="lp-stat-val lp-fail">{{ row.qc_fail }}</span>
+        <span class="lp-stat-lbl">Fail</span>
+      </div>
+      <div class="lp-stat">
+        <span class="lp-stat-val lp-muted">{{ row.qc_pending }}</span>
+        <span class="lp-stat-lbl">Pending</span>
+      </div>
+      <div class="lp-stat" style="margin-left:auto;">
+        <span class="lp-stat-val">{{ row.existing_batches }}</span>
+        <span class="lp-stat-lbl">Batches</span>
+      </div>
+    </div>
+
+    <div class="lp-card-arrow">
+      <i class="fas fa-flask" style="margin-right:.35rem;"></i> Build plate
+      <i class="fas fa-arrow-right" style="margin-left:.35rem;"></i>
+    </div>
+
+  </a>
+  {% endfor %}
+</div>
+
+{% else %}
+<div class="lp-empty">
+  <i class="fas fa-folder-open"></i>
+  <p>No projects found. Create a project in the Samples tab first.</p>
+</div>
+{% endif %}
+
+{% endblock %}

@@ -1,0 +1,166 @@
+/* LIBPREP PROJECTS PAGE  */
+
+.lp-header {
+  margin-bottom: 1.75rem;
+}
+.lp-header h1 {
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: var(--text);
+  margin: 0;
+}
+.lp-header p {
+  font-size: .84rem;
+  color: var(--text-muted);
+  margin: .25rem 0 0;
+}
+
+/* GRID */
+.lp-project-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(310px, 1fr));
+  gap: 1rem;
+}
+
+/* CARD */
+.lp-project-card {
+  display: flex;
+  flex-direction: column;
+  gap: .7rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 1.1rem 1.25rem;
+  text-decoration: none;
+  color: inherit;
+  transition: border-color .15s, box-shadow .15s, transform .1s;
+  position: relative;
+}
+.lp-project-card:hover {
+  border-color: var(--accent);
+  box-shadow: 0 4px 18px rgba(0,180,216,.1);
+  transform: translateY(-2px);
+  color: inherit;
+  text-decoration: none;
+}
+
+/* CARD HEADER */
+.lp-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: .5rem;
+}
+.lp-project-name {
+  font-size: .92rem;
+  font-weight: 600;
+  color: var(--text);
+  line-height: 1.3;
+}
+.lp-project-client {
+  font-size: .75rem;
+  color: var(--text-muted);
+  margin-top: .1rem;
+}
+.lp-seq-badge {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: .68rem;
+  font-weight: 600;
+  padding: .2rem .55rem;
+  border-radius: 20px;
+  background: rgba(0,180,216,.1);
+  color: var(--accent);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* TYPE PILLS */
+.lp-type-pills {
+  display: flex;
+  gap: .4rem;
+}
+.lp-type-pill {
+  font-size: .71rem;
+  font-family: 'IBM Plex Mono', monospace;
+  padding: .15rem .55rem;
+  border-radius: 4px;
+  font-weight: 500;
+}
+.lp-pill-dna { background: rgba(0,180,216,.12); color: #0096b4; }
+.lp-pill-rna { background: rgba(244,162,97,.15); color: #c77b39; }
+
+/* QC BAR */
+.lp-bar-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: .3rem;
+}
+.lp-bar-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: .68rem;
+  color: var(--text-muted);
+}
+.lp-bar {
+  height: 6px;
+  border-radius: 3px;
+  background: var(--surface-alt);
+  display: flex;
+  overflow: hidden;
+}
+.lp-seg         { height: 100%; transition: width .3s; }
+.lp-seg-pass    { background: var(--success, #22c55e); }
+.lp-seg-caution { background: var(--warning, #f59e0b); }
+.lp-seg-fail    { background: var(--danger,  #ef4444); }
+.lp-seg-pending { background: var(--border); }
+
+/* STATS ROW */
+.lp-card-stats {
+  display: flex;
+  gap: 1rem;
+  padding-top: .65rem;
+  border-top: 1px solid var(--border);
+  flex-wrap: wrap;
+}
+.lp-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 32px;
+}
+.lp-stat-val {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1;
+}
+.lp-stat-lbl {
+  font-size: .65rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  margin-top: .2rem;
+}
+.lp-caution { color: var(--warning, #f59e0b) !important; }
+.lp-fail    { color: var(--danger,  #ef4444) !important; }
+.lp-muted   { color: var(--text-muted) !important; }
+
+/* CARD ARROW */
+.lp-card-arrow {
+  font-size: .78rem;
+  color: var(--accent);
+  text-align: right;
+  opacity: 0;
+  transition: opacity .15s;
+}
+.lp-project-card:hover .lp-card-arrow { opacity: 1; }
+
+/* EMPTY */
+.lp-empty {
+  text-align: center;
+  padding: 4rem 1rem;
+  color: var(--text-muted);
+}
+.lp-empty i  { font-size: 2.5rem; margin-bottom: .75rem; display: block; }
+.lp-empty p  { font-size: .95rem; }
