@@ -1,4 +1,3 @@
-
 from django.db import models
 from django.contrib.auth import get_user_model
 from django.utils.translation import gettext_lazy as _
@@ -6,13 +5,7 @@ from django.utils.translation import gettext_lazy as _
 User = get_user_model()
 
 
-# WORKFLOW TEMPLATE SYSTEM 
-
 class WorkflowType(models.Model):
-    """
-    A named library-prep workflow, e.g. 'Total RNA', 'Small RNA',
-    'KAPA HyperPlus DNA', 'DNA PCR-Free WGS'.
-    """
     workflowType = models.CharField(
         max_length=100, unique=True,
         verbose_name=_("Workflow Type"),
@@ -22,39 +15,23 @@ class WorkflowType(models.Model):
         choices=[('DNA', 'DNA'), ('RNA', 'RNA')],
         default='RNA',
         verbose_name=_("Sample Type"),
-        help_text=_("Whether this workflow processes DNA or RNA samples."),
     )
-    # Volume calculation parameters (used by the plate-board volume helper)
     target_input_ng = models.FloatField(
         default=250.0,
         verbose_name=_("Target Input (ng)"),
-        help_text=_("Target mass in ng to load per sample."),
     )
     target_volume_ul = models.FloatField(
         default=11.0,
         verbose_name=_("Target Volume (µL)"),
-        help_text=_("Starting reaction volume in µL."),
     )
     diluent_name = models.CharField(
         max_length=80,
         default='NF H₂O',
         verbose_name=_("Diluent Name"),
-        help_text=_("e.g. 'NF H₂O', 'Tris-HCl pH 8.5 10 mM', 'RSB'."),
     )
-    # Fragment size QC gates (used by LibraryQC auto-status)
-    fragment_min_bp = models.IntegerField(
-        null=True, blank=True,
-        verbose_name=_("Min Fragment Size (bp)"),
-    )
-    fragment_max_bp = models.IntegerField(
-        null=True, blank=True,
-        verbose_name=_("Max Fragment Size (bp)"),
-    )
-    # Dimer threshold (stored but not actively tracked per lab request)
-    dimer_threshold_pct = models.FloatField(
-        default=10.0,
-        verbose_name=_("Dimer Threshold (%)"),
-    )
+    fragment_min_bp = models.IntegerField(null=True, blank=True, verbose_name=_("Min Fragment Size (bp)"))
+    fragment_max_bp = models.IntegerField(null=True, blank=True, verbose_name=_("Max Fragment Size (bp)"))
+    dimer_threshold_pct = models.FloatField(default=10.0, verbose_name=_("Dimer Threshold (%)"))
 
     class Meta:
         ordering = ['workflowType']
@@ -66,32 +43,14 @@ class WorkflowType(models.Model):
 
 
 class StepRow(models.Model):
-    """
-    A single reagent / action row within a master-mix step.
-    Stores the per-reaction volume; the printable MM template
-    multiplies this by the sample count.
-
-    constantOfMM:
-      0 = this row is a fixed volume (not multiplied by sample count),
-          e.g. a header or a note row.
-      1 = volume is per reaction (multiplied by n+2 for controls).
-    """
-    stepRowName   = models.CharField(max_length=200, verbose_name=_("Reagent / Row Name"))
-    volumePerRxn  = models.FloatField(
-        null=True, blank=True,
-        verbose_name=_("Volume per Reaction (µL)"),
-        help_text=_("µL per reaction; leave blank for header/note rows."),
-    )
-    constantOfMM  = models.IntegerField(
+    stepRowName  = models.CharField(max_length=200, verbose_name=_("Reagent / Row Name"))
+    volumePerRxn = models.FloatField(null=True, blank=True, verbose_name=_("Volume per Reaction (µL)"))
+    constantOfMM = models.IntegerField(
         default=1,
         choices=[(0, 'Fixed / Header'), (1, 'Per Reaction (×n)')],
         verbose_name=_("Row Type"),
     )
-    sort_order = models.PositiveSmallIntegerField(
-        default=0,
-        verbose_name=_("Sort Order"),
-        help_text=_("Controls print order within a step."),
-    )
+    sort_order = models.PositiveSmallIntegerField(default=0, verbose_name=_("Sort Order"))
 
     class Meta:
         ordering = ['sort_order', 'stepRowName']
@@ -103,33 +62,12 @@ class StepRow(models.Model):
 
 
 class WorkflowTypeStep(models.Model):
-    """
-    One named step in a workflow master-mix template
-    (e.g. 'Step A: 3′ Adaptor Ligation').
-
-    numberOFReaction is the multiplier printed in the 'No. of Reactions'
-    column — usually n_samples + 2 controls, but some steps use a
-    different multiplier (e.g. ×1.2 overage); store as a formula string
-    or override per-step.
-    """
-    workflowType   = models.ForeignKey(
-        WorkflowType,
-        on_delete=models.CASCADE,
-        related_name='steps',
-        verbose_name=_("Workflow Type"),
-    )
-    stepName       = models.CharField(max_length=200, verbose_name=_("Step Name"))
-    sort_order     = models.PositiveSmallIntegerField(default=0, verbose_name=_("Sort Order"))
-    numberOFReaction = models.IntegerField(
-        default=1,
-        verbose_name=_("Reaction Multiplier"),
-        help_text=_("Usually n_samples + 2.  The view overrides this at print time."),
-    )
-    stepRows = models.ManyToManyField(
-        StepRow,
-        blank=True,
-        related_name='workflowSteps',
-        verbose_name=_("Reagent Rows"),
+    workflowType     = models.ForeignKey(WorkflowType, on_delete=models.CASCADE, related_name='steps')
+    stepName         = models.CharField(max_length=200, verbose_name=_("Step Name"))
+    sort_order       = models.PositiveSmallIntegerField(default=0)
+    numberOFReaction = models.IntegerField(default=1, verbose_name=_("Reaction Multiplier"))
+    stepRows         = models.ManyToManyField(
+        StepRow, blank=True, related_name='workflowSteps',
         through='WorkflowStepRowOrder',
     )
 
@@ -143,12 +81,8 @@ class WorkflowTypeStep(models.Model):
 
 
 class WorkflowStepRowOrder(models.Model):
-    """
-    Explicit through-table so each StepRow can appear in multiple steps
-    while preserving a per-step sort order.
-    """
-    step     = models.ForeignKey(WorkflowTypeStep, on_delete=models.CASCADE)
-    step_row = models.ForeignKey(StepRow,          on_delete=models.CASCADE)
+    step       = models.ForeignKey(WorkflowTypeStep, on_delete=models.CASCADE)
+    step_row   = models.ForeignKey(StepRow, on_delete=models.CASCADE)
     sort_order = models.PositiveSmallIntegerField(default=0)
 
     class Meta:
@@ -157,35 +91,19 @@ class WorkflowStepRowOrder(models.Model):
 
 
 class LibraryIndex(models.Model):
-    """
-    Sequencing index lookup table.
-
-    For dual-index workflows that use plate sets (TotalRNA, DNA PCR-Free):
-      plateSet  = 'A' | 'B' | 'C' | 'D'
-      well      = 'A01' … 'H12'
-    For single-set workflows (SmallRNA, KAPA): leave plateSet blank.
-
-    indexVersion differentiates Illumina V2 vs V3 index sequences,
-    which is important for the iSeq / NovaSeq sample sheets.
-    """
-    udi_number   = models.CharField(max_length=50,  verbose_name=_("UDI Number"), null=True,blank=True,)
+    udi_number   = models.CharField(max_length=50,  null=True, blank=True, verbose_name=_("UDI Number"))
     plateSet     = models.CharField(max_length=10,  blank=True, verbose_name=_("Plate Set"))
     well         = models.CharField(max_length=10,  verbose_name=_("Well"))
     i7Sequence   = models.CharField(max_length=200, verbose_name=_("i7 Sequence"))
     i5Sequence   = models.CharField(max_length=200, blank=True, verbose_name=_("i5 Sequence"))
-    indexVersion = models.CharField(max_length=50,  blank=True, verbose_name=_("Index Version"),
-                                    help_text=_("e.g. 'V2', 'V3'"))
+    indexVersion = models.CharField(max_length=50,  blank=True, verbose_name=_("Index Version"))
     workflow_types = models.ManyToManyField(
-        WorkflowType,
-        blank=True,
-        related_name='indexes',
+        WorkflowType, blank=True, related_name='indexes',
         verbose_name=_("Compatible Workflow Types"),
     )
     createdBy = models.ForeignKey(
-        User, on_delete=models.SET_NULL,
-        null=True, blank=True,
+        User, on_delete=models.SET_NULL, null=True, blank=True,
         related_name='libraryIndexes',
-        verbose_name=_("Created By"),
     )
 
     class Meta:
@@ -202,18 +120,19 @@ class LibraryPrepBatch(models.Model):
     """
     One library-prep run.  One batch = one physical plate.
 
-    Linked to:
-      - Project  (for filtering the plate board)
-      - Plate    (the physical 48-well plate created at save time)
-      - WorkflowType (KAPA / TotalRNA / SmallRNA / …)
+    batch_name is generated at creation time:
+        {project_name}-Library-{4-digit uppercase hex counter}
+        e.g. ACME2024-Library-003F
+
+    plate is created and linked during batch creation — it records the
+    physical location (rack + slot) of the plate.
     """
     project = models.ForeignKey(
         'samples.Project',
         on_delete=models.PROTECT,
         related_name='libprep_batches',
         verbose_name=_("Project"),
-        null=True,
-        blank=True,
+        null=True, blank=True,
     )
     plate = models.OneToOneField(
         'locations.Plate',
@@ -221,7 +140,6 @@ class LibraryPrepBatch(models.Model):
         null=True, blank=True,
         related_name='libprep_batch',
         verbose_name=_("Plate"),
-        help_text=_("The physical plate this batch is loaded onto."),
     )
     workflowType = models.ForeignKey(
         WorkflowType,
@@ -229,15 +147,23 @@ class LibraryPrepBatch(models.Model):
         related_name='libraryPrepBatches',
         verbose_name=_("Workflow Type"),
     )
-    datePrepped = models.DateField(
-        verbose_name=_("Date Prepped"),
+
+    # Populated on creation via _save_new_batch; never auto-generated here
+    # so it stays consistent with the Plate.plate_name.
+    batch_name = models.CharField(
+        max_length=200,
+        blank=True,
+        verbose_name=_("Batch Name"),
+        help_text=_("Auto-generated: {project}-Library-{4HEX}. Do not edit manually."),
     )
+
+    datePrepped = models.DateField(verbose_name=_("Date Prepped"))
     max_samples = models.PositiveSmallIntegerField(
         null=True, blank=True,
         verbose_name=_("Sample Count"),
         help_text=_("Number of samples (excluding controls) in this batch."),
     )
-    notes = models.TextField(blank=True, verbose_name=_("Notes"))
+    notes     = models.TextField(blank=True, verbose_name=_("Notes"))
     createdBy = models.ForeignKey(
         User, on_delete=models.SET_NULL,
         null=True, blank=True,
@@ -253,8 +179,9 @@ class LibraryPrepBatch(models.Model):
         verbose_name_plural = _("Library Prep Batches")
 
     def __str__(self):
-        plate_name = self.plate.plate_name if self.plate_id else f"#{self.pk}"
-        return f"{plate_name} — {self.workflowType} ({self.datePrepped})"
+        return self.batch_name or (
+            self.plate.plate_name if self.plate_id else f"Batch #{self.pk}"
+        )
 
     @property
     def sample_count(self):
@@ -265,7 +192,74 @@ class LibraryPrepBatch(models.Model):
         return self.samples.filter(plateWell__well_type='control').count()
 
 
-# PREP ACTION 
+class LibraryPrepBatchAuditLog(models.Model):
+    """
+    Immutable record of every significant change to a LibraryPrepBatch.
+
+    Intentionally kept simple: a timestamped action + free-text detail
+    written by the view that makes the change.  This gives the lab a
+    clear timeline without the overhead of a full field-level diff table.
+
+    Nothing in this model is editable after creation (no update_fields
+    that touch it; views only ever call .create()).
+    """
+
+    ACTION_CREATED  = 'created'
+    ACTION_UPDATED  = 'updated'
+    ACTION_SAMPLES  = 'samples_updated'
+    ACTION_LOCATION = 'location_changed'
+    ACTION_STATUS   = 'status_changed'
+    ACTION_NOTES    = 'notes_updated'
+
+    ACTION_CHOICES = [
+        (ACTION_CREATED,  _('Batch Created')),
+        (ACTION_UPDATED,  _('Batch Updated')),
+        (ACTION_SAMPLES,  _('Samples Updated')),
+        (ACTION_LOCATION, _('Location Changed')),
+        (ACTION_STATUS,   _('Status Changed')),
+        (ACTION_NOTES,    _('Notes Updated')),
+    ]
+
+    batch = models.ForeignKey(
+        LibraryPrepBatch,
+        on_delete=models.CASCADE,
+        related_name='audit_logs',
+        verbose_name=_("Batch"),
+    )
+    changed_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name='libprep_audit_logs',
+        verbose_name=_("Changed By"),
+    )
+    changed_at = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name=_("Changed At"),
+        db_index=True,
+    )
+    action = models.CharField(
+        max_length=30,
+        choices=ACTION_CHOICES,
+        default=ACTION_UPDATED,
+        verbose_name=_("Action"),
+    )
+    detail = models.TextField(
+        blank=True,
+        verbose_name=_("Detail"),
+        help_text=_("Human-readable summary of what changed."),
+    )
+
+    class Meta:
+        ordering            = ['-changed_at']
+        verbose_name        = _("Library Prep Batch Audit Log")
+        verbose_name_plural = _("Library Prep Batch Audit Logs")
+
+    def __str__(self):
+        who = self.changed_by.get_full_name() if self.changed_by else 'unknown'
+        return f"{self.batch} — {self.get_action_display()} by {who} at {self.changed_at:%Y-%m-%d %H:%M}"
+
+
 
 class PrepAction(models.TextChoices):
     PREP    = 'prep',    _('Prep')
@@ -273,16 +267,16 @@ class PrepAction(models.TextChoices):
     REQUEUE = 'requeue', _('Requeue')
 
 
-# LIBRARY PREP SAMPLE 
 class LibraryPrepSample(models.Model):
     """
     One sample (or control) within a LibraryPrepBatch.
 
-    sampleQC is nullable so control wells (positive/negative) can be
-    represented without a QC record.
-
-    Volume fields are calculated by the plate-board save view and stored
-    so the printable working sheet doesn't need to recalculate.
+    sampleQC is nullable for control wells (positive / negative).
+    plateWell is intentionally null at batch creation time — it is
+    assigned later when the physical plate layout is confirmed and
+    PlateWell records are committed.
+    Volume fields are pre-calculated at creation from the workflow
+    target parameters and the sample's Qubit concentration.
     """
     libPrepBatch = models.ForeignKey(
         LibraryPrepBatch,
@@ -304,6 +298,7 @@ class LibraryPrepSample(models.Model):
         null=True, blank=True,
         related_name='libraryPrepSamples',
         verbose_name=_("Plate Well"),
+        help_text=_("Populated when the physical plate layout is committed."),
     )
     libraryIndex = models.ForeignKey(
         LibraryIndex,
@@ -311,40 +306,26 @@ class LibraryPrepSample(models.Model):
         null=True, blank=True,
         related_name='libraryPrepSamples',
         verbose_name=_("Library Index"),
-        help_text=_("Assigned after library prep is complete."),
     )
 
-    # Volume calculation fields (auto-filled by save view) 
-    concentrationInput = models.FloatField(
-        null=True, blank=True,
-        verbose_name=_("Concentration Input (ng/µL)"),
-    )
-    volumeSample_ul = models.FloatField(
-        null=True, blank=True,
-        verbose_name=_("Volume Sample (µL)"),
-        help_text=_("Calculated volume of sample to pipette."),
-    )
-    volumeDiluent_ul = models.FloatField(
-        null=True, blank=True,
-        verbose_name=_("Volume Diluent (µL)"),
-        help_text=_("NF H₂O / Tris / RSB to add to reach target volume."),
-    )
-    actual_Input_ng = models.FloatField(
-        null=True, blank=True,
-        verbose_name=_("Actual Input (ng)"),
-        help_text=_("May differ from target when SpeedVac'd from limited material."),
-    )
-    speedVacRequired = models.BooleanField(
-        default=False,
-        verbose_name=_("SpeedVac Required"),
-    )
-    PCRCycles = models.IntegerField(
-        null=True, blank=True,
-        verbose_name=_("PCR Cycles"),
-        help_text=_("Logged after library prep for applicable workflows."),
+    # Stored separately from plateWell so the intended layout is preserved
+    # even before PlateWell records are committed.
+    planned_well_position = models.CharField(
+        max_length=4,
+        blank=True,
+        verbose_name=_("Planned Well Position"),
+        help_text=_("Well position chosen during batch creation, e.g. 'A01'. "
+                    "Committed to plateWell when plate layout is finalised."),
     )
 
-    # Admin / tracking 
+    # ── Volume calculation fields ─────────────────────────────────────────
+    concentrationInput = models.FloatField(null=True, blank=True, verbose_name=_("Concentration Input (ng/µL)"))
+    volumeSample_ul    = models.FloatField(null=True, blank=True, verbose_name=_("Volume Sample (µL)"))
+    volumeDiluent_ul   = models.FloatField(null=True, blank=True, verbose_name=_("Volume Diluent (µL)"))
+    actual_Input_ng    = models.FloatField(null=True, blank=True, verbose_name=_("Actual Input (ng)"))
+    speedVacRequired   = models.BooleanField(default=False, verbose_name=_("SpeedVac Required"))
+    PCRCycles          = models.IntegerField(null=True, blank=True, verbose_name=_("PCR Cycles"))
+
     prepAction = models.CharField(
         max_length=20,
         choices=PrepAction.choices,
@@ -361,21 +342,17 @@ class LibraryPrepSample(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        ordering            = ['libPrepBatch', 'plateWell__well_position']
+        ordering            = ['libPrepBatch', 'planned_well_position']
         verbose_name        = _("Library Prep Sample")
         verbose_name_plural = _("Library Prep Samples")
 
     def __str__(self):
         name = self.sampleQC.sample.sample_name if self.sampleQC_id else "Control"
-        well = self.plateWell.well_position if self.plateWell_id else "?"
+        well = self.planned_well_position or (
+            self.plateWell.well_position if self.plateWell_id else "?"
+        )
         return f"{name} @ {well} (Batch {self.libPrepBatch_id})"
 
-
-
-
-
-
-# LIBRARY QC 
 
 class QCStatus(models.TextChoices):
     PASS    = 'pass',    _('Pass')
@@ -385,20 +362,18 @@ class QCStatus(models.TextChoices):
 
 
 class LibraryQCBatch(models.Model):
-    """Groups QC results for a library prep batch (1-to-1 with LibraryPrepBatch)."""
     libPrepBatch = models.OneToOneField(
         LibraryPrepBatch,
         on_delete=models.CASCADE,
         related_name='qcBatch',
         verbose_name=_("Library Prep Batch"),
     )
-    batchName  = models.CharField(max_length=200, blank=True, verbose_name=_("Batch Name"))
-    dateQCed   = models.DateField(null=True, blank=True, verbose_name=_("Date QC'd"))
-    createdBy  = models.ForeignKey(
+    batchName = models.CharField(max_length=200, blank=True, verbose_name=_("Batch Name"))
+    dateQCed  = models.DateField(null=True, blank=True, verbose_name=_("Date QC'd"))
+    createdBy = models.ForeignKey(
         User, on_delete=models.SET_NULL,
         null=True, blank=True,
         related_name='libraryQCBatches',
-        verbose_name=_("Created By"),
     )
 
     class Meta:
@@ -411,28 +386,13 @@ class LibraryQCBatch(models.Model):
 
 
 class LibraryQC(models.Model):
+    libQCBatch    = models.ForeignKey(LibraryQCBatch, on_delete=models.CASCADE, related_name='qcResults')
+    libPrepSample = models.OneToOneField(LibraryPrepSample, on_delete=models.CASCADE, related_name='qcResult')
 
-    libQCBatch     = models.ForeignKey(
-        LibraryQCBatch,
-        on_delete=models.CASCADE,
-        related_name='qcResults',
-        verbose_name=_("Library QC Batch"),
-    )
-    libPrepSample  = models.OneToOneField(
-        LibraryPrepSample,
-        on_delete=models.CASCADE,
-        related_name='qcResult',
-        verbose_name=_("Library Prep Sample"),
-    )
     qubit_ng_ul        = models.FloatField(null=True, blank=True, verbose_name=_("Qubit (ng/µL)"))
     fragmentSizesAvgBP = models.FloatField(null=True, blank=True, verbose_name=_("Avg Fragment Size (bp)"))
     nmCalculated       = models.FloatField(null=True, blank=True, verbose_name=_("nM Calculated"))
-    # Dimer stored but not actively tracked (lab request)
-    dimerPeak_pct      = models.FloatField(
-        null=True, blank=True,
-        verbose_name=_("Dimer Peak (%)"),
-        help_text=_("Recorded but not used to gate progression per lab preference."),
-    )
+    dimerPeak_pct      = models.FloatField(null=True, blank=True, verbose_name=_("Dimer Peak (%)"))
     QCstatus = models.CharField(
         max_length=20,
         choices=QCStatus.choices,
@@ -443,7 +403,6 @@ class LibraryQC(models.Model):
         User, on_delete=models.SET_NULL,
         null=True, blank=True,
         related_name='libraryQCs',
-        verbose_name=_("Created By"),
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -463,25 +422,19 @@ class LibraryQC(models.Model):
         return None
 
     def calculate_qc_status(self, workflow_type=None):
-        """Auto-determine pass/fail from nM and fragment size gates."""
         nm = self.nmCalculated or self.calculate_nm()
         if nm is None:
             return QCStatus.PENDING
-
         if nm < 2.0:
             return QCStatus.FAIL
-
         if workflow_type and self.fragmentSizesAvgBP:
             fmin = workflow_type.fragment_min_bp
             fmax = workflow_type.fragment_max_bp
-            if fmin and fmax:
-                if not (fmin <= self.fragmentSizesAvgBP <= fmax):
-                    return QCStatus.FAIL
-
+            if fmin and fmax and not (fmin <= self.fragmentSizesAvgBP <= fmax):
+                return QCStatus.FAIL
         return QCStatus.PASS
 
     def save(self, *args, **kwargs):
-        # Auto-calculate nM if not set
         if self.nmCalculated is None:
             self.nmCalculated = self.calculate_nm()
         super().save(*args, **kwargs)

@@ -25,26 +25,28 @@
     <p class="nb-subtitle">
       {{ project.client.client_name }}
       {% if project.sequencing_type %} · {{ project.sequencing_type }}{% endif %}
-      · Drag samples onto the plate · Drag back to sidebar or between wells to rearrange
+      · Drag samples onto the plate · Drag between wells or back to sidebar to rearrange
     </p>
   </div>
   <div class="nb-header-actions">
     <button class="nb-btn-secondary" onclick="clearPlate()">
       <i class="fas fa-times"></i> Clear
     </button>
-    <button class="nb-btn-save" id="saveBtn" onclick="saveBatch()" disabled>
+    <button class="nb-btn-save" id="saveBtn" onclick="openLocationModal()" disabled>
       <i class="fas fa-save"></i> Save Batch
     </button>
   </div>
 </div>
 
-<!-- HIDDEN FORM submitted by JS -->
+<!-- HIDDEN FORM -->
 <form id="batchForm" method="post" action="{% url 'libprep-new-batch' project.pk %}">
   {% csrf_token %}
   <input type="hidden" name="workflow_type_id" id="fWorkflow">
   <input type="hidden" name="date_prepped"     id="fDate">
   <input type="hidden" name="placements"       id="fPlacements">
   <input type="hidden" name="notes"            id="fNotes">
+  <input type="hidden" name="rack_id"          id="fRackId">
+  <input type="hidden" name="rack_slot"        id="fRackSlot">
 </form>
 
 <!-- OPTIONS BAR -->
@@ -76,19 +78,17 @@
 <!-- BUILDER -->
 <div class="nb-builder">
 
-  <!--  LEFT SIDEBAR  -->
+  <!-- ── LEFT SIDEBAR ── -->
   <div class="nb-sidebar" id="sidebarRoot">
 
-    <!-- CONTROLS BOX (always rendered; hidden for DNA by JS) -->
+    <!-- CONTROLS BOX -->
     <div class="nb-controls-box" id="controlsBox">
-      <div class="nb-section-header" style="position:static;">
-        <i class="fas fa-flask-vial" style="font-size:.7rem;"></i>
+      <div class="nb-section-header" style="position:static;background:rgba(160,100,255,.07);border-color:rgba(160,100,255,.2);">
+        <i class="fas fa-circle-dot" style="font-size:.7rem;color:#a064ff;"></i>
         Controls
-        <span style="font-size:.62rem;color:var(--text-muted);font-weight:400;margin-left:.25rem;">(RNA batches)</span>
+        <span style="font-size:.62rem;color:var(--text-muted);font-weight:400;margin-left:.3rem;">RNA only · reusable</span>
       </div>
       <div class="nb-controls-list">
-
-        <!-- Positive control -->
         <div class="nb-sample-card nb-card-control"
              draggable="true"
              data-qc-id="pos"
@@ -98,11 +98,9 @@
              id="card-pos"
              ondragstart="onDragStart(event)">
           <div class="nb-sc-name">Positive Control</div>
-          <div class="nb-sc-meta">+</div>
-          <span class="nb-sc-badge nb-sc-control">Control</span>
+          <div class="nb-sc-meta"><i class="fas fa-plus" style="font-size:.6rem;"></i> Positive</div>
+          <span class="nb-sc-badge nb-sc-control">Ctrl+</span>
         </div>
-
-        <!-- Negative control -->
         <div class="nb-sample-card nb-card-control"
              draggable="true"
              data-qc-id="neg"
@@ -112,10 +110,9 @@
              id="card-neg"
              ondragstart="onDragStart(event)">
           <div class="nb-sc-name">Negative Control</div>
-          <div class="nb-sc-meta">−</div>
-          <span class="nb-sc-badge nb-sc-control">Control</span>
+          <div class="nb-sc-meta"><i class="fas fa-minus" style="font-size:.6rem;"></i> Negative</div>
+          <span class="nb-sc-badge nb-sc-control">Ctrl−</span>
         </div>
-
       </div>
     </div>
 
@@ -124,12 +121,8 @@
       <span class="nb-dot nb-dot-pass"></span>Pass
       <span class="nb-section-count">{{ qc_pass|length }}</span>
     </div>
-    <div class="nb-sample-list nb-droppable-list"
-         id="listPass"
-         data-status="pass"
-         ondragover="onListDragOver(event)"
-         ondragleave="onListDragLeave(event)"
-         ondrop="onListDrop(event)">
+    <div class="nb-sample-list nb-droppable-list" id="listPass"
+         ondragover="onListDragOver(event)" ondragleave="onListDragLeave(event)" ondrop="onListDrop(event)">
       {% for qc in qc_pass %}
       <div class="nb-sample-card"
            draggable="true"
@@ -142,14 +135,11 @@
            ondragstart="onDragStart(event)">
         <div class="nb-sc-name">{{ qc.sample.sample_name }}</div>
         <div class="nb-sc-meta">
-          {% if qc.qubit_nm %}{{ qc.qubit_nm }} ng/µL{% endif %}
-          {% if qc.sample.sample_type %} · {{ qc.sample.sample_type }}{% endif %}
+          {% if qc.qubit_nm %}{{ qc.qubit_nm }} ng/µL · {% endif %}{{ qc.sample.sample_type }}
         </div>
         <span class="nb-sc-badge nb-sc-pass">Pass</span>
       </div>
-      {% empty %}
-      <div class="nb-section-empty">No passing samples</div>
-      {% endfor %}
+      {% empty %}<div class="nb-section-empty">No passing samples</div>{% endfor %}
     </div>
 
     <!-- CAUTION -->
@@ -157,12 +147,8 @@
       <span class="nb-dot nb-dot-caution"></span>Caution
       <span class="nb-section-count">{{ qc_caution|length }}</span>
     </div>
-    <div class="nb-sample-list nb-droppable-list"
-         id="listCaution"
-         data-status="caution"
-         ondragover="onListDragOver(event)"
-         ondragleave="onListDragLeave(event)"
-         ondrop="onListDrop(event)">
+    <div class="nb-sample-list nb-droppable-list" id="listCaution"
+         ondragover="onListDragOver(event)" ondragleave="onListDragLeave(event)" ondrop="onListDrop(event)">
       {% for qc in qc_caution %}
       <div class="nb-sample-card nb-card-caution"
            draggable="true"
@@ -174,15 +160,10 @@
            id="card-{{ qc.pk }}"
            ondragstart="onDragStart(event)">
         <div class="nb-sc-name">{{ qc.sample.sample_name }}</div>
-        <div class="nb-sc-meta">
-          {% if qc.qubit_nm %}{{ qc.qubit_nm }} ng/µL{% endif %}
-          {% if qc.sample.sample_type %} · {{ qc.sample.sample_type }}{% endif %}
-        </div>
+        <div class="nb-sc-meta">{% if qc.qubit_nm %}{{ qc.qubit_nm }} ng/µL · {% endif %}{{ qc.sample.sample_type }}</div>
         <span class="nb-sc-badge nb-sc-caution">Caution</span>
       </div>
-      {% empty %}
-      <div class="nb-section-empty">No caution samples</div>
-      {% endfor %}
+      {% empty %}<div class="nb-section-empty">No caution samples</div>{% endfor %}
     </div>
 
     <!-- FAIL (collapsed) -->
@@ -192,31 +173,22 @@
         <span class="nb-section-count">{{ qc_fail|length }}</span>
         <i class="fas fa-chevron-down nb-chevron"></i>
       </summary>
-      <div class="nb-sample-list nb-droppable-list"
-           id="listFail"
-           data-status="fail"
-           ondragover="onListDragOver(event)"
-           ondragleave="onListDragLeave(event)"
-           ondrop="onListDrop(event)">
+      <div class="nb-sample-list nb-droppable-list" id="listFail"
+           ondragover="onListDragOver(event)" ondragleave="onListDragLeave(event)" ondrop="onListDrop(event)">
         {% for qc in qc_fail %}
         <div class="nb-sample-card nb-card-fail"
              draggable="true"
              data-qc-id="{{ qc.pk }}"
              data-sample-name="{{ qc.sample.sample_name }}"
-             data-conc="{{ qc.qubit_nm|default:'' }}"
              data-status="fail"
              data-is-control="false"
              id="card-{{ qc.pk }}"
              ondragstart="onDragStart(event)">
           <div class="nb-sc-name">{{ qc.sample.sample_name }}</div>
-          <div class="nb-sc-meta">
-            {% if qc.qubit_nm %}{{ qc.qubit_nm }} ng/µL{% endif %}
-          </div>
+          <div class="nb-sc-meta">{% if qc.qubit_nm %}{{ qc.qubit_nm }} ng/µL{% endif %}</div>
           <span class="nb-sc-badge nb-sc-fail">Fail</span>
         </div>
-        {% empty %}
-        <div class="nb-section-empty">No failed samples</div>
-        {% endfor %}
+        {% empty %}<div class="nb-section-empty">No failed samples</div>{% endfor %}
       </div>
     </details>
 
@@ -227,18 +199,13 @@
         <span class="nb-section-count">{{ qc_pending|length }}</span>
         <i class="fas fa-chevron-down nb-chevron"></i>
       </summary>
-      <div class="nb-sample-list nb-droppable-list"
-           id="listPending"
-           data-status="pending"
-           ondragover="onListDragOver(event)"
-           ondragleave="onListDragLeave(event)"
-           ondrop="onListDrop(event)">
+      <div class="nb-sample-list nb-droppable-list" id="listPending"
+           ondragover="onListDragOver(event)" ondragleave="onListDragLeave(event)" ondrop="onListDrop(event)">
         {% for qc in qc_pending %}
         <div class="nb-sample-card nb-card-pending"
              draggable="true"
              data-qc-id="{{ qc.pk }}"
              data-sample-name="{{ qc.sample.sample_name }}"
-             data-conc=""
              data-status="pending"
              data-is-control="false"
              id="card-{{ qc.pk }}"
@@ -247,15 +214,13 @@
           <div class="nb-sc-meta">Pending QC</div>
           <span class="nb-sc-badge nb-sc-pending">Pending</span>
         </div>
-        {% empty %}
-        <div class="nb-section-empty">No pending samples</div>
-        {% endfor %}
+        {% empty %}<div class="nb-section-empty">No pending samples</div>{% endfor %}
       </div>
     </details>
 
-  </div>
+  </div><!-- /nb-sidebar -->
 
-  <!-- RIGHT: PLATE  -->
+  <!--  PLATE  -->
   <div class="nb-plate-area">
     <div class="nb-plate-header">
       <span class="nb-plate-title">
@@ -263,20 +228,15 @@
         48-Well Plate
       </span>
       <span class="nb-plate-hint">
-        Drag samples onto wells · Drag between wells to rearrange · Drag back to sidebar to remove
+        Drag onto wells · Drag between wells to swap · Drag to sidebar to remove
       </span>
     </div>
-
     <div class="nb-plate-wrap">
       <div class="nb-plate-board">
-
         <div class="nb-col-headers">
           <div class="nb-row-label-spacer"></div>
-          {% for col in cols %}
-          <div class="nb-col-label">{{ col }}</div>
-          {% endfor %}
+          {% for col in cols %}<div class="nb-col-label">{{ col }}</div>{% endfor %}
         </div>
-
         {% for row_letter in rows %}
         <div class="nb-plate-row">
           <div class="nb-row-label">{{ row_letter }}</div>
@@ -295,9 +255,7 @@
           {% endfor %}
         </div>
         {% endfor %}
-
       </div>
-
       <div class="nb-legend">
         <span class="nb-legend-item"><span class="nb-ldot nb-ldot-empty"></span>Empty</span>
         <span class="nb-legend-item"><span class="nb-ldot nb-ldot-pass"></span>Pass</span>
@@ -310,22 +268,105 @@
 
 </div>
 
-<!-- CONFIRM MODAL -->
-<div class="nb-modal-backdrop" id="modalBackdrop" style="display:none;">
+
+<!-- TODO : make the rack selection better and more square-->
+<!--MODAL 1: LOCATION PICKER -->
+<div class="nb-modal-backdrop" id="locationModal" style="display:none;">
+  <div class="nb-modal nb-modal-wide">
+    <div class="nb-modal-title">
+      <i class="fas fa-map-marker-alt" style="color:var(--accent);margin-right:.5rem;"></i>
+      Assign Plate Location
+    </div>
+    <div class="nb-modal-body">
+      <p style="font-size:.83rem;color:var(--text-muted);margin-bottom:1rem;">
+        Choose the rack and slot where this plate will be stored.
+      </p>
+
+      <div class="nb-loc-grid">
+
+        <!-- Rack selector -->
+        <div class="nb-option-group">
+          <label class="nb-option-label">Rack</label>
+          <select class="nb-select" id="rackSelect" onchange="updateSlotGrid()">
+            <option value="">— select rack —</option>
+            {% regroup racks by location as location_list %}
+            {% for loc_group in location_list %}
+            <optgroup label="{{ loc_group.grouper.locationName }} ({{ loc_group.grouper.storageType }})">
+              {% for rack in loc_group.list %}
+              <option value="{{ rack.pk }}"
+                      data-rows="{{ rack.rows }}"
+                      data-cols="{{ rack.cols }}">
+                {{ rack.rack_name }}
+              </option>
+              {% endfor %}
+            </optgroup>
+            {% endfor %}
+          </select>
+        </div>
+
+        <!-- Slot picker -->
+        <div class="nb-option-group">
+          <label class="nb-option-label">Slot <span style="font-weight:400;font-size:.65rem;">(T = top, B = bottom)</span></label>
+          <div id="slotGrid" class="nb-slot-grid">
+            <span style="font-size:.78rem;color:var(--text-muted);">Select a rack first</span>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Selected slot display -->
+      <div class="nb-selected-slot" id="selectedSlotDisplay" style="display:none;">
+        <i class="fas fa-check-circle" style="color:var(--success);margin-right:.4rem;"></i>
+        Selected: <strong id="selectedSlotLabel">—</strong>
+      </div>
+
+    </div>
+    <div class="nb-modal-actions">
+      <button class="nb-btn-secondary" onclick="closeLocationModal()">Cancel</button>
+      <button class="nb-btn-save" id="locationNextBtn" onclick="openConfirmModal()" disabled>
+        Next <i class="fas fa-arrow-right" style="margin-left:.35rem;"></i>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!--MODAL 2: CONFIRM-->
+<div class="nb-modal-backdrop" id="confirmModal" style="display:none;">
   <div class="nb-modal">
     <div class="nb-modal-title">
       <i class="fas fa-save" style="color:var(--accent);margin-right:.5rem;"></i>
-      Confirm Save
+      Confirm Batch
     </div>
     <div class="nb-modal-body">
-      Saving <strong id="mCount">0</strong> samples to a new prep plate.<br>
-      Workflow: <strong id="mWorkflow">—</strong><br>
-      Date: <strong id="mDate">—</strong>
+      <div class="nb-confirm-rows">
+        <div class="nb-confirm-row">
+          <span class="nb-confirm-lbl">Batch name</span>
+          <span class="nb-confirm-val" id="cBatchName">Auto-generated on save</span>
+        </div>
+        <div class="nb-confirm-row">
+          <span class="nb-confirm-lbl">Workflow</span>
+          <span class="nb-confirm-val" id="cWorkflow">—</span>
+        </div>
+        <div class="nb-confirm-row">
+          <span class="nb-confirm-lbl">Date prepped</span>
+          <span class="nb-confirm-val" id="cDate">—</span>
+        </div>
+        <div class="nb-confirm-row">
+          <span class="nb-confirm-lbl">Wells placed</span>
+          <span class="nb-confirm-val" id="cCount">—</span>
+        </div>
+        <div class="nb-confirm-row">
+          <span class="nb-confirm-lbl">Plate location</span>
+          <span class="nb-confirm-val" id="cLocation">—</span>
+        </div>
+      </div>
     </div>
     <div class="nb-modal-actions">
-      <button class="nb-btn-secondary" onclick="closeModal()">Cancel</button>
+      <button class="nb-btn-secondary" onclick="backToLocation()">
+        <i class="fas fa-arrow-left" style="margin-right:.3rem;"></i> Back
+      </button>
       <button class="nb-btn-save" onclick="confirmSave()">
-        <i class="fas fa-check"></i> Confirm
+        <i class="fas fa-check"></i> Create Batch
       </button>
     </div>
   </div>
@@ -333,7 +374,7 @@
 
 {% block extra_js %}
 <script src="{% static 'js/libprep_newbatch.js' %}"></script>
-
 {% endblock %}
+
 
 {% endblock %}
