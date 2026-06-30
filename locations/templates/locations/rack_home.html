@@ -82,9 +82,21 @@
             <a href="{% url 'plate-detail' cell.top.pk %}" class="rack-plate-link">
               <div class="rack-plate-name">{{ cell.top.plate_name|truncatechars:24 }}</div>
               <div class="rack-plate-count">
-                
+                {% if cell.top_count > 0 %}
+                  <span class="rack-occ-dot"></span>{{ cell.top_count }} wells
+                {% else %}
+                  <span class="rack-plate-empty-hint">empty</span>
+                {% endif %}
               </div>
             </a>
+            <button type="button" class="rack-move-btn"
+                    data-plate-pk="{{ cell.top.pk }}"
+                    data-plate-name="{{ cell.top.plate_name }}"
+                    data-current-rack="{{ rack.pk }}"
+                    data-current-slot="{{ cell.slot }}T"
+                    title="Move this plate">
+              <i class="fas fa-arrows-alt"></i>
+            </button>
             {% else %}
             <div class="rack-empty-sub">—</div>
             {% endif %}
@@ -105,6 +117,14 @@
                 {% endif %}
               </div>
             </a>
+            <button type="button" class="rack-move-btn"
+                    data-plate-pk="{{ cell.bot.pk }}"
+                    data-plate-name="{{ cell.bot.plate_name}}"
+                    data-current-rack="{{ rack.pk }}"
+                    data-current-slot="{{ cell.slot }}B"
+                    title="Move this plate">
+              <i class="fas fa-arrows-alt"></i>
+            </button>
             {% else %}
             <div class="rack-empty-sub">—</div>
             {% endif %}
@@ -119,7 +139,6 @@
 
     <div class="inv-rack-card-footer">
       <span>{{ rack.location.storageType }}</span>
-      
     </div>
 
   </div>
@@ -133,6 +152,33 @@
   <p>No racks configured yet.</p>
 </div>
 {% endif %}
+
+<!-- MOVE PLATE MODAL -->
+<div class="move-modal-backdrop" id="moveModalBackdrop" style="display:none;">
+  <div class="move-modal">
+    <div class="move-modal-header">
+      <h3>Move Plate</h3>
+      <button type="button" class="move-modal-close" id="moveModalClose">&times;</button>
+    </div>
+    <div class="move-modal-body">
+      <p class="page-title" id="moveModalPlateName"></p>
+
+      <label for="moveRackSelect">Destination rack</label>
+      <select id="moveRackSelect"></select>
+
+      <label for="moveSlotSelect">Destination slot</label>
+      <select id="moveSlotSelect" disabled>
+        <option value="">Select a rack first…</option>
+      </select>
+
+      <div class="move-modal-error" id="moveModalError" style="display:none;"></div>
+    </div>
+    <div class="move-modal-footer">
+      <button type="button" class="btn btn-secondary" id="moveModalCancel">Cancel</button>
+      <button type="button" class="btn btn-primary" id="moveModalConfirm" disabled>Move Plate</button>
+    </div>
+  </div>
+</div>
 
 <script>
 const SEARCH_URL = "{% url 'rack-search' %}";
@@ -185,6 +231,120 @@ function renderResults(items) {
 
 document.addEventListener('click', e => {
   if (!e.target.closest('.inv-search-wrap')) results.style.display = 'none';
+});
+
+const MOVE_URL_TPL  = "/locations/rack/plate/__PK__/move/";
+const SLOTS_URL_TPL = "/locations/rack/__PK__/slots/";
+const RACKS_URL     = "{% url 'rack-list-json' %}";
+
+const moveBackdrop   = document.getElementById('moveModalBackdrop');
+const moveRackSelect = document.getElementById('moveRackSelect');
+const moveSlotSelect = document.getElementById('moveSlotSelect');
+const moveConfirmBtn = document.getElementById('moveModalConfirm');
+const moveErrorBox   = document.getElementById('moveModalError');
+const movePlateName  = document.getElementById('moveModalPlateName');
+
+let movingPlatePk = null;
+let racksCache = null;
+
+function getCookie(name) {
+  const m = document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)');
+  return m ? m.pop() : '';
+}
+
+function openMoveModal(btn) {
+  movingPlatePk = btn.dataset.platePk;
+  movePlateName.textContent = btn.dataset.plateName;
+  moveErrorBox.style.display = 'none';
+  moveConfirmBtn.disabled = true;
+  moveSlotSelect.innerHTML = '<option value="">Select a rack first…</option>';
+  moveSlotSelect.disabled = true;
+
+  moveBackdrop.style.display = 'flex';
+  loadRacks(btn.dataset.currentRack);
+}
+
+function closeMoveModal() {
+  moveBackdrop.style.display = 'none';
+  movingPlatePk = null;
+}
+
+async function loadRacks(preselectRackPk) {
+  if (!racksCache) {
+    const resp = await fetch(RACKS_URL);
+    const data = await resp.json();
+    racksCache = data.racks;
+  }
+  moveRackSelect.innerHTML = racksCache.map(r =>
+    `<option value="${r.pk}">${r.rack_name} (${r.location_name})</option>`
+  ).join('');
+  if (preselectRackPk) moveRackSelect.value = preselectRackPk;
+  await loadSlots(moveRackSelect.value);
+}
+
+async function loadSlots(rackPk) {
+  moveSlotSelect.disabled = true;
+  moveConfirmBtn.disabled = true;
+  if (!rackPk) return;
+
+  const url = SLOTS_URL_TPL.replace('__PK__', rackPk);
+  const resp = await fetch(url);
+  const data = await resp.json();
+
+  const options = data.slots.map(s => {
+    const label = s.occupied ? `${s.slot} occupied (${s.plate_name})` : s.slot;
+    return `<option value="${s.slot}" ${s.occupied ? 'disabled' : ''}>${label}</option>`;
+  }).join('');
+
+  moveSlotSelect.innerHTML = `<option value="">Choose a slot…</option>${options}`;
+  moveSlotSelect.disabled = false;
+}
+
+document.addEventListener('click', e => {
+  const btn = e.target.closest('.rack-move-btn');
+  if (btn) { e.preventDefault(); openMoveModal(btn); }
+});
+
+document.getElementById('moveModalClose').addEventListener('click', closeMoveModal);
+document.getElementById('moveModalCancel').addEventListener('click', closeMoveModal);
+moveBackdrop.addEventListener('click', e => { if (e.target === moveBackdrop) closeMoveModal(); });
+
+moveRackSelect.addEventListener('change', () => loadSlots(moveRackSelect.value));
+moveSlotSelect.addEventListener('change', () => {
+  moveConfirmBtn.disabled = !moveSlotSelect.value;
+});
+
+moveConfirmBtn.addEventListener('click', async () => {
+  if (!movingPlatePk || !moveSlotSelect.value) return;
+  moveConfirmBtn.disabled = true;
+  moveErrorBox.style.display = 'none';
+
+  const url = MOVE_URL_TPL.replace('__PK__', movingPlatePk);
+  try {
+    const resp = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': getCookie('csrftoken'),
+      },
+      body: JSON.stringify({
+        rack_pk: moveRackSelect.value,
+        slot: moveSlotSelect.value,
+      }),
+    });
+    const data = await resp.json();
+    if (!data.ok) {
+      moveErrorBox.textContent = data.error || 'Move failed.';
+      moveErrorBox.style.display = '';
+      moveConfirmBtn.disabled = false;
+      return;
+    }
+    window.location.reload();
+  } catch (err) {
+    moveErrorBox.textContent = 'Network error — please try again.';
+    moveErrorBox.style.display = '';
+    moveConfirmBtn.disabled = false;
+  }
 });
 </script>
 

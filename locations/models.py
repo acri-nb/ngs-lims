@@ -27,10 +27,10 @@ WELL_POSITION_RE = RegexValidator(
     message="Well position must be in the form 'A01' … 'H12'",
 )
 
-# Regex for rack slot positions: A1 … D4 
+# Regex for rack slot positions: A1 … D4, optionally suffixed T (top) or B (bottom)
 RACK_SLOT_RE = RegexValidator(
-    regex=r"^[A-D][1-4]$",
-    message="Rack slot must be in the form 'A1' … 'D4'.",
+    regex=r"^[A-D][1-4][TB]?$",
+    message="Rack slot must be in the form 'A1', 'A1T', or 'A1B'.",
 )
 
 

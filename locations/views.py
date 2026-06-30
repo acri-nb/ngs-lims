@@ -1,19 +1,20 @@
+import json
+import re
+from datetime import timedelta
+
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib import messages
 from django.utils import timezone
-from django.db.models import Avg, Max, Min, Count
-from django.db import IntegrityError
-from datetime import timedelta
-
-
+from django.db.models import Avg, Max, Min, Count, Q
+from django.db import IntegrityError, transaction
 from django.http import JsonResponse
-from django.db.models import Q, Prefetch
-
-from .models import Location, Rack, Plate, PlateWell
-from .models import Location, TempLog
 from django.core.paginator import Paginator
 from django.core.exceptions import ValidationError
-from django.contrib.auth.decorators import login_required
+from django.contrib.auth.decorators import login_required, permission_required
+from django.views.decorators.http import require_POST
+
+from .models import Location, Rack, Plate, PlateWell, TempLog
+
 
 # LOCATION LIST (/locations/) logs tab
 @login_required
@@ -59,7 +60,6 @@ def add_temp_log(request, location_pk):
     try:
         today = timezone.localdate()
 
-        # Check for an existing log before attempting to save
         existing = TempLog.objects.filter(location=location, date_logged=today).first()
         if existing:
             edit_url = f"/locations/log/{existing.temp_log_id}/edit/"
@@ -76,7 +76,6 @@ def add_temp_log(request, location_pk):
                 min_temp_c=request.POST['min_temp_c'],
             )
 
-            # Only set humidity for room-temp locations
             if location.storageType == Location.ROOMTEMPATURE:
                 max_h = request.POST.get('max_humidity') or None
                 min_h = request.POST.get('min_humidity') or None
@@ -84,11 +83,10 @@ def add_temp_log(request, location_pk):
                 log.min_humidity = min_h
 
             log.logged_by = request.user
-            log.save()   # calls full_clean() via model's save()
+            log.save()
             messages.success(request, f"Temperature logged for {location.locationName}.")
 
     except ValidationError as e:
-        # Flatten the error dict into readable messages
         for field, errors in e.message_dict.items():
             for error in errors:
                 messages.error(request, f"{field}: {error}")
@@ -97,7 +95,6 @@ def add_temp_log(request, location_pk):
     except Exception as e:
         messages.error(request, f"Could not save log: {e}")
 
-    # If next_url looks like a full URL path, redirect there; otherwise go to list
     if next_url.startswith('/'):
         return redirect(next_url)
     return redirect('location-list')
@@ -115,13 +112,11 @@ def location_log_history(request, location_pk):
     today_log = location.templogs.filter(date_logged=today).first()
     latest_log = location.templogs.order_by('-date_logged').first()
 
-    # Paginated log list
     all_logs  = location.templogs.order_by('-date_logged')
     paginator = Paginator(all_logs, 30)
     page      = request.GET.get('page', 1)
     logs      = paginator.get_page(page)
 
-    # Stats for the last 30 days
     thirty_days_ago = today - timedelta(days=30)
     recent = location.templogs.filter(date_logged__gte=thirty_days_ago)
     stats  = recent.aggregate(
@@ -143,22 +138,21 @@ def location_log_history(request, location_pk):
         'days_logged': stats['days_logged'] or 0,
     })
 
-# For /locations/history/ 
+
+# For /locations/history/
 @login_required
 def location_history_index(request):
     locations = Location.objects.all().order_by('storageType', 'locationName')
     today = timezone.localdate()
-    
-    # Add last-logged date to each location for context
+
     for loc in locations:
         loc.last_log = loc.templogs.order_by('-date_logged').first()
-    
+
     return render(request, 'locations/location_history_index.html', {
         'locations': locations,
         'today': today,
     })
 
-from django.contrib.auth.decorators import permission_required
 
 # For (/locations/log/<pk>/edit/)
 @permission_required('locations.change_templog', raise_exception=True)
@@ -180,6 +174,7 @@ def edit_temp_log(request, log_pk):
         return redirect('location-log-history', location_pk=log.location.pk)
 
     return render(request, 'locations/edit_log.html', {'log': log})
+
 
 PLATE_ROWS = list('ABCDEFGH')       # 8 rows
 PLATE_COLS = [f'{c:02d}' for c in range(1, 13)]   # 01-12
@@ -220,7 +215,7 @@ def _build_96_grid(plate):
 
 
 def rack_detail(request, rack_pk):
-    
+
     rack = get_object_or_404(
         Rack.objects.select_related('location').prefetch_related('plates__wells'),
         pk=rack_pk,
@@ -322,7 +317,6 @@ def inventory_search(request):
     results = []
 
     if len(q) >= 2:
-        # Search wells by sample name
         wells = PlateWell.objects.select_related(
             'plate', 'plate__rack', 'plate__location', 'sample'
         ).filter(
@@ -371,23 +365,20 @@ def inventory_home(request):
 
     rack_data = []
     for rack in racks:
-        # Build plate lookup keyed by rack_location string
-        # If a plate has plain "A1" (no suffix) we treat it as Top.
         plate_map = {}
         for p in rack.plates.all():
             key = p.rack_location.upper() if p.rack_location else ''
             if key:
                 plate_map[key] = p
 
-        rows = [chr(65 + r) for r in range(rack.rows)]   # A, B, C, D
-        cols = list(range(1, rack.cols + 1))               # 1, 2, 3, 4
+        rows = [chr(65 + r) for r in range(rack.rows)]
+        cols = list(range(1, rack.cols + 1))
 
         grid = []
         for row in rows:
             row_cells = []
             for col in cols:
                 base = f'{row}{col}'
-                # Try suffixed first, fall back to bare key for legacy data
                 top_plate  = plate_map.get(f'{base}T') or plate_map.get(base)
                 bot_plate  = plate_map.get(f'{base}B')
 
@@ -409,7 +400,7 @@ def inventory_home(request):
             grid.append({'row': row, 'cells': row_cells})
 
         total_plates   = rack.plates.count()
-        total_capacity = rack.rows * rack.cols * 2   # ×2 for top/bottom
+        total_capacity = rack.rows * rack.cols * 2
 
         rack_data.append({
             'rack':           rack,
@@ -421,4 +412,136 @@ def inventory_home(request):
 
     return render(request, 'locations/rack_home.html', {
         'rack_data': rack_data,
+    })
+
+
+# ---------------------------------------------------------------------------
+# MOVE PLATE — rack/slot relocation endpoints
+# ---------------------------------------------------------------------------
+
+SLOT_RE = re.compile(r'^[A-D][1-4][TB]$')
+
+
+def rack_slots_json(request, rack_pk):
+    """
+    AJAX endpoint: returns occupancy for every slot in a rack so the
+    'move plate' modal can grey out / block taken sub-slots.
+    GET /locations/rack/<rack_pk>/slots/
+    """
+    rack = get_object_or_404(Rack, pk=rack_pk)
+    plate_map = {}
+    for p in rack.plates.all():
+        if p.rack_location:
+            plate_map[p.rack_location.upper()] = p
+
+    rows = [chr(65 + r) for r in range(rack.rows)]
+    cols = list(range(1, rack.cols + 1))
+
+    slots = []
+    for row in rows:
+        for col in cols:
+            base = f'{row}{col}'
+            for suffix in ('T', 'B'):
+                key = f'{base}{suffix}'
+                plate = plate_map.get(key)
+                slots.append({
+                    'slot': key,
+                    'occupied': plate is not None,
+                    'plate_name': plate.plate_name if plate else None,
+                    'plate_pk': plate.pk if plate else None,
+                })
+
+    return JsonResponse({
+        'rack_pk': rack.pk,
+        'rack_name': rack.rack_name,
+        'rows': rows,
+        'cols': cols,
+        'slots': slots,
+    })
+
+
+def rack_list_json(request):
+    """AJAX endpoint: all racks for the 'move plate' rack dropdown."""
+    racks = Rack.objects.select_related('location').order_by(
+        'location__locationName', 'rack_name'
+    )
+    data = [{
+        'pk': r.pk,
+        'rack_name': r.rack_name,
+        'location_name': r.location.locationName,
+        'location_pk': r.location_id,
+        'rows': r.rows,
+        'cols': r.cols,
+    } for r in racks]
+    return JsonResponse({'racks': data})
+
+
+@login_required
+@require_POST
+def move_plate(request, plate_pk):
+    """
+    AJAX endpoint to relocate a plate to a new rack/slot.
+    POST body (JSON or form-encoded): { rack_pk: <int>, slot: 'A1T' }
+    """
+    plate = get_object_or_404(Plate, pk=plate_pk)
+
+    if request.content_type == 'application/json':
+        try:
+            body = json.loads(request.body or '{}')
+        except json.JSONDecodeError:
+            return JsonResponse({'ok': False, 'error': 'Invalid JSON body.'}, status=400)
+    else:
+        body = request.POST
+
+    rack_pk = body.get('rack_pk')
+    slot    = (body.get('slot') or '').strip().upper()
+
+    if not rack_pk or not slot:
+        return JsonResponse({'ok': False, 'error': 'rack_pk and slot are required.'}, status=400)
+
+    if not SLOT_RE.match(slot):
+        return JsonResponse({'ok': False, 'error': "Slot must look like 'A1T' or 'A1B'."}, status=400)
+
+    target_rack = get_object_or_404(Rack.objects.select_related('location'), pk=rack_pk)
+
+    row_letter = slot[0]
+    col_num = int(slot[1])
+    row_index = ord(row_letter) - 65
+    if row_index >= target_rack.rows or col_num > target_rack.cols:
+        return JsonResponse({
+            'ok': False,
+            'error': f"Slot {slot} is outside {target_rack.rack_name}'s {target_rack.rows}×{target_rack.cols} grid."
+        }, status=400)
+
+    with transaction.atomic():
+        clash = Plate.objects.filter(
+            rack=target_rack, rack_location__iexact=slot
+        ).exclude(pk=plate.pk).first()
+        if clash:
+            return JsonResponse({
+                'ok': False,
+                'error': f"Slot {slot} on {target_rack.rack_name} is already occupied by '{clash.plate_name}'."
+            }, status=409)
+
+        plate.rack = target_rack
+        plate.location = target_rack.location
+        plate.rack_location = slot
+
+        try:
+            plate.full_clean()
+        except ValidationError as e:
+            return JsonResponse({'ok': False, 'error': '; '.join(
+                f'{k}: {", ".join(v)}' for k, v in e.message_dict.items()
+            )}, status=400)
+
+        plate.save()
+
+    return JsonResponse({
+        'ok': True,
+        'plate_pk': plate.pk,
+        'plate_name': plate.plate_name,
+        'rack_pk': target_rack.pk,
+        'rack_name': target_rack.rack_name,
+        'location_name': target_rack.location.locationName,
+        'slot': slot,
     })
