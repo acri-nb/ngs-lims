@@ -1,5 +1,6 @@
 from django.db import models
 from django.contrib.auth import get_user_model
+from django.core.exceptions import ValidationError
 from django.utils.translation import gettext_lazy as _
 
 User = get_user_model()
@@ -31,7 +32,7 @@ class WorkflowType(models.Model):
     )
     fragment_min_bp = models.IntegerField(null=True, blank=True, verbose_name=_("Min Fragment Size (bp)"))
     fragment_max_bp = models.IntegerField(null=True, blank=True, verbose_name=_("Max Fragment Size (bp)"))
-    dimer_threshold_pct = models.FloatField(default=10.0, verbose_name=_("Dimer Threshold (%)"))
+    dimer_threshold_pct = models.FloatField( null=True, blank=True, default=None, verbose_name=_("Dimer Threshold (%)"), )
 
     class Meta:
         ordering = ['workflowType']
@@ -90,30 +91,81 @@ class WorkflowStepRowOrder(models.Model):
         unique_together = [('step', 'step_row')]
 
 
-class LibraryIndex(models.Model):
-    udi_number   = models.CharField(max_length=50,  null=True, blank=True, verbose_name=_("UDI Number"))
-    plateSet     = models.CharField(max_length=10,  blank=True, verbose_name=_("Plate Set"))
-    well         = models.CharField(max_length=10,  verbose_name=_("Well"))
-    i7Sequence   = models.CharField(max_length=200, verbose_name=_("i7 Sequence"))
-    i5Sequence   = models.CharField(max_length=200, blank=True, verbose_name=_("i5 Sequence"))
-    indexVersion = models.CharField(max_length=50,  blank=True, verbose_name=_("Index Version"))
-    workflow_types = models.ManyToManyField(
-        WorkflowType, blank=True, related_name='indexes',
-        verbose_name=_("Compatible Workflow Types"),
+# 
+#  Index Kits
+#
+#  An IndexKit represents one physical reagent kit / chemistry from the
+#  manufacturer (e.g. "Illumina DNA/RNA UD Indexes v2", "KAPA UDI", a
+#  small-RNA UDI kit, etc). 
+
+class IndexKit(models.Model):
+    name = models.CharField(
+        max_length=100, unique=True,
+        verbose_name=_("Index Kit Name"),
+        help_text=_("e.g. 'ILLMN-DNA-RNA-V2', 'KAPA-UDI', 'sRNA-V4'."),
     )
+    workflowType = models.ForeignKey(
+        WorkflowType,
+        on_delete=models.PROTECT,
+        related_name='indexKits',
+        verbose_name=_("Workflow Type"),
+        help_text=_("The prep workflow this kit's indexes are used with."),
+    )
+    notes = models.TextField(blank=True, verbose_name=_("Notes"))
+
+    class Meta:
+        ordering            = ['name']
+        verbose_name        = _("Index Kit")
+        verbose_name_plural = _("Index Kits")
+
+    def __str__(self):
+        return self.name
+
+
+class LibraryIndex(models.Model):
+    """
+    One physical well in an Index Kit's plate set.
+
+    Identity is (indexKit, plateSet, well) a given kit + plate + well
+    always points at exactly one i7/i5 sequence pair. udi_number is kept
+    as a display label only (it can repeat across kits, e.g. 'UDP0001'
+    in both V2 and V3 with different sequences, or carry a version
+    suffix like 'UDP0252V2' when the manufacturer revised that well).
+    """
+    indexKit = models.ForeignKey(
+        IndexKit,
+        on_delete=models.CASCADE,
+        related_name='indexes',
+        verbose_name=_("Index Kit"),
+    )
+    plateSet = models.CharField(
+        max_length=40, blank=True,
+        verbose_name=_("Plate Set"),
+        help_text=_("e.g. 'Set A V2', 'Plate 1'. Blank for single-plate kits."),
+    )
+    well = models.CharField(max_length=10, verbose_name=_("Well"))
+    udi_number = models.CharField(max_length=50, blank=True, verbose_name=_("UDI Number"))
+    i7Sequence = models.CharField(max_length=200, verbose_name=_("i7 Sequence"))
+    i5Sequence = models.CharField(max_length=200, blank=True, verbose_name=_("i5 Sequence"))
     createdBy = models.ForeignKey(
         User, on_delete=models.SET_NULL, null=True, blank=True,
         related_name='libraryIndexes',
     )
 
     class Meta:
-        ordering            = ['plateSet', 'well']
+        ordering            = ['indexKit', 'plateSet', 'well']
         verbose_name        = _("Library Index")
         verbose_name_plural = _("Library Indexes")
+        constraints = [
+            models.UniqueConstraint(
+                fields=['indexKit', 'plateSet', 'well'],
+                name='unique_well_per_kit_plate',
+            ),
+        ]
 
     def __str__(self):
         ps = f" [{self.plateSet}]" if self.plateSet else ""
-        return f"UDI-{self.udi_number}{ps} {self.well}"
+        return f"{self.indexKit.name}{ps} {self.well} – {self.udi_number}"
 
 
 class LibraryPrepBatch(models.Model):
@@ -318,7 +370,7 @@ class LibraryPrepSample(models.Model):
                     "Committed to plateWell when plate layout is finalised."),
     )
 
-    # ── Volume calculation fields ─────────────────────────────────────────
+    # Volume calculation fields 
     concentrationInput = models.FloatField(null=True, blank=True, verbose_name=_("Concentration Input (ng/µL)"))
     volumeSample_ul    = models.FloatField(null=True, blank=True, verbose_name=_("Volume Sample (µL)"))
     volumeDiluent_ul   = models.FloatField(null=True, blank=True, verbose_name=_("Volume Diluent (µL)"))

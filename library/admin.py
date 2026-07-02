@@ -4,6 +4,7 @@ from .models import (
     StepRow,
     WorkflowTypeStep,
     WorkflowStepRowOrder,
+    IndexKit,
     LibraryIndex,
     LibraryPrepBatch,
     LibraryPrepSample,
@@ -96,20 +97,28 @@ class WorkflowStepRowOrderAdmin(admin.ModelAdmin):
     autocomplete_fields = ('step', 'step_row')
 
 
+@admin.register(IndexKit)
+class IndexKitAdmin(admin.ModelAdmin):
+    list_display = ('name', 'workflowType')
+    list_filter = ('workflowType',)
+    search_fields = ('name',)
+    autocomplete_fields = ('workflowType',)
+
+
 @admin.register(LibraryIndex)
 class LibraryIndexAdmin(admin.ModelAdmin):
     list_display = (
         'udi_number',
+        'indexKit',
         'plateSet',
         'well',
         'i7Sequence',
         'i5Sequence',
-        'indexVersion',
         'createdBy',
     )
-    list_filter = ('plateSet', 'indexVersion', 'workflow_types')
+    list_filter = ('indexKit', 'plateSet')
     search_fields = ('udi_number', 'well', 'i7Sequence', 'i5Sequence')
-    autocomplete_fields = ('workflow_types', 'createdBy')
+    autocomplete_fields = ('indexKit', 'createdBy')
 
 
 @admin.register(LibraryPrepBatch)
