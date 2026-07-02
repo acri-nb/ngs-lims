@@ -12,9 +12,13 @@ Sections — edit the DATA blocks below to add / change values:
     4.  Clients
     5.  Suppliers
     6.  Products  (+ links to suppliers)
+    7.  Index Kits + Library Indexes (loaded from library/fixtures/library_index_seed.json)
 """
 
-from django.core.management.base import BaseCommand
+import json
+from pathlib import Path
+
+from django.core.management.base import BaseCommand, CommandError
 from django.contrib.auth.models import Group, Permission
 
 
@@ -234,6 +238,88 @@ PRODUCTS = [
 
 
 # ══════════════════════════════════════════════════════════════════════════════
+#  7. INDEX KITS  (Library Indexes)
+#     The actual ~1,250 well/sequence rows live in:
+#         library/fixtures/library_index_seed.json
+#     (generated from the lab's index plate spec sheets — not meant to be
+#     hand-edited; regenerate it instead if the source spreadsheet changes).
+#
+#     This map just tells the seeder which WorkflowType each kit in that
+#     fixture belongs to. The key MUST match a "kit_name" in the JSON file;
+#     the value MUST match a WorkflowType.workflowType already defined
+#     (either seeded elsewhere, or created manually in admin first).
+#
+#     If a kit's WorkflowType doesn't exist yet, that kit is skipped with
+#     a warning it will NOT silently attach to the wrong workflow.
+# ══════════════════════════════════════════════════════════════════════════════
+
+# ══════════════════════════════════════════════════════════════════════════════
+#  7. WORKFLOW TYPES
+#     workflowType MUST exactly match the values used in INDEX_KIT_WORKFLOW_MAP
+#     below, since IndexKit looks these up by name.
+# ══════════════════════════════════════════════════════════════════════════════
+# ══════════════════════════════════════════════════════════════════════════════
+#  X. WORKFLOW TYPES
+#     workflowType MUST exactly match the values used in INDEX_KIT_WORKFLOW_MAP.
+# ══════════════════════════════════════════════════════════════════════════════
+WORKFLOW_TYPES = [
+    {
+        "workflowType":      "TotalRNA",
+        "sample_type":       "RNA",
+        "target_input_ng":   250.0,
+        "target_volume_ul":  11.0,
+        "diluent_name":      "NF H₂O",
+        "fragment_min_bp":   200,
+        "fragment_max_bp":   475,
+        "dimer_threshold_pct": 10.0,
+    },
+    {
+        "workflowType":      "Small RNA",
+        "sample_type":       "RNA",
+        "target_input_ng":   10.0,
+        # 5 µl total prep volume = 4.5 µl sample/diluent + 0.5 µl Qia Spike control.
+        "target_volume_ul":  4.5,
+        "diluent_name":      "NF H₂O",
+        "fragment_min_bp":   140,
+        "fragment_max_bp":   250,
+        "dimer_threshold_pct": 10.0,
+    },
+    {
+        "workflowType":      "KAPA HyperPlus DNA",
+        "sample_type":       "DNA",
+        "target_input_ng":   250.0,
+        "target_volume_ul":  35.0,
+        "diluent_name":      "Tris-HCl pH 8.5 10mM",
+        "fragment_min_bp":   200,
+        "fragment_max_bp":   600,
+        "dimer_threshold_pct": 10.0,
+    },
+    {
+        "workflowType":      "DNA PCR Free WGS",
+        "sample_type":       "DNA",
+        "target_input_ng":   500.0,
+        "target_volume_ul":  25.0,
+        "diluent_name":      "Resuspension Buffer (RSB)",
+        # No TapeStation / no dimer cleanup step for this workflow -
+        # only a Qubit nM gate, so leave these unset.
+        "fragment_min_bp":   None,
+        "fragment_max_bp":   None,
+        "dimer_threshold_pct": None,
+    },
+]
+
+
+INDEX_KIT_WORKFLOW_MAP = {
+    "ILLMN-DNA-RNA-V2": "Illumina DNA/RNA UD Indexes v2",
+    "ILLMN-DNA-RNA-V3": "Illumina DNA/RNA UD Indexes v3",
+    "KAPA-UDI":         "KAPA HyperPlus DNA",
+    "sRNA-V4":          "Small RNA",
+}
+
+LIBRARY_INDEX_FIXTURE = Path(__file__).resolve().parent.parent.parent / "fixtures" / "library_index_seed.json"
+
+
+# ══════════════════════════════════════════════════════════════════════════════
 #  Command — do not edit below this line unless you know what you're doing
 # ══════════════════════════════════════════════════════════════════════════════
 
@@ -245,6 +331,11 @@ class Command(BaseCommand):
             "--reset",
             action="store_true",
             help="Delete existing seed data before re-seeding.",
+        )
+        parser.add_argument(
+            "--skip-indexes",
+            action="store_true",
+            help="Skip seeding Index Kits / Library Indexes (the slow, ~1,250-row step).",
         )
 
     def handle(self, *args, **options):
@@ -259,6 +350,9 @@ class Command(BaseCommand):
         self._seed_clients()
         self._seed_suppliers()
         self._seed_products()
+        self._seed_workflow_types()
+        if not options["skip_indexes"]:
+            self._seed_index_kits()
         self.stdout.write(self.style.SUCCESS("\nDone — database seeded successfully.\n"))
 
     # ── reset ──────────────────────────────────────────────────────────────────
@@ -267,7 +361,12 @@ class Command(BaseCommand):
         from samples.models import Client, SpecimenType
         from locations.models import Location
         from inventory.models import Supplier, Product, ProductSupplier
+        from library.models import LibraryIndex, IndexKit
 
+        LibraryIndex.objects.all().delete()
+        self._log("cleared", "Library Indexes")
+        IndexKit.objects.all().delete()
+        self._log("cleared", "Index Kits")
         ProductSupplier.objects.all().delete()
         self._log("cleared", "ProductSupplier links")
         Product.objects.all().delete()
@@ -282,6 +381,8 @@ class Command(BaseCommand):
         self._log("cleared", "Locations")
         Group.objects.all().delete()
         self._log("cleared", "Groups")
+        WorkflowType.objects.all().delete()
+        self._log("cleared", "Workflow Types")
 
     # ── seeders ────────────────────────────────────────────────────────────────
 
@@ -402,6 +503,99 @@ class Command(BaseCommand):
                             f"add it to SUPPLIERS first"
                         )
                     )
+
+    def _seed_workflow_types(self):
+        from library.models import WorkflowType
+
+        self.stdout.write("\n[Workflow Types]")
+        for entry in WORKFLOW_TYPES:
+            obj, created = WorkflowType.objects.get_or_create(
+                workflowType=entry["workflowType"],
+                defaults={k: v for k, v in entry.items() if k != "workflowType"},
+            )
+            status = "created" if created else "exists "
+            self._log(status, entry["workflowType"])
+
+    def _seed_index_kits(self):
+        from library.models import IndexKit, LibraryIndex
+        from library.models import WorkflowType
+
+        self.stdout.write("\n[Index Kits / Library Indexes]")
+
+        if not LIBRARY_INDEX_FIXTURE.exists():
+            self.stdout.write(
+                self.style.WARNING(
+                    f"  ⚠  Fixture not found at {LIBRARY_INDEX_FIXTURE} — skipping. "
+                    f"Re-run the parser script to regenerate it if needed."
+                )
+            )
+            return
+
+        with open(LIBRARY_INDEX_FIXTURE) as f:
+            kits_data = json.load(f)
+
+        for kit_entry in kits_data:
+            kit_name = kit_entry["kit_name"]
+            workflow_name = INDEX_KIT_WORKFLOW_MAP.get(kit_name)
+
+            if not workflow_name:
+                self.stdout.write(
+                    self.style.WARNING(
+                        f"  ⚠  '{kit_name}' has no entry in INDEX_KIT_WORKFLOW_MAP — skipping"
+                    )
+                )
+                continue
+
+            try:
+                workflow_type = WorkflowType.objects.get(workflowType=workflow_name)
+            except WorkflowType.DoesNotExist:
+                self.stdout.write(
+                    self.style.WARNING(
+                        f"  ⚠  WorkflowType '{workflow_name}' not found for kit "
+                        f"'{kit_name}' — create it first (admin or seed script), then re-run. Skipping kit."
+                    )
+                )
+                continue
+
+            kit, created = IndexKit.objects.get_or_create(
+                name=kit_name,
+                defaults={"workflowType": workflow_type},
+            )
+            if not created and kit.workflowType_id != workflow_type.id:
+                kit.workflowType = workflow_type
+                kit.save(update_fields=["workflowType"])
+            status = "created" if created else "exists "
+            self._log(status, f"IndexKit: {kit_name}  (→ {workflow_name})")
+
+            new_wells = []
+            existing_keys = set(
+                LibraryIndex.objects.filter(indexKit=kit).values_list("plateSet", "well")
+            )
+
+            total_wells = 0
+            for plate_set in kit_entry["sets"]:
+                set_label = plate_set["set_label"] or ""
+                for well in plate_set["wells"]:
+                    total_wells += 1
+                    key = (set_label, well["well"])
+                    if key in existing_keys:
+                        continue
+                    new_wells.append(
+                        LibraryIndex(
+                            indexKit=kit,
+                            plateSet=set_label,
+                            well=well["well"],
+                            udi_number=well["udi_number"],
+                            i7Sequence=well["i7Sequence"],
+                            i5Sequence=well["i5Sequence"],
+                        )
+                    )
+
+            if new_wells:
+                LibraryIndex.objects.bulk_create(new_wells, batch_size=500)
+                self._log("created", f"{len(new_wells)} new well(s) for {kit_name}")
+            else:
+                self._log("exists ", f"all {total_wells} well(s) already present for {kit_name}")
 
     # ── helpers ───
 

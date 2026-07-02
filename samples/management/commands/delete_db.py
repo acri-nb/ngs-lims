@@ -7,27 +7,49 @@ Usage:
 
 from django.core.management.base import BaseCommand
 
-
 MODELS_TO_WIPE = [
-    # Order matters — delete children before parents (FK constraints)
-    ("qc",        "SampleQC"),
-    ("qc",        "BatchSample"),
-    ("qc",        "SampleQCBatch"),
+    # Library (children first)
+    ("library", "LibraryPrepBatchAuditLog"),
+    ("library", "LibraryPrepSample"),
+    ("library", "LibraryQC"),
+    ("library", "LibraryQCBatch"),
+    ("library", "LibraryPrepBatch"),
+    ("library", "LibraryIndex"),
+    ("library", "IndexKit"),
+    ("library", "WorkflowStepRowOrder"),
+    ("library", "StepRow"),
+    ("library", "WorkflowTypeStep"),
+    ("library", "WorkflowType"),
+
+    # QC
+    ("qc", "BatchAuditLog"),
+    ("qc", "SampleQC"),
+    ("qc", "BatchSample"),
+    ("qc", "SampleQCBatch"),
+
+    # Inventory
     ("inventory", "Inventory"),
     ("inventory", "InventoryReceipt"),
     ("inventory", "ProductSupplier"),
     ("inventory", "Product"),
     ("inventory", "Supplier"),
-    ("samples",   "Sample"),
-    ("samples",   "Specimen"),
-    ("samples",   "SpecimenType"),
-    ("samples",   "Case"),
-    ("samples",   "Project"),
-    ("samples",   "Client"),
+
+    # Samples
+    ("samples", "Sample"),
+    ("samples", "Specimen"),
+    ("samples", "SpecimenType"),
+    ("samples", "Case"),
+    ("samples", "Project"),
+    ("samples", "Client"),
+
+    # Locations
+    ("locations", "PlateWell"),
+    ("locations", "PlateLayout"),
+    ("locations", "Plate"),
+    ("locations", "Rack"),
     ("locations", "TempLog"),
     ("locations", "Location"),
 ]
-
 
 class Command(BaseCommand):
     help = "Delete ALL application data from the database. Asks for confirmation."
