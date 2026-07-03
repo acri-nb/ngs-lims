@@ -6,6 +6,16 @@ from django.utils.translation import gettext_lazy as _
 User = get_user_model()
 
 
+class ReadLengthType(models.TextChoices):
+    SHORT = 'short', _('Short Read')
+    LONG  = 'long',  _('Long Read')
+
+
+class QCMethod(models.TextChoices):
+    QUBIT_ONLY        = 'qubit',            _('Qubit Only')
+    QUBIT_TAPESTATION  = 'qubit_tapestation', _('Qubit + TapeStation')
+
+
 class WorkflowType(models.Model):
     workflowType = models.CharField(
         max_length=100, unique=True,
@@ -16,6 +26,30 @@ class WorkflowType(models.Model):
         choices=[('DNA', 'DNA'), ('RNA', 'RNA')],
         default='RNA',
         verbose_name=_("Sample Type"),
+    )
+    read_length_type = models.CharField(
+        max_length=10,
+        choices=ReadLengthType.choices,
+        default=ReadLengthType.SHORT,
+        verbose_name=_("Read Length Type"),
+        help_text=_("Determines sequencing instrument: short read (iSeq/NovaSeq) vs long read (PromethION)."),
+    )
+    qc_method = models.CharField(
+        max_length=20,
+        choices=QCMethod.choices,
+        default=QCMethod.QUBIT_TAPESTATION,
+        verbose_name=_("Library QC Method"),
+        help_text=_("Which QC is run at the Library QC step. Qubit-only workflows skip fragment size / dimer checks."),
+    )
+    uses_controls = models.BooleanField(
+        default=True,
+        verbose_name=_("Uses Positive/Negative Controls"),
+        help_text=_("Whether a positive and negative control are added to each batch of this workflow."),
+    )
+    requires_pcr = models.BooleanField(
+        default=True,
+        verbose_name=_("Requires PCR Amplification"),
+        help_text=_("Whether this workflow has a PCR amplification step (e.g. false for PCR-Free protocols)."),
     )
     target_input_ng = models.FloatField(
         default=250.0,
@@ -32,7 +66,15 @@ class WorkflowType(models.Model):
     )
     fragment_min_bp = models.IntegerField(null=True, blank=True, verbose_name=_("Min Fragment Size (bp)"))
     fragment_max_bp = models.IntegerField(null=True, blank=True, verbose_name=_("Max Fragment Size (bp)"))
-    dimer_threshold_pct = models.FloatField( null=True, blank=True, default=None, verbose_name=_("Dimer Threshold (%)"), )
+    dimer_threshold_pct = models.FloatField(
+        null=True, blank=True, default=None,
+        verbose_name=_("Dimer Threshold (%)"),
+    )
+    min_nm_threshold = models.FloatField(
+        default=2.0,
+        verbose_name=_("Minimum nM Threshold"),
+        help_text=_("Library QC pass gate. Was hardcoded at 2.0 in LibraryQC; now modifiable per workflow."),
+    )
 
     class Meta:
         ordering = ['workflowType']
@@ -44,14 +86,12 @@ class WorkflowType(models.Model):
 
 
 class StepRow(models.Model):
-    stepRowName  = models.CharField(max_length=200, verbose_name=_("Reagent / Row Name"))
-    volumePerRxn = models.FloatField(null=True, blank=True, verbose_name=_("Volume per Reaction (µL)"))
-    constantOfMM = models.IntegerField(
-        default=1,
-        choices=[(0, 'Fixed / Header'), (1, 'Per Reaction (×n)')],
-        verbose_name=_("Row Type"),
+    
+    stepRowName = models.CharField(max_length=200, verbose_name=_("Reagent / Row Name"))
+    sort_order  = models.PositiveSmallIntegerField(
+        default=0, verbose_name=_("Default Sort Order"),
+        help_text=_("Fallback ordering when not overridden per-step by WorkflowStepRowOrder.sort_order."),
     )
-    sort_order = models.PositiveSmallIntegerField(default=0, verbose_name=_("Sort Order"))
 
     class Meta:
         ordering = ['sort_order', 'stepRowName']
@@ -63,11 +103,15 @@ class StepRow(models.Model):
 
 
 class WorkflowTypeStep(models.Model):
-    workflowType     = models.ForeignKey(WorkflowType, on_delete=models.CASCADE, related_name='steps')
-    stepName         = models.CharField(max_length=200, verbose_name=_("Step Name"))
-    sort_order       = models.PositiveSmallIntegerField(default=0)
-    numberOFReaction = models.IntegerField(default=1, verbose_name=_("Reaction Multiplier"))
-    stepRows         = models.ManyToManyField(
+    workflowType = models.ForeignKey(WorkflowType, on_delete=models.CASCADE, related_name='steps')
+    stepName     = models.CharField(max_length=200, verbose_name=_("Step Name"))
+    sort_order   = models.PositiveSmallIntegerField(default=0)
+    is_stopping_point = models.BooleanField(
+        default=False,
+        verbose_name=_("Safe Stopping Point"),
+        help_text=_("Marks this step as a safe point to pause the protocol (printed sheets highlight this)."),
+    )
+    stepRows = models.ManyToManyField(
         StepRow, blank=True, related_name='workflowSteps',
         through='WorkflowStepRowOrder',
     )
@@ -82,13 +126,33 @@ class WorkflowTypeStep(models.Model):
 
 
 class WorkflowStepRowOrder(models.Model):
+    """
+    Join table between a WorkflowTypeStep and a StepRow.
+
+    Carries the step-specific volume/row-type.
+    """
     step       = models.ForeignKey(WorkflowTypeStep, on_delete=models.CASCADE)
     step_row   = models.ForeignKey(StepRow, on_delete=models.CASCADE)
     sort_order = models.PositiveSmallIntegerField(default=0)
 
+    volumePerRxn = models.FloatField(
+        null=True, blank=True,
+        verbose_name=_("Volume per Reaction (µL)"),
+    )
+    constantOfMM = models.IntegerField(
+        default=1,
+        choices=[(0, 'Fixed / Header'), (1, 'Per Reaction (×n)')],
+        verbose_name=_("Row Type"),
+    )
+
     class Meta:
         ordering        = ['sort_order']
         unique_together = [('step', 'step_row')]
+        verbose_name        = _("Workflow Step Row")
+        verbose_name_plural = _("Workflow Step Rows")
+
+    def __str__(self):
+        return f"{self.step} – {self.step_row}"
 
 
 # 
@@ -242,6 +306,14 @@ class LibraryPrepBatch(models.Model):
     @property
     def control_count(self):
         return self.samples.filter(plateWell__well_type='control').count()
+
+    @property
+    def total_reaction_count(self):
+        """
+        Total number of reactions to print master mix sheets for. Defaults
+        to sample_count + control_count.
+        """
+        return self.sample_count + self.control_count
 
 
 class LibraryPrepBatchAuditLog(models.Model):
@@ -477,13 +549,24 @@ class LibraryQC(models.Model):
         nm = self.nmCalculated or self.calculate_nm()
         if nm is None:
             return QCStatus.PENDING
-        if nm < 2.0:
+
+        # nM threshold is now workflow-configurable instead of hardcoded.
+        min_nm = workflow_type.min_nm_threshold if workflow_type else 2.0
+        if nm < min_nm:
             return QCStatus.FAIL
+
         if workflow_type and self.fragmentSizesAvgBP:
             fmin = workflow_type.fragment_min_bp
             fmax = workflow_type.fragment_max_bp
             if fmin and fmax and not (fmin <= self.fragmentSizesAvgBP <= fmax):
                 return QCStatus.FAIL
+
+        # Dimer peak check was previously defined on WorkflowType but never
+        # enforced here — the docs call it out as a real fail/pooling gate.
+        if workflow_type and workflow_type.dimer_threshold_pct is not None and self.dimerPeak_pct is not None:
+            if self.dimerPeak_pct > workflow_type.dimer_threshold_pct:
+                return QCStatus.FAIL
+
         return QCStatus.PASS
 
     def save(self, *args, **kwargs):
