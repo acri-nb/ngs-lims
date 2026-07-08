@@ -120,51 +120,45 @@
           data-dv200="{% if qc.dv200 is not None %}{{ qc.dv200 }}{% endif %}"
           data-nd280="{% if qc.nanodrop_260_280 is not None %}{{ qc.nanodrop_260_280 }}{% endif %}"
           data-nd230="{% if qc.nanodrop_260_230 is not None %}{{ qc.nanodrop_260_230 }}{% endif %}">
-        <td class="mono">{{ qc.sample.sample_name }}</td>
+
+        <td class="mono">
+          <a href="{% url 'qc-detail' qc.pk %}" class="sample-id">{{ qc.sample.sample_name }}</a>
+        </td>
+
         <td>{{ qc.sample.specimen.case.case_name }}</td>
         <td>{{ qc.sample.specimen.specimen_type.specimen_type }}</td>
 
         <td class="mono">
-          {% if qc.qubit_nm is not None %}<span class="col-qubit">{{ qc.qubit_nm }}</span>
+          {% if qc.qubit_nm is not None %}<span class="qc-val-{{ qc.qc_status|lower }}">{{ qc.qubit_nm }}</span>
           {% else %}<span class="null-val">—</span>{% endif %}
         </td>
 
         {% if batch.batch_type == 'RNA' %}
         <td class="mono">
-          {% if qc.rin is not None %}
-            {% if qc.rin >= 5 %}<span class="col-ok">{{ qc.rin }}</span>
-            {% elif qc.rin >= 2 %}<span class="col-warn">{{ qc.rin }}</span>
-            {% else %}<span class="col-bad">{{ qc.rin }}</span>{% endif %}
+          {% if qc.rin is not None %}<span class="qc-val-{{ qc.qc_status|lower }}">{{ qc.rin }}</span>
           {% else %}<span class="null-val">—</span>{% endif %}
         </td>
         <td class="mono">
-          {% if qc.dv200 is not None %}
-            {% if qc.dv200 >= 62 %}<span class="col-ok">{{ qc.dv200 }}</span>
-            {% elif qc.dv200 >= 40 %}<span class="col-warn">{{ qc.dv200 }}</span>
-            {% else %}<span class="col-bad">{{ qc.dv200 }}</span>{% endif %}
+          {% if qc.dv200 is not None %}<span class="qc-val-{{ qc.qc_status|lower }}">{{ qc.dv200 }}</span>
           {% else %}<span class="null-val">—</span>{% endif %}
         </td>
 
+
         {% elif batch.batch_type == 'DNA' %}
         <td class="mono">
-          {% if qc.nanodrop_260_280 is not None %}
-            {% if qc.nanodrop_260_280 > 1.79 %}<span class="col-ok">{{ qc.nanodrop_260_280 }}</span>
-            {% else %}<span class="col-warn">{{ qc.nanodrop_260_280 }}</span>{% endif %}
+          {% if qc.nanodrop_260_280 is not None %}<span class="qc-val-{{ qc.qc_status|lower }}">{{ qc.nanodrop_260_280 }}</span>
           {% else %}<span class="null-val">—</span>{% endif %}
         </td>
         <td class="mono">
-          {% if qc.nanodrop_260_230 is not None %}
-            {% if qc.nanodrop_260_230 > 1.7 %}<span class="col-ok">{{ qc.nanodrop_260_230 }}</span>
-            {% elif qc.nanodrop_260_230 > 1.4 %}<span class="col-warn">{{ qc.nanodrop_260_230 }}</span>
-            {% else %}<span class="col-bad">{{ qc.nanodrop_260_230 }}</span>{% endif %}
+          {% if qc.nanodrop_260_230 is not None %}<span class="qc-val-{{ qc.qc_status|lower }}">{{ qc.nanodrop_260_230 }}</span>
           {% else %}<span class="null-val">—</span>{% endif %}
         </td>
 
         {% else %}
-        <td class="mono">{% if qc.rin is not None %}{{ qc.rin }}{% else %}<span class="null-val">—</span>{% endif %}</td>
-        <td class="mono">{% if qc.dv200 is not None %}{{ qc.dv200 }}{% else %}<span class="null-val">—</span>{% endif %}</td>
-        <td class="mono">{% if qc.nanodrop_260_280 is not None %}{{ qc.nanodrop_260_280 }}{% else %}<span class="null-val">—</span>{% endif %}</td>
-        <td class="mono">{% if qc.nanodrop_260_230 is not None %}{{ qc.nanodrop_260_230 }}{% else %}<span class="null-val">—</span>{% endif %}</td>
+        <td class="mono">{% if qc.rin is not None %}<span class="qc-val-{{ qc.qc_status|lower }}">{{ qc.rin }}</span>{% else %}<span class="null-val">—</span>{% endif %}</td>
+        <td class="mono">{% if qc.dv200 is not None %}<span class="qc-val-{{ qc.qc_status|lower }}">{{ qc.dv200 }}</span>{% else %}<span class="null-val">—</span>{% endif %}</td>
+        <td class="mono">{% if qc.nanodrop_260_280 is not None %}<span class="qc-val-{{ qc.qc_status|lower }}">{{ qc.nanodrop_260_280 }}</span>{% else %}<span class="null-val">—</span>{% endif %}</td>
+        <td class="mono">{% if qc.nanodrop_260_230 is not None %}<span class="qc-val-{{ qc.qc_status|lower }}">{{ qc.nanodrop_260_230 }}</span>{% else %}<span class="null-val">—</span>{% endif %}</td>
         {% endif %}
 
         <td>
@@ -176,8 +170,8 @@
             {{ qc.qc_status }}
           </span>
         </td>
-        <td style="font-size:.78rem;color:var(--text-muted);max-width:160px;">
-          {{ qc.notes|default:"—"|truncatechars:60 }}
+        <td class="notes-cell">
+            {{ qc.notes|default:"—"|truncatechars:60 }}
         </td>
         <td style="font-size:.75rem;color:var(--text-muted);white-space:nowrap;">
           {{ qc.updated_at|date:"M j, Y" }}<br>
@@ -200,7 +194,7 @@
   {% endif %}
 </div>
 
-<!-- ── IMPORT MODAL ──────────────────────────────────────────── -->
+<!-- IMPORT MODAL  -->
 <div class="modal-overlay" id="importModal">
   <div class="modal-box">
     <div class="modal-title"><i class="fas fa-file-upload" style="color:var(--accent);margin-right:.4rem;"></i>Import QC Results</div>
@@ -256,5 +250,11 @@ const CSRF_TOKEN   = "{{ csrf_token }}";
 </script>
 
 <script src="{% static 'js/qc_batch_detail.js' %}"></script>
-
+{% if messages %}
+<script>
+  {% for message in messages %}
+    showToast("{{ message|escapejs }}", "{{ message.tags }}");
+  {% endfor %}
+</script>
+{% endif %}
 {% endblock %}

@@ -228,51 +228,51 @@ class SampleQC(models.Model):
         Returns 'Pass', 'Fail', 'Caution', or 'Pending' if data is missing.
         """
         sample_type = self.sample.sample_type  # 'DNA' or 'RNA'
-
+    
         if sample_type == 'DNA':
             # Need all three values to evaluate
             if any(v is None for v in [self.qubit_nm, self.nanodrop_260_280, self.nanodrop_260_230]):
                 return self.PENDING
-
+    
             qubit_total = self.qubit_nm * 100  # assumes 100 µL elution volume
-
+    
             if qubit_total > 100 and self.nanodrop_260_280 > 1.79 and self.nanodrop_260_230 > 1.7:
                 return self.PASS
             elif self.nanodrop_260_230 > 1.4:
                 return self.CAUTION
             else:
                 return self.FAIL
-
+    
         elif sample_type == 'RNA':
             # Need qubit at minimum
             if self.qubit_nm is None:
                 return self.PENDING
             if self.rin is None and self.dv200 is None:
                 return self.PENDING
-
+    
             qubit_total = self.qubit_nm * 40  # assumes 40 µL elution volume
-
+    
             rin   = self.rin   if self.rin   is not None else 0
             dv200 = self.dv200 if self.dv200 is not None else 0
-
+    
             passes_quantity = qubit_total > 100
             passes_quality  = (
                 rin > 5
                 or (rin > 2 and dv200 > 55)
                 or dv200 > 62          # dv200 > L3+7 where L3=55
             )
-
+    
             if passes_quantity and passes_quality:
                 return self.PASS
-            elif (1.99 <= rin < 5) and (40 <= dv200 < 55):
+            elif (rin > 1.99 and rin < 5) and (dv200 > 40 and dv200 < 54):
                 return self.CAUTION
             else:
                 return self.FAIL
-
+    
         return self.PENDING
-
-
-
+    
+    
+    
     # DNA and RNA Validation 
     def clean(self):
 

@@ -9,7 +9,8 @@ from datetime import date
 
 from samples.models import Project, Sample
 from .models import SampleQCBatch, BatchSample, BatchAuditLog, SampleQC
-
+from django.contrib import messages
+from django.shortcuts import redirect
 
 # BATCH CARD LIST (main QC landing page)
 
@@ -67,6 +68,68 @@ def qc_batch_detail(request, batch_id):
         'qc_results': qc_results,
     })
 
+
+
+@login_required
+def sample_qc_detail(request, qc_id):
+    """
+    Detail / edit page for a single SampleQC result.
+
+    Reached by clicking a sample row on the batch detail page. Shows only
+    the fields relevant to the sample's type (DNA vs RNA) and recalculates
+    qc_status on save via SampleQC.save() -> calculate_qc_status().
+    """
+    qc = get_object_or_404(
+        SampleQC.objects.select_related(
+            'sample__specimen__case',
+            'sample__specimen__specimen_type',
+            'batch__project',
+            'edited_by',
+        ),
+        pk=qc_id,
+    )
+    sample_type = qc.sample.sample_type  # 'DNA' or 'RNA'
+    errors = {}
+
+    if request.method == 'POST':
+        qc.qubit_nm = _parse_float(request.POST.get('qubit_nm'))
+
+        if sample_type == 'DNA':
+            qc.nanodrop_260_280 = _parse_float(request.POST.get('nanodrop_260_280'))
+            qc.nanodrop_260_230 = _parse_float(request.POST.get('nanodrop_260_230'))
+            qc.rin = None
+            qc.dv200 = None
+        else:  # RNA
+            qc.rin = _parse_float(request.POST.get('rin'))
+            qc.dv200 = _parse_float(request.POST.get('dv200'))
+            qc.nanodrop_260_280 = None
+            qc.nanodrop_260_230 = None
+
+        qc.notes = request.POST.get('notes', '').strip()
+        qc.edited_by = request.user
+
+        try:
+            qc.save()  # runs full_clean() + recalculates qc_status
+            messages.success(request, f'QC values saved, status is now {qc.qc_status}.')
+            return redirect('qc-batch-detail', batch_id=qc.batch_id)
+        except ValidationError as e:
+            errors = e.message_dict if hasattr(e, 'message_dict') else {'__all__': e.messages}
+
+    return render(request, 'qc/qc_detail.html', {
+        'qc': qc,
+        'sample_type': sample_type,
+        'errors': errors,
+    })
+
+
+def _parse_float(val):
+    """Small helper: '' or None -> None, otherwise float(val) (None on bad input)."""
+    if val in (None, ''):
+        return None
+    try:
+        return float(val)
+    except ValueError:
+        return None
 
 # PROJECT PICKER (assign flow entry)
 
