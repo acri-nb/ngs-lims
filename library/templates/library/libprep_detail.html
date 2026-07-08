@@ -4,6 +4,50 @@
 
 {% block extra_css %}
 <link rel="stylesheet" href="{% static 'css/libprep.css' %}">
+<style>
+    /*  TABS (same pattern as Inventory)  */
+    .libprep-tabs {
+        display: flex;
+        gap: 4px;
+        margin-bottom: 1rem;
+        border-bottom: 1px solid var(--border);
+        padding-bottom: 0;
+    }
+    .libprep-tab {
+        background: none;
+        border: none;
+        border-bottom: 2px solid transparent;
+        padding: 0.5rem 1rem 0.6rem;
+        font-size: 0.875rem;
+        font-weight: 500;
+        color: var(--text-muted);
+        cursor: pointer;
+        transition: color 0.15s, border-color 0.15s;
+        margin-bottom: -1px;
+    }
+    .libprep-tab:hover  { color: var(--text); }
+    .libprep-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+    .null-val { color: var(--text-muted); }
+
+    .btn-export, .btn-import {
+        border: 1px solid var(--border);
+        background: var(--surface);
+        color: var(--text);
+        font-size: 0.82rem;
+        padding: 0.4rem 0.85rem;
+        border-radius: 6px;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        cursor: pointer;
+    }
+    .btn-export:hover { background: var(--surface-alt); }
+    .btn-import[disabled] {
+        opacity: 0.55;
+        cursor: not-allowed;
+    }
+</style>
 {% endblock %}
 
 {% block content %}
@@ -56,6 +100,19 @@
   </div>
   {% endif %}
 </div>
+
+<!-- TABS -->
+<div class="libprep-tabs">
+    <button class="libprep-tab active" onclick="showLibprepTab('plate', this)">
+        <i class="fas fa-th me-1"></i> Plate View
+    </button>
+    <button class="libprep-tab" onclick="showLibprepTab('table', this)">
+        <i class="fas fa-table me-1"></i> Well Data
+    </button>
+</div>
+
+<!--  TAB: PLATE VIEW -->
+<div id="libprep-tab-plate" class="libprep-pane">
 
 <!-- MAIN LAYOUT-->
 <div class="plate-layout">
@@ -116,7 +173,7 @@
       </div>
       {% endfor %}
 
-    </div><!-- /plate-board -->
+    </div>
 
     <!-- LEGEND -->
     <div class="plate-legend">
@@ -127,7 +184,7 @@
       <span class="legend-item"><span class="legend-dot dot-control"></span>Control</span>
     </div>
 
-  </div><!-- /plate-wrap -->
+  </div>
 
   <!-- DETAIL PANEL -->
   <div class="detail-panel" id="detailPanel">
@@ -205,69 +262,87 @@
 
 </div>
 
+</div>
+
+
+<!-- TAB: WELL DATA (TABLE) -->
+<div id="libprep-tab-table" class="libprep-pane" style="display:none;">
+
+  <!-- Toolbar: search + export/import (mirrors QC batch detail) -->
+  <div class="filter-bar">
+    <div class="row g-2 align-items-end">
+      <div class="col-md-6">
+        <label class="form-label">Search</label>
+        <input type="text" id="libprepTableSearch" class="form-control"
+               placeholder="Well position or sample name…"
+               oninput="filterLibprepTable()">
+      </div>
+      <div class="col-md-6 text-md-end">
+        <button class="btn-export" onclick="exportLibprepCSV()">
+          <i class="fas fa-file-download"></i> Export CSV
+        </button>
+        <button class="btn-import" disabled title="Coming soon">
+          <i class="fas fa-file-upload"></i> Import Results
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="table-responsive">
+      <table class="table table-lims" id="libprepTable">
+        <thead>
+          <tr>
+            <th>Well</th>
+            <th>Sample</th>
+            <th>Status</th>
+            <th>Concentration</th>
+            <th>Volume Sample</th>
+            <th>Volume Diluent</th>
+            <th>Actual Input</th>
+          </tr>
+        </thead>
+        <tbody id="libprepTableBody">
+          <!-- populated via JS from the plate wells, ordered A01, B01 … H01, A02 … -->
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+{% block extra_js %}
+<script src="{% static 'js/libprep_detail.js' %}"></script>
+
+
 <script>
-let activeWell = null;
+  
+/*  EXPORT CSV (client-side, from the currently built table)  */
+function exportLibprepCSV() {
+  buildLibprepTable(); // make sure it's populated even if user hasn't opened the tab yet
 
-function selectWell(btn) {
-  // Deselect previous
-  if (activeWell) activeWell.classList.remove('well-selected');
+  const headers = ['Well', 'Sample', 'Status', 'Concentration (ng/µL)', 'Volume Sample (µL)', 'Volume Diluent (µL)', 'Actual Input (ng)'];
+  const rows = [headers];
 
-  if (activeWell === btn) {
-    // Toggle off
-    activeWell = null;
-    document.getElementById('detailEmpty').style.display   = '';
-    document.getElementById('detailContent').style.display = 'none';
-    return;
-  }
+  document.querySelectorAll('#libprepTable tbody tr.libprep-row').forEach(tr => {
+    const cells = tr.querySelectorAll('td');
+    if (cells.length < 7) return; // skip empty-state row
+    const rowData = Array.from(cells).map(td => td.textContent.trim());
+    rows.push(rowData);
+  });
 
-  activeWell = btn;
-  btn.classList.add('well-selected');
-
-  const isEmpty = !btn.classList.contains('well-occupied');
-  document.getElementById('detailEmpty').style.display   = isEmpty ? '' : 'none';
-  document.getElementById('detailContent').style.display = isEmpty ? 'none' : '';
-
-  if (isEmpty) return;
-
-  // Populate panel
-  const d = btn.dataset;
-
-  document.getElementById('dPos').textContent  = d.pos  || '—';
-  document.getElementById('dName').textContent = d.sampleName || '—';
-
-  // Badge
-  const badge = document.getElementById('dBadge');
-  const actionLabels = { prep: 'Prepped', skip: 'Skipped', requeue: 'Requeued' };
-  const actionClasses = { prep: 'badge-pass', skip: 'badge-fail', requeue: 'badge-caution' };
-  badge.textContent  = actionLabels[d.action] || d.wellType || '—';
-  badge.className    = 'detail-badge ' + (actionClasses[d.action] || '');
-
-  // Volume
-  set('dConc',       d.conc       ? d.conc + ' ng/µL' : '—');
-  set('dVolSample',  d.volSample  ? d.volSample + ' µL' : '—');
-  set('dVolDiluent', d.volDiluent ? d.volDiluent + ' µL' : '—');
-  set('dActualInput',d.actualInput? d.actualInput + ' ng' : '—');
-
-  const svRow = document.getElementById('dSpeedVacRow');
-  if (d.speedvac === 'true') {
-    svRow.style.display = '';
-    set('dSpeedVac', '<span style="color:var(--warning);font-weight:600;">⚠ Required</span>');
-  } else {
-    svRow.style.display = 'none';
-  }
-
-  // Index
-  set('dUDI',        d.indexUdi       || '—');
-  set('dIndexSetWell', (d.indexSet && d.indexWell) ? `Set ${d.indexSet.toUpperCase()} / ${d.indexWell}` : '—');
-  set('dI7',         d.indexI7  || '—');
-  set('dI5',         d.indexI5  || '—');
-  set('dPCR',        d.pcr      ? d.pcr + ' cycles' : '—');
+  const csv = rows.map(r => r.map(v => `"${v.replace(/"/g, '""')}"`).join(',')).join('\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `{{ batch.plate.plate_name|default:"libprep_batch" }}_well_data.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
 }
 
-function set(id, html) {
-  const el = document.getElementById(id);
-  if (el) el.innerHTML = html;
-}
 </script>
+
+{% endblock %}
 
 {% endblock %}
