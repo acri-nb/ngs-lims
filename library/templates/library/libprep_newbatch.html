@@ -138,7 +138,7 @@
         </div>
         <span class="nb-sc-badge nb-sc-pass">Pass</span>
       </div>
-      {% empty %}<div class="nb-section-empty">No passing samples</div>{% endfor %}
+      {% empty %}<div class="nb-section-empty">No new passing samples</div>{% endfor %}
     </div>
 
     <!-- CAUTION -->
@@ -162,7 +162,7 @@
         <div class="nb-sc-meta">{% if qc.qubit_nm %}{{ qc.qubit_nm }} ng/µL · {% endif %}{{ qc.sample.sample_type }}</div>
         <span class="nb-sc-badge nb-sc-caution">Caution</span>
       </div>
-      {% empty %}<div class="nb-section-empty">No caution samples</div>{% endfor %}
+      {% empty %}<div class="nb-section-empty">No new caution samples</div>{% endfor %}
     </div>
 
     <!-- FAIL (collapsed) -->
@@ -188,6 +188,36 @@
           <span class="nb-sc-badge nb-sc-fail">Fail</span>
         </div>
         {% empty %}<div class="nb-section-empty">No failed samples</div>{% endfor %}
+      </div>
+    </details>
+
+    <!-- ALREADY IN LIBRARY PREP (collapsed) -->
+    <details class="nb-fail-details">
+      <summary class="nb-section-header nb-section-header-btn">
+        <span class="nb-dot nb-dot-used"></span>Already Prepped
+        <span class="nb-section-count">{{ qc_already_used|length }}</span>
+        <i class="fas fa-chevron-down nb-chevron"></i>
+      </summary>
+      <div class="nb-sample-list nb-droppable-list" id="listUsed"
+           ondragover="onListDragOver(event)" ondragleave="onListDragLeave(event)" ondrop="onListDrop(event)">
+        {% for qc in qc_already_used %}
+        <div class="nb-sample-card nb-card-used"
+             draggable="true"
+             data-qc-id="{{ qc.pk }}"
+             data-sample-name="{{ qc.sample.sample_name }}"
+             data-conc="{{ qc.qubit_nm|default:'' }}"
+             data-status="{{ qc.qc_status|lower }}"
+             data-is-control="false"
+             id="card-{{ qc.pk }}"
+             ondragstart="onDragStart(event)">
+          <div class="nb-sc-name">{{ qc.sample.sample_name }}</div>
+          <div class="nb-sc-meta">
+            {% if qc.qubit_nm %}{{ qc.qubit_nm }} ng/µL · {% endif %}{{ qc.sample.sample_type }}
+          </div>
+          <span class="nb-sc-badge nb-sc-{{ qc.qc_status|lower }}">{{ qc.status_label }}</span>
+          
+        </div>
+        {% empty %}<div class="nb-section-empty">No samples already prepped</div>{% endfor %}
       </div>
     </details>
 
@@ -283,24 +313,37 @@
 
       <div class="nb-loc-grid">
 
-        <!-- Rack selector -->
-        <div class="nb-option-group">
+        <!-- Rack picker -->
+        <div class="nb-option-group nb-rack-picker-group">
           <label class="nb-option-label">Rack</label>
-          <select class="nb-select" id="rackSelect" onchange="updateSlotGrid()">
-            <option value="">— select rack —</option>
+          <div class="nb-rack-picker" id="rackPicker">
             {% regroup racks by location as location_list %}
             {% for loc_group in location_list %}
-            <optgroup label="{{ loc_group.grouper.locationName }} ({{ loc_group.grouper.storageType }})">
+            <div class="nb-rack-loc-header">
+              {{ loc_group.grouper.locationName }}
+              <span class="nb-rack-loc-type">({{ loc_group.grouper.storageType }})</span>
+            </div>
+            <div class="nb-rack-loc-list">
               {% for rack in loc_group.list %}
-              <option value="{{ rack.pk }}"
-                      data-rows="{{ rack.rows }}"
-                      data-cols="{{ rack.cols }}">
-                {{ rack.rack_name }}
-              </option>
+              <button type="button"
+                      class="nb-rack-card {% if rack.is_full %}nb-rack-full{% endif %}"
+                      data-rack-id="{{ rack.pk }}"
+                      data-rack-name="{{ rack.rack_name }}"
+                      {% if rack.is_full %}disabled title="No free slots"{% endif %}
+                      onclick="selectRack(this)">
+                <span class="nb-rack-card-name">{{ rack.rack_name }}</span>
+                <span class="nb-rack-card-status">
+                  {% if rack.is_full %}
+                    <i class="fas fa-lock"></i> Full
+                  {% else %}
+                    {{ rack.free_slots }}/{{ rack.total_slots }} free
+                  {% endif %}
+                </span>
+              </button>
               {% endfor %}
-            </optgroup>
+            </div>
             {% endfor %}
-          </select>
+          </div>
         </div>
 
         <!-- Slot picker -->

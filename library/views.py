@@ -189,30 +189,121 @@ def libprep_new_batch(request, project_id):
         .order_by('sample__sample_name')
     )
 
-    qc_pass    = [q for q in sample_qcs if q.qc_status == SampleQC.PASS]
-    qc_caution = [q for q in sample_qcs if q.qc_status == SampleQC.CAUTION]
-    qc_fail    = [q for q in sample_qcs if q.qc_status == SampleQC.FAIL]
-    qc_pending = [q for q in sample_qcs if q.qc_status == SampleQC.PENDING]
+    # SampleQC pks that already appear in a LibraryPrepSample (any batch,
+    # any project) these get pulled into their own "already prepped"
+    # section instead of the normal status buckets.
+    used_qc_ids = set(
+        LibraryPrepSample.objects
+        .filter(sampleQC__in=sample_qcs)
+        .values_list('sampleQC_id', flat=True)
+    )
+
+    STATUS_ORDER  = {SampleQC.PASS: 0, SampleQC.CAUTION: 1, SampleQC.FAIL: 2, SampleQC.PENDING: 3}
+    STATUS_LABELS = {SampleQC.PASS: 'Pass', SampleQC.CAUTION: 'Caution',
+                      SampleQC.FAIL: 'Fail', SampleQC.PENDING: 'Pending'}
+
+    qc_pass, qc_caution, qc_fail, qc_pending, qc_already_used = [], [], [], [], []
+
+    for q in sample_qcs:
+        if q.pk in used_qc_ids:
+            qc_already_used.append(q)
+        elif q.qc_status == SampleQC.PASS:
+            qc_pass.append(q)
+        elif q.qc_status == SampleQC.CAUTION:
+            qc_caution.append(q)
+        elif q.qc_status == SampleQC.FAIL:
+            qc_fail.append(q)
+        elif q.qc_status == SampleQC.PENDING:
+            qc_pending.append(q)
+
+    qc_already_used.sort(
+        key=lambda q: (STATUS_ORDER.get(q.qc_status, 99), q.sample.sample_name.lower())
+    )
+    for q in qc_already_used:
+        q.status_label = STATUS_LABELS.get(q.qc_status, q.qc_status)
 
     workflow_types = WorkflowType.objects.order_by('workflowType')
 
-    # All racks with their location — template uses {% regroup racks by location %}
     racks = Rack.objects.select_related('location').order_by(
         'location__locationName', 'rack_name'
     )
 
+    # Annotate each rack with occupancy so the location modal can grey out
+    # racks that have no free slots, before the person opens the slot grid.
+    
+    for rack in racks:
+        rack.total_slots = rack.rows * rack.cols * 2
+        rack.occupied_count = Plate.objects.filter(
+            rack=rack
+        ).exclude(rack_location='').count()
+        rack.free_slots = rack.total_slots - rack.occupied_count
+        rack.is_full = rack.free_slots <= 0
+
+
     return render(request, 'library/libprep_newbatch.html', {
-        'project':        project,
-        'qc_pass':        qc_pass,
-        'qc_caution':     qc_caution,
-        'qc_fail':        qc_fail,
-        'qc_pending':     qc_pending,
-        'workflow_types': workflow_types,
-        'racks':          racks,
-        'rows':           ROWS,
-        'cols':           COLS,
-        'today':          date.today().isoformat(),
+        'project':         project,
+        'qc_pass':         qc_pass,
+        'qc_caution':      qc_caution,
+        'qc_fail':         qc_fail,
+        'qc_pending':      qc_pending,
+        'qc_already_used': qc_already_used,
+        'workflow_types':  workflow_types,
+        'racks':           racks,
+        'rows':            ROWS,
+        'cols':            COLS,
+        'today':           date.today().isoformat(),
     })
+
+def _validate_batch_composition(placements, workflow):
+    """
+    Returns a list of human-readable problems with this batch, or [] if it's fine.
+
+    Checks:
+      - not made up entirely of controls
+      - every non-control sample's type matches workflow.sample_type
+      - control usage matches workflow.uses_controls (both pos+neg required
+        if the workflow uses controls, none allowed if it doesn't)
+    """
+    errors = []
+
+    non_control_ids = [
+        v['qcId'] for v in placements.values() if not v.get('isControl', False)
+    ]
+    control_ids = {
+        v['qcId'] for v in placements.values() if v.get('isControl', False)
+    }
+
+    if not non_control_ids:
+        errors.append('Batch contains only controls — add at least one real sample.')
+        return errors
+
+    qcs = SampleQC.objects.filter(pk__in=non_control_ids).select_related('sample')
+    qc_by_id = {str(q.pk): q for q in qcs}
+
+    mismatched = []
+    for qc_id in non_control_ids:
+        qc = qc_by_id.get(str(qc_id))
+        if qc is None:
+            errors.append(f'Sample QC #{qc_id} could not be found.')
+            continue
+        if qc.sample.sample_type != workflow.sample_type:
+            mismatched.append(f'{qc.sample.sample_name} ({qc.sample.sample_type})')
+
+    if mismatched:
+        errors.append(
+            f'Workflow "{workflow.workflowType}" expects {workflow.sample_type} samples, '
+            f'but these don\'t match: {", ".join(mismatched)}.'
+        )
+
+    if workflow.uses_controls:
+        if 'pos' not in control_ids:
+            errors.append(f'Workflow "{workflow.workflowType}" requires a positive control — none placed.')
+        if 'neg' not in control_ids:
+            errors.append(f'Workflow "{workflow.workflowType}" requires a negative control — none placed.')
+    elif control_ids:
+        errors.append(f'Workflow "{workflow.workflowType}" does not use controls, but one was placed.')
+
+    return errors
 
 
 def _save_new_batch(request, project):
@@ -272,6 +363,12 @@ def _save_new_batch(request, project):
 
     workflow = get_object_or_404(WorkflowType, pk=workflow_id)
     rack     = get_object_or_404(Rack.objects.select_related('location'), pk=rack_id)
+
+    composition_errors = _validate_batch_composition(placements, workflow)
+    if composition_errors:
+        for e in composition_errors:
+            messages.error(request, e)
+        return redirect('libprep-new-batch', project_id=project.pk)
 
     try:
         prepped_date = date.fromisoformat(date_str)
@@ -442,6 +539,27 @@ def _save_new_batch(request, project):
     )
     return redirect('libprep-detail', batch_id=batch.pk)
 
+def libprep_check_batch(request, project_id):
+    """AJAX pre-flight check — called before the confirm modal opens."""
+    if request.method != 'POST':
+        return JsonResponse({'ok': False, 'errors': ['Invalid request method.']}, status=405)
+
+    workflow_id    = request.POST.get('workflow_type_id', '').strip()
+    placements_raw = request.POST.get('placements', '').strip()
+
+    if not workflow_id:
+        return JsonResponse({'ok': False, 'errors': ['Select a workflow type first.']})
+
+    workflow = get_object_or_404(WorkflowType, pk=workflow_id)
+
+    try:
+        placements = json.loads(placements_raw) if placements_raw else {}
+    except (json.JSONDecodeError, ValueError):
+        placements = {}
+    placements = {k: v for k, v in placements.items() if v and v.get('qcId')}
+
+    errors = _validate_batch_composition(placements, workflow)
+    return JsonResponse({'ok': not errors, 'errors': errors})
 
 def _calc_volumes(conc, target_ng, start_vol):
     """

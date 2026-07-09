@@ -7,6 +7,6 @@ urlpatterns = [
 
     path('projects/',                       views.libprep_project_list, name='libprep-project-list'),
     path('newbatch/<int:project_id>/',      views.libprep_new_batch,    name='libprep-new-batch'),
-    
+    path('newbatch/<int:project_id>/check/', views.libprep_check_batch, name='libprep-check-batch'),
 ]
 

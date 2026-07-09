@@ -664,3 +664,98 @@ details[open] .nb-chevron { transform: rotate(180deg); }
   gap: 4px;
   width: max-content;
 }
+
+.nb-dot-used {
+  background: var(--text-muted, #888);
+}
+
+.nb-card-used {
+  opacity: 0.5;
+  filter: grayscale(40%);
+  position: relative;
+}
+
+.nb-card-used:hover {
+  opacity: 0.85;
+  filter: grayscale(0%);
+}
+
+.nb-sc-used-tag {
+  position: absolute;
+  top: .4rem;
+  right: .4rem;
+  font-size: .6rem;
+  color: var(--text-muted, #888);
+}
+
+.nb-slot-inner-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(44px, 1fr));
+  gap: .35rem;
+}
+.nb-slot-btn {
+  padding: .3rem .2rem;
+  font-size: .7rem;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  cursor: pointer;
+}
+.nb-slot-free    { background: var(--surface); }
+.nb-slot-free:hover { border-color: var(--accent); }
+.nb-slot-taken   { background: rgba(200,60,60,.12); color: var(--text-muted); cursor: not-allowed; }
+.nb-slot-selected { border-color: var(--accent); background: var(--accent); color: #fff; }
+
+
+.nb-rack-picker {
+  max-height: 260px;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: .5rem;
+}
+.nb-rack-loc-header {
+  font-size: .68rem;
+  text-transform: uppercase;
+  letter-spacing: .03em;
+  color: var(--text-muted);
+  margin: .6rem 0 .3rem;
+}
+.nb-rack-loc-header:first-child { margin-top: 0; }
+.nb-rack-loc-type { text-transform: none; font-weight: 400; }
+
+.nb-rack-loc-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: .4rem;
+}
+
+.nb-rack-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: .15rem;
+  padding: .5rem .6rem;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  cursor: pointer;
+  text-align: left;
+}
+.nb-rack-card:hover:not(:disabled) { border-color: var(--accent); }
+
+.nb-rack-card-name   { font-size: .8rem; font-weight: 600; }
+.nb-rack-card-status { font-size: .68rem; color: var(--text-muted); }
+
+.nb-rack-card.nb-rack-selected {
+  border-color: var(--accent);
+  background: rgba(160,100,255,.08);
+}
+
+.nb-rack-card.nb-rack-full,
+.nb-rack-card:disabled {
+  opacity: .45;
+  filter: grayscale(60%);
+  cursor: not-allowed;
+  background: rgba(150,150,150,.06);
+}
+.nb-rack-card.nb-rack-full .nb-rack-card-status { color: var(--danger, #c33); }

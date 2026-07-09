@@ -166,74 +166,120 @@ function closeLocationModal() {
   document.getElementById('locationModal').style.display = 'none';
 }
 
-function updateSlotGrid() {
-  const sel   = document.getElementById('rackSelect');
-  const opt   = sel.options[sel.selectedIndex];
-  const grid  = document.getElementById('slotGrid');
-  const nextBtn = document.getElementById('locationNextBtn');
+function selectRack(btnEl) {
+  if (btnEl.disabled) return;
 
-  selectedRackId   = sel.value || null;
-  selectedRackName = opt ? opt.text : '';
-  selectedSlot     = null;
-  nextBtn.disabled = true;
+  document.querySelectorAll('.nb-rack-card.nb-rack-selected')
+    .forEach(b => b.classList.remove('nb-rack-selected'));
+  btnEl.classList.add('nb-rack-selected');
+
+  const rackPk   = btnEl.dataset.rackId;
+  const rackName = btnEl.dataset.rackName;
+
+  window.selectedRackId   = null;   // not final until a slot is picked
+  window.selectedRackSlot = null;
   document.getElementById('selectedSlotDisplay').style.display = 'none';
+  document.getElementById('locationNextBtn').disabled = true;
 
-  if (!sel.value) {
-    grid.innerHTML = '<span style="font-size:.78rem;color:var(--text-muted);">Select a rack first</span>';
+  updateSlotGrid(rackPk, rackName);
+}
+
+async function updateSlotGrid(rackPk, rackName) {
+  const slotGrid = document.getElementById('slotGrid');
+  slotGrid.innerHTML = '<span style="font-size:.78rem;color:var(--text-muted);">Loading occupancy…</span>';
+
+  let data;
+  try {
+    const resp = await fetch(`/locations/rack/${rackPk}/slots/`);
+    data = await resp.json();
+  } catch (err) {
+    slotGrid.innerHTML = '<span style="font-size:.78rem;color:var(--danger);">Could not load rack occupancy.</span>';
     return;
   }
 
-  const rows = parseInt(opt.dataset.rows) || 4;
-  const cols = parseInt(opt.dataset.cols) || 4;
-  const rowLetters = 'ABCDEFGHIJKLMNOP'.slice(0, rows);
+  const occBySlot = {};
+  data.slots.forEach(s => { occBySlot[s.slot] = s; });
 
-  let html = '<div class="nb-slot-table">';
-  // Header row
-  html += '<div class="nb-slot-row"><div class="nb-slot-cell nb-slot-hdr"></div>';
-  for (let c = 1; c <= cols; c++) html += `<div class="nb-slot-cell nb-slot-hdr">${c}</div>`;
-  html += '</div>';
-  // Data rows
-  for (const r of rowLetters) {
-    html += `<div class="nb-slot-row"><div class="nb-slot-cell nb-slot-row-lbl">${r}</div>`;
-    for (let c = 1; c <= cols; c++) {
-      const base = `${r}${c}`;
-      html += `
-        <div class="nb-slot-cell nb-slot-group">
-          <button class="nb-slot-btn" data-slot="${base}T" onclick="selectSlot('${base}T', '${base} Top', this)">T</button>
-          <button class="nb-slot-btn" data-slot="${base}B" onclick="selectSlot('${base}B', '${base} Bottom', this)">B</button>
-        </div>`;
-    }
-    html += '</div>';
-  }
-  html += '</div>';
-  grid.innerHTML = html;
+  slotGrid.innerHTML = '';
+  const grid = document.createElement('div');
+  grid.className = 'nb-slot-inner-grid';
+
+  data.rows.forEach(row => {
+    data.cols.forEach(col => {
+      ['T', 'B'].forEach(side => {
+        const slot = `${row}${col}${side}`;
+        const info = occBySlot[slot];
+        const btn  = document.createElement('button');
+        btn.type = 'button';
+        btn.textContent = slot;
+        btn.className = 'nb-slot-btn ' + (info && info.occupied ? 'nb-slot-taken' : 'nb-slot-free');
+
+        if (info && info.occupied) {
+          btn.disabled = true;
+          btn.title = `Occupied by ${info.plate_name}`;
+        } else {
+          btn.title = 'Available';
+          btn.onclick = () => selectSlot(rackPk, rackName, slot, btn);
+        }
+        grid.appendChild(btn);
+      });
+    });
+  });
+
+  slotGrid.appendChild(grid);
 }
 
-function selectSlot(slotCode, slotLabel, btn) {
-  // Deselect all
-  document.querySelectorAll('.nb-slot-btn').forEach(b => b.classList.remove('nb-slot-btn-active'));
-  btn.classList.add('nb-slot-btn-active');
-  selectedSlot = slotCode;
-  document.getElementById('selectedSlotLabel').textContent = slotLabel;
-  document.getElementById('selectedSlotDisplay').style.display = '';
+function selectSlot(rackPk, rackName, slot, btnEl) {
+  document.querySelectorAll('.nb-slot-btn.nb-slot-selected')
+    .forEach(b => b.classList.remove('nb-slot-selected'));
+  btnEl.classList.add('nb-slot-selected');
+
+  window.selectedRackId   = rackPk;
+  window.selectedRackSlot = slot;
+
+  document.getElementById('selectedSlotDisplay').style.display = 'block';
+  document.getElementById('selectedSlotLabel').textContent = `${rackName} — ${slot}`;
+  document.getElementById('locationNextBtn').disabled = false;
+}
+function selectSlot(rackPk, rackName, slot, btnEl) {
+  document.querySelectorAll('.nb-slot-btn.nb-slot-selected')
+    .forEach(b => b.classList.remove('nb-slot-selected'));
+  btnEl.classList.add('nb-slot-selected');
+
+  window.selectedRackId   = rackPk;
+  window.selectedRackSlot = slot;
+
+  document.getElementById('selectedSlotDisplay').style.display = 'block';
+  document.getElementById('selectedSlotLabel').textContent = `${rackName} — ${slot}`;
   document.getElementById('locationNextBtn').disabled = false;
 }
 
 // CONFIRM MODAL
-function openConfirmModal() {
-  if (!selectedRackId || !selectedSlot) return;
-  closeLocationModal();
+async function openConfirmModal() {
+  const placements  = collectPlacements();
+  const workflowId  = document.getElementById('workflowSelect').value;
 
-  const workflow = document.getElementById('workflowSelect');
-  const dt       = document.getElementById('datePrepInput').value;
-  const count    = Object.keys(placements).length;
+  const params = new URLSearchParams();
+  params.append('workflow_type_id', workflowId);
+  params.append('placements', JSON.stringify(placements));
 
-  document.getElementById('cWorkflow').textContent  = workflow.options[workflow.selectedIndex].text;
-  document.getElementById('cDate').textContent      = dt;
-  document.getElementById('cCount').textContent     = count + ' well' + (count !== 1 ? 's' : '');
-  document.getElementById('cLocation').textContent  = `${selectedRackName} · ${selectedSlot}`;
+  const resp = await fetch(`{% url 'libprep-check-batch' project.pk %}`, {
+    method: 'POST',
+    headers: {
+      'X-CSRFToken': getCookie('csrftoken'),
+      'Content-Type': 'application/x-www-form-urlencoded',
+    },
+    body: params,
+  });
+  const data = await resp.json();
 
-  document.getElementById('confirmModal').style.display = 'flex';
+  if (!data.ok) {
+    alert('This batch doesn\'t look right:\n\n' + data.errors.join('\n'));
+    return;
+  }
+
+  document.getElementById('locationModal').style.display = 'none';
+  document.getElementById('confirmModal').style.display  = 'flex';
 }
 
 function backToLocation() {
