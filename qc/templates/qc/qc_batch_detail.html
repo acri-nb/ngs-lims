@@ -10,7 +10,7 @@
 
 <!-- BREADCRUMB -->
 <nav style="font-size:.8rem;color:var(--text-muted);margin-bottom:1.25rem;">
-  <a href="{% url 'qc-batch-list' %}" style="color:var(--accent);text-decoration:none;">QC Batches</a>
+  <a href="{% url 'qc-batch-list' %}" style="color:var(--accent);text-decoration:none;">SampleQC Batches</a>
   <span style="margin:0 .4rem;">/</span>
   <span>{{ batch.batch_name }}</span>
 </nav>
@@ -250,11 +250,5 @@ const CSRF_TOKEN   = "{{ csrf_token }}";
 </script>
 
 <script src="{% static 'js/qc_batch_detail.js' %}"></script>
-{% if messages %}
-<script>
-  {% for message in messages %}
-    showToast("{{ message|escapejs }}", "{{ message.tags }}");
-  {% endfor %}
-</script>
-{% endif %}
+
 {% endblock %}

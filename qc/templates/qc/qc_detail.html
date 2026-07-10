@@ -6,7 +6,7 @@
 {% block content %}
 <nav aria-label="breadcrumb">
     <ol class="breadcrumb">
-        <li class="breadcrumb-item"><a href="{% url 'qc-batch-list' %}">QC Batches</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'qc-batch-list' %}">SampleQC Batches</a></li>
         <li class="breadcrumb-item"><a href="{% url 'qc-batch-detail' qc.batch_id %}">{{ qc.batch.batch_name }}</a></li>
         <li class="breadcrumb-item active">{{ qc.sample.sample_name }}</li>
     </ol>

@@ -12,7 +12,9 @@ Sections — edit the DATA blocks below to add / change values:
     4.  Clients
     5.  Suppliers
     6.  Products  (+ links to suppliers)
-    7.  Index Kits + Library Indexes (loaded from library/fixtures/library_index_seed.json)
+    7.  Workflow Types
+    8.  Master Mix step/row data (per WorkflowType)
+    9.  Index Kits + Library Indexes (loaded from library/fixtures/library_index_seed.json)
 """
 
 import json
@@ -238,29 +240,9 @@ PRODUCTS = [
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-#  7. INDEX KITS  (Library Indexes)
-#     The actual ~1,250 well/sequence rows live in:
-#         library/fixtures/library_index_seed.json
-#     (generated from the lab's index plate spec sheets — not meant to be
-#     hand-edited; regenerate it instead if the source spreadsheet changes).
-#
-#     This map just tells the seeder which WorkflowType each kit in that
-#     fixture belongs to. The key MUST match a "kit_name" in the JSON file;
-#     the value MUST match a WorkflowType.workflowType already defined
-#     (either seeded elsewhere, or created manually in admin first).
-#
-#     If a kit's WorkflowType doesn't exist yet, that kit is skipped with
-#     a warning it will NOT silently attach to the wrong workflow.
-# ══════════════════════════════════════════════════════════════════════════════
-
-# ══════════════════════════════════════════════════════════════════════════════
 #  7. WORKFLOW TYPES
 #     workflowType MUST exactly match the values used in INDEX_KIT_WORKFLOW_MAP
-#     below, since IndexKit looks these up by name.
-# ══════════════════════════════════════════════════════════════════════════════
-# ══════════════════════════════════════════════════════════════════════════════
-#  X. WORKFLOW TYPES
-#     workflowType MUST exactly match the values used in INDEX_KIT_WORKFLOW_MAP.
+#     and in MASTERMIX_DATA below, since those look these up by name.
 # ══════════════════════════════════════════════════════════════════════════════
 WORKFLOW_TYPES = [
     {
@@ -309,6 +291,266 @@ WORKFLOW_TYPES = [
 ]
 
 
+# ══════════════════════════════════════════════════════════════════════════════
+#  8. MASTER MIX STEP / ROW DATA
+#
+#     Reference data for the (future) Master Mix tab. This mirrors the lab's
+#     protocol sheets: for each WorkflowType, an ordered list of steps, and
+#     for each step, an ordered list of reagent rows with a per-reaction
+#     volume.
+#
+#     Each row dict:
+#         name             → StepRow.stepRowName (shared/reused across
+#                             workflows and steps — e.g. "NF H2O" only
+#                             gets created once, then linked per-step
+#                             with its own volume via WorkflowStepRowOrder)
+#         volume_per_rxn   → µL per single reaction (WorkflowStepRowOrder.volumePerRxn)
+#         constant         → 0 = "Fixed / Header" (volume used as-is,
+#                             ignores reaction count), 1 = "Per Reaction"
+#                             (volume × reaction count). Matches
+#                             WorkflowStepRowOrder.constantOfMM. Default 1.
+#         extra            → extra "dead volume" reactions added on top of
+#                             the batch's reaction count for THIS reagent
+#                             only, e.g. the sheet's "(n + 2)" pattern.
+#                             Matches WorkflowStepRowOrder.extra_reactions.
+#                             Default 0.
+#
+#     NOT included below (deliberately — see chat writeup):
+#       - "Total Volume" rows: these are just sums of the rows above them
+#         and are meant to be computed at display time, not stored.
+#       - Bead-cleanup / 80% EtOH prep sections: the source sheets compute
+#         these with rounding/ceiling formulas (round up to nearest 5000 µL,
+#         etc.) rather than a simple volume × reactions, which doesn't fit
+#         this row model. Revisit with a dedicated calculation type later.
+#       - Adapter/probe dilution sub-tables (stock + diluent): these are a
+#         one-time dilution prep independent of reaction count and also
+#         depend on a separate "dilution factor" input — same story, needs
+#         its own concept later rather than being forced into this model.
+# ══════════════════════════════════════════════════════════════════════════════
+MASTERMIX_DATA = {
+
+    # MM NextFlex RiboZeroPlus 
+    "TotalRNA": [
+        {
+            "stepName": "Hybridize Probe MM", "sort_order": 10,
+            "rows": [
+                {"name": "DB1", "volume_per_rxn": 3.6},
+                {"name": "DP1", "volume_per_rxn": 1.2},
+            ],
+        },
+        {
+            "stepName": "rRNA Depletion MM", "sort_order": 20,
+            "rows": [
+                {"name": "RDB", "volume_per_rxn": 4.8},
+                {"name": "RDE (flick to mix)", "volume_per_rxn": 1.2},
+            ],
+        },
+        {
+            "stepName": "Probe Removal MM", "sort_order": 30,
+            "rows": [
+                {"name": "PRB", "volume_per_rxn": 7.7},
+                {"name": "PRE (flick to mix)", "volume_per_rxn": 3.3},
+            ],
+        },
+        {
+            "stepName": "Fragment and Denature RNA", "sort_order": 40,
+            "rows": [
+                {"name": "EPH3", "volume_per_rxn": 8.5, "extra": 1},
+            ],
+        },
+        {
+            "stepName": "First Strand Synthesis MM", "sort_order": 50,
+            "rows": [
+                {"name": "FSA", "volume_per_rxn": 9},
+                {"name": "RVT (flick to mix)", "volume_per_rxn": 1},
+            ],
+        },
+        {
+            "stepName": "Second Strand Synthesis MM", "sort_order": 60,
+            "is_stopping_point": True,
+            "rows": [
+                {"name": "SMM (invert to mix)", "volume_per_rxn": 25, "extra": 1},
+            ],
+        },
+        {
+            "stepName": "Adenylate 3' Ends", "sort_order": 70,
+            "rows": [
+                {"name": "ATL4 (flick to mix)", "volume_per_rxn": 12.5, "extra": 1},
+            ],
+        },
+        {
+            # Sheet note: "Use directly from tube" — no dead-volume buffer.
+            "stepName": "Ligate Anchors", "sort_order": 80,
+            "rows": [
+                {"name": "LIGX (flick to mix)", "volume_per_rxn": 2.5},
+            ],
+        },
+        {
+            "stepName": "Stop Ligation", "sort_order": 90,
+            "is_stopping_point": True,
+            "rows": [
+                {"name": "STL", "volume_per_rxn": 5, "extra": 2},
+            ],
+        },
+        {
+            "stepName": "PCR Amplification", "sort_order": 100,
+            "is_stopping_point": True,
+            "rows": [
+                {"name": "EPM (invert to mix)", "volume_per_rxn": 20, "extra": 1},
+            ],
+        },
+    ],
+
+    #  MM Illumina DNA-PCR Free 
+    "DNA PCR Free WGS": [
+        {
+            "stepName": "BLT-PF", "sort_order": 10,
+            "rows": [
+                {"name": "BLT-PF", "volume_per_rxn": 15, "extra": 2},
+            ],
+        },
+        {
+            "stepName": "Tagmentation Buffer (TB1)", "sort_order": 20,
+            "rows": [
+                {"name": "TB1", "volume_per_rxn": 10, "extra": 2},
+            ],
+        },
+        {
+            "stepName": "Tagmentation Wash Buffer (TWB) - Post-Tagmentation", "sort_order": 30,
+            "rows": [
+                {"name": "TWB", "volume_per_rxn": 150, "extra": 2},
+            ],
+        },
+        {
+            "stepName": "Enzyme Ligation Mix (ELM)", "sort_order": 40,
+            "rows": [
+                {"name": "ELM", "volume_per_rxn": 50, "extra": 2},
+            ],
+        },
+        {
+            "stepName": "Tagmentation Wash Buffer (TWB) - Post-Ligation", "sort_order": 50,
+            "rows": [
+                {"name": "TWB", "volume_per_rxn": 75, "extra": 2},
+            ],
+        },
+        {
+            "stepName": "HP3", "sort_order": 60,
+            "rows": [
+                {"name": "HP3", "volume_per_rxn": 6},
+                {"name": "NF H2O", "volume_per_rxn": 54},
+            ],
+        },
+        {
+            "stepName": "Illumina Purification Beads (Plate 1)", "sort_order": 70,
+            "rows": [
+                {"name": "IPB", "volume_per_rxn": 36},
+            ],
+        },
+        {
+            "stepName": "Illumina Purification Beads (Plate LP2)", "sort_order": 80,
+            "rows": [
+                {"name": "IPB", "volume_per_rxn": 42},
+            ],
+        },
+        {
+            "stepName": "Ethanol 80%", "sort_order": 90,
+            "rows": [
+                {"name": "Ethanol 99%", "volume_per_rxn": 400},
+                {"name": "NF H2O", "volume_per_rxn": 100},
+            ],
+        },
+        {
+            "stepName": "Resuspension Buffer (RSB)", "sort_order": 100,
+            "rows": [
+                {"name": "RSB", "volume_per_rxn": 22, "extra": 4},
+            ],
+        },
+    ],
+
+    # ── 3.ods — MM KAPA HyperPlus ───────────────────────────────────────────
+    "KAPA HyperPlus DNA": [
+        {
+            "stepName": "Step A: Enzymatic Fragmentation of Genomic DNA", "sort_order": 10,
+            "rows": [
+                {"name": "KAPA Fragmentation Buffer (10X)", "volume_per_rxn": 5},
+                {"name": "KAPA Fragmentation Enzyme", "volume_per_rxn": 10},
+            ],
+        },
+        {
+            "stepName": "Step B: End Repair & A-Tailing", "sort_order": 20,
+            "rows": [
+                {"name": "End Repair & A-Tailing Buffer", "volume_per_rxn": 7},
+                {"name": "End Repair & A-Tailing Enzyme Mix", "volume_per_rxn": 3},
+            ],
+        },
+        {
+            "stepName": "Step C: Adapter Ligation", "sort_order": 30,
+            "rows": [
+                {"name": "NF H2O", "volume_per_rxn": 5},
+                {"name": "Ligation Buffer", "volume_per_rxn": 30},
+                {"name": "DNA Ligase", "volume_per_rxn": 10},
+            ],
+        },
+        {
+            # Sheet note: "Add Following Samples in Order. DO NOT CREATE
+            # MASTERMIX" — these two reagents are added to each reaction
+            # individually rather than pre-mixed. Kept as regular rows for
+            # reference volumes; the print-sheet UI should call this out.
+            "stepName": "Step E: PCR Library Amplification (add individually, do not premix)",
+            "sort_order": 40,
+            "rows": [
+                {"name": "Library Amplification Primer Mix (10X)", "volume_per_rxn": 5},
+                {"name": "KAPA HiFi HotStart ReadyMix (2X)", "volume_per_rxn": 25},
+            ],
+        },
+    ],
+
+    # ── 4.ods — MM NextFlex Small RNA ───────────────────────────────────────
+    "Small RNA": [
+        {
+            "stepName": "Step A: 3' 4N Adenylated Adaptor Ligation to RNA Template",
+            "sort_order": 10,
+            "rows": [
+                {"name": "NextFlex 3' Adapter (refer to dilution)", "volume_per_rxn": 1},
+                {"name": "NEXTFLEX 3' Ligation Buffer", "volume_per_rxn": 12.5},
+                {"name": "NEXTFLEX 3' Ligation Enzyme Mix", "volume_per_rxn": 1.5},
+            ],
+        },
+        {
+            "stepName": "Step B: Excess 3' Adapter Removal", "sort_order": 20,
+            "rows": [
+                {"name": "NEXTFLEX Adapter Inactivation Mix", "volume_per_rxn": 4},
+            ],
+        },
+        {
+            "stepName": "Step C: NEXTFLEX 5' 4N Adapter Ligation", "sort_order": 30,
+            "rows": [
+                {"name": "NEXTFLEX 5' 4N Adapter (diluted)", "volume_per_rxn": 1},
+                {"name": "NEXTFLEX 5' Ligation Buffer", "volume_per_rxn": 3},
+                {"name": "NEXTFLEX 5' Ligation Enzyme Mix", "volume_per_rxn": 2},
+            ],
+        },
+        {
+            "stepName": "Step D: Reverse Transcription - First Strand Synthesis",
+            "sort_order": 40,
+            "is_stopping_point": True,
+            "rows": [
+                {"name": "NEXTFLEX RT Primer", "volume_per_rxn": 1},
+                {"name": "NEXTFLEX RT Buffer", "volume_per_rxn": 7},
+                {"name": "M-MuLV Reverse Transcriptase", "volume_per_rxn": 2},
+            ],
+        },
+        {
+            "stepName": "Step 7: PCR Amplification of the RT Product", "sort_order": 50,
+            "is_stopping_point": True,
+            "rows": [
+                {"name": "NEXTFLEX Small RNA PCR Master Mix", "volume_per_rxn": 6},
+            ],
+        },
+    ],
+}
+
+
 INDEX_KIT_WORKFLOW_MAP = {
     "ILLMN-DNA-RNA-V2": "Illumina DNA/RNA UD Indexes v2",
     "ILLMN-DNA-RNA-V3": "Illumina DNA/RNA UD Indexes v3",
@@ -351,6 +593,7 @@ class Command(BaseCommand):
         self._seed_suppliers()
         self._seed_products()
         self._seed_workflow_types()
+        self._seed_mastermix_steps()
         if not options["skip_indexes"]:
             self._seed_index_kits()
         self.stdout.write(self.style.SUCCESS("\nDone — database seeded successfully.\n"))
@@ -361,8 +604,17 @@ class Command(BaseCommand):
         from samples.models import Client, SpecimenType
         from locations.models import Location
         from inventory.models import Supplier, Product, ProductSupplier
-        from library.models import LibraryIndex, IndexKit
+        from library.models import (
+            LibraryIndex, IndexKit, WorkflowType, WorkflowTypeStep,
+            StepRow, WorkflowStepRowOrder,
+        )
 
+        WorkflowStepRowOrder.objects.all().delete()
+        self._log("cleared", "Workflow Step Rows (master mix links)")
+        WorkflowTypeStep.objects.all().delete()
+        self._log("cleared", "Workflow Type Steps")
+        StepRow.objects.all().delete()
+        self._log("cleared", "Step Rows (reagents)")
         LibraryIndex.objects.all().delete()
         self._log("cleared", "Library Indexes")
         IndexKit.objects.all().delete()
@@ -515,6 +767,77 @@ class Command(BaseCommand):
             )
             status = "created" if created else "exists "
             self._log(status, entry["workflowType"])
+
+    def _seed_mastermix_steps(self):
+        """
+        Seed WorkflowTypeStep / StepRow / WorkflowStepRowOrder reference
+        data for the Master Mix tab, from MASTERMIX_DATA above.
+
+        StepRow (reagent) rows are shared/reused by name across workflows
+        and steps — e.g. "NF H2O" is only created once, then linked to
+        each step that uses it (with that step's own volume) through a
+        separate WorkflowStepRowOrder row.
+        """
+        from library.models import WorkflowType, WorkflowTypeStep, StepRow, WorkflowStepRowOrder
+
+        self.stdout.write("\n[Master Mix Steps]")
+
+        for workflow_name, steps in MASTERMIX_DATA.items():
+            try:
+                workflow_type = WorkflowType.objects.get(workflowType=workflow_name)
+            except WorkflowType.DoesNotExist:
+                self.stdout.write(
+                    self.style.WARNING(
+                        f"  ⚠  WorkflowType '{workflow_name}' not found — "
+                        f"add it to WORKFLOW_TYPES first. Skipping its master mix data."
+                    )
+                )
+                continue
+
+            for step_entry in steps:
+                step, created = WorkflowTypeStep.objects.get_or_create(
+                    workflowType=workflow_type,
+                    stepName=step_entry["stepName"],
+                    defaults={
+                        "sort_order": step_entry.get("sort_order", 0),
+                        "is_stopping_point": step_entry.get("is_stopping_point", False),
+                    },
+                )
+                if not created:
+                    # keep sort_order / stopping-point flag in sync on re-runs
+                    step.sort_order = step_entry.get("sort_order", step.sort_order)
+                    step.is_stopping_point = step_entry.get("is_stopping_point", step.is_stopping_point)
+                    step.save(update_fields=["sort_order", "is_stopping_point"])
+
+                status = "created" if created else "exists "
+                self._log(status, f"{workflow_name} → {step_entry['stepName']}")
+
+                for row_sort, row_entry in enumerate(step_entry["rows"], start=10):
+                    step_row, _ = StepRow.objects.get_or_create(
+                        stepRowName=row_entry["name"],
+                    )
+
+                    link, link_created = WorkflowStepRowOrder.objects.get_or_create(
+                        step=step,
+                        step_row=step_row,
+                        defaults={
+                            "sort_order": row_sort,
+                            "volumePerRxn": row_entry["volume_per_rxn"],
+                            "constantOfMM": row_entry.get("constant", 1),
+                            "extra_reactions": row_entry.get("extra", 0),
+                        },
+                    )
+                    if not link_created:
+                        link.sort_order = row_sort
+                        link.volumePerRxn = row_entry["volume_per_rxn"]
+                        link.constantOfMM = row_entry.get("constant", 1)
+                        link.extra_reactions = row_entry.get("extra", 0)
+                        link.save(update_fields=[
+                            "sort_order", "volumePerRxn", "constantOfMM", "extra_reactions",
+                        ])
+
+                    link_status = "created" if link_created else "exists "
+                    self._log(link_status, f"    · {row_entry['name']}")
 
     def _seed_index_kits(self):
         from library.models import IndexKit, LibraryIndex
