@@ -4,50 +4,9 @@
 
 {% block extra_css %}
 <link rel="stylesheet" href="{% static 'css/libprep.css' %}">
-<style>
-    /*  TABS (same pattern as Inventory)  */
-    .libprep-tabs {
-        display: flex;
-        gap: 4px;
-        margin-bottom: 1rem;
-        border-bottom: 1px solid var(--border);
-        padding-bottom: 0;
-    }
-    .libprep-tab {
-        background: none;
-        border: none;
-        border-bottom: 2px solid transparent;
-        padding: 0.5rem 1rem 0.6rem;
-        font-size: 0.875rem;
-        font-weight: 500;
-        color: var(--text-muted);
-        cursor: pointer;
-        transition: color 0.15s, border-color 0.15s;
-        margin-bottom: -1px;
-    }
-    .libprep-tab:hover  { color: var(--text); }
-    .libprep-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
 
-    .null-val { color: var(--text-muted); }
+<link rel="stylesheet" href="{% static 'css/libprep_detail.css' %}">
 
-    .btn-export, .btn-import {
-        border: 1px solid var(--border);
-        background: var(--surface);
-        color: var(--text);
-        font-size: 0.82rem;
-        padding: 0.4rem 0.85rem;
-        border-radius: 6px;
-        display: inline-flex;
-        align-items: center;
-        gap: 0.4rem;
-        cursor: pointer;
-    }
-    .btn-export:hover { background: var(--surface-alt); }
-    .btn-import[disabled] {
-        opacity: 0.55;
-        cursor: not-allowed;
-    }
-</style>
 {% endblock %}
 
 {% block content %}
@@ -108,6 +67,9 @@
     </button>
     <button class="libprep-tab" onclick="showLibprepTab('table', this)">
         <i class="fas fa-table me-1"></i> Well Data
+    </button>
+    <button class="libprep-tab" onclick="showLibprepTab('mastermix', this)">
+        <i class="fas fa-flask me-1"></i> Master Mix
     </button>
 </div>
 
@@ -311,38 +273,90 @@
 
 </div>
 
-{% block extra_js %}
-<script src="{% static 'js/libprep_detail.js' %}"></script>
 
+<!-- TAB: MASTER MIX -->
+<div id="libprep-tab-mastermix" class="libprep-pane" style="display:none;">
 
-<script>
-  
-/*  EXPORT CSV (client-side, from the currently built table)  */
-function exportLibprepCSV() {
-  buildLibprepTable(); // make sure it's populated even if user hasn't opened the tab yet
+  <div class="mm-toolbar">
+    <div>
+      <label class="form-label">Number of Reactions</label>
+      <input type="number" min="0" step="1" id="mmReactionCount"
+             class="form-control" value="{{ reaction_count }}"
+             oninput="onMastermixReactionCountChange()">
+    </div>
+    <div class="mm-save-status" id="mmSaveStatus"></div>
 
-  const headers = ['Well', 'Sample', 'Status', 'Concentration (ng/µL)', 'Volume Sample (µL)', 'Volume Diluent (µL)', 'Actual Input (ng)'];
-  const rows = [headers];
+    <div style="margin-left:auto;display:flex;gap:.6rem;">
+      <button class="btn-outline-lims" onclick="saveMastermixReactionCount()">
+        <i class="fas fa-save me-1"></i> Save
+      </button>
+      <button class="btn-accent" onclick="printMastermixSheet()">
+        <i class="fas fa-print me-1"></i> Print / Export PDF
+      </button>
+    </div>
+  </div>
 
-  document.querySelectorAll('#libprepTable tbody tr.libprep-row').forEach(tr => {
-    const cells = tr.querySelectorAll('td');
-    if (cells.length < 7) return; // skip empty-state row
-    const rowData = Array.from(cells).map(td => td.textContent.trim());
-    rows.push(rowData);
-  });
+  {% if mastermix_steps %}
+    {% for step in mastermix_steps %}
+    <div class="mm-step-card">
+      <div class="mm-step-header">
+        <span>{{ step.stepName }}</span>
+        {% if step.is_stopping_point %}
+        <span class="mm-stop-badge"><i class="fas fa-pause-circle"></i> Safe Stopping Point</span>
+        {% endif %}
+      </div>
+      <table class="mm-table">
+        <thead>
+          <tr>
+            <th>Component</th>
+            <th>Volume / Reaction (µL)</th>
+            <th>Master Mix Volume (µL)</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in step.ordered_rows %}
+          <tr class="mm-row"
+              data-per-rxn="{{ row.volumePerRxn|default:'' }}"
+              data-extra="{{ row.extra_reactions }}"
+              data-constant="{{ row.constantOfMM }}">
+            <td>
+              {{ row.step_row.stepRowName }}
+              {% if row.constantOfMM == 0 %}<span class="mm-fixed-tag">(fixed)</span>{% endif %}
+            </td>
+            <td class="mono">{{ row.volumePerRxn|default:"—" }}</td>
+            <td class="mm-vol">{{ row.computed_volume|default_if_none:"—"|floatformat:2 }}</td>
+          </tr>
+          {% endfor %}
+          <tr class="mm-total-row">
+            <td colspan="2">Total Volume</td>
+            <td class="mm-vol mm-step-total">{{ step.computed_total|default_if_none:"—"|floatformat:2 }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    {% endfor %}
+  {% else %}
+  <div class="card">
+    <div class="text-center py-5 text-muted">
+      <i class="fas fa-flask fa-2x mb-2 d-block" style="color:var(--border);"></i>
+      No master mix reference data has been set up yet for
+      "{{ batch.workflowType.workflowType }}".
+    </div>
+  </div>
+  {% endif %}
 
-  const csv = rows.map(r => r.map(v => `"${v.replace(/"/g, '""')}"`).join(',')).join('\n');
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `{{ batch.plate.plate_name|default:"libprep_batch" }}_well_data.csv`;
-  a.click();
-  URL.revokeObjectURL(url);
-}
+</div>
 
-</script>
 
 {% endblock %}
 
+{% block extra_js %}
+<script>
+    // Values that only Django knows about — handed off to the external JS file.
+    const LIBPREP_PLATE_NAME    = "{{ batch.plate.plate_name|default:'libprep_batch'|escapejs }}";
+    const MASTERMIX_SAVE_URL    = "{% url 'libprep-mastermix-save' batch.pk %}";
+    const MASTERMIX_PRINT_URL   = "{% url 'libprep-mastermix-print' batch.pk %}";
+    const CSRF_TOKEN            = "{{ csrf_token }}";
+</script>
+<script src="{% static 'js/libprep_detail.js' %}"></script>
 {% endblock %}

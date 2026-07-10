@@ -131,7 +131,7 @@ class WorkflowStepRowOrder(models.Model):
 
     Carries the step-specific volume/row-type.
     """
-    step       = models.ForeignKey(WorkflowTypeStep, on_delete=models.CASCADE)
+    step       = models.ForeignKey(WorkflowTypeStep, on_delete=models.CASCADE, related_name='row_links')
     step_row   = models.ForeignKey(StepRow, on_delete=models.CASCADE)
     sort_order = models.PositiveSmallIntegerField(default=0)
 
@@ -145,6 +145,25 @@ class WorkflowStepRowOrder(models.Model):
         verbose_name=_("Row Type"),
     )
 
+    
+    # Several of the source protocol sheets don't just do volumePerRxn × n;
+    # they pad a fixed number of extra reactions on top as dead-volume /
+    # pipetting-loss buffer, e.g. "(n + 1)" or "(n + 2)"
+
+    # Master mix volume for a "Per Reaction" row is therefore:
+    #     volumePerRxn * (reaction_count + extra_reactions)
+
+    extra_reactions = models.PositiveSmallIntegerField(
+        default=0,
+        verbose_name=_("Extra Reactions (Dead Volume)"),
+        help_text=_(
+            "Extra reactions' worth of volume added on top of the batch's "
+            "reaction count for this specific reagent, to cover pipetting "
+            "loss (e.g. this row's sheet used '(n + 2)'). Leave at 0 if "
+            "the reagent scales with reaction count exactly."
+        ),
+    )
+
     class Meta:
         ordering        = ['sort_order']
         unique_together = [('step', 'step_row')]
@@ -153,6 +172,17 @@ class WorkflowStepRowOrder(models.Model):
 
     def __str__(self):
         return f"{self.step} – {self.step_row}"
+
+    def mastermix_volume(self, reaction_count):
+        """
+        Compute this row's master mix volume for a given reaction count.
+        Fixed/Header rows return volumePerRxn unchanged.
+        """
+        if self.volumePerRxn is None:
+            return None
+        if self.constantOfMM == 0:
+            return self.volumePerRxn
+        return self.volumePerRxn * (reaction_count + self.extra_reactions)
 
 
 # 
@@ -289,6 +319,20 @@ class LibraryPrepBatch(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    # Persisted "number of reactions" used to calculate every master mix
+    # volume on the (future) Master Mix tab / print sheet.
+
+    mastermix_reaction_count = models.PositiveSmallIntegerField(
+        null=True, blank=True,
+        verbose_name=_("Master Mix Reaction Count"),
+        help_text=_(
+            "Number of reactions used to calculate master mix volumes on "
+            "the Master Mix print sheet. Defaults to sample count + control "
+            "count if not set. Persisted so it stays the same across visits "
+            "until a lab member changes it."
+        ),
+    )
+
     class Meta:
         ordering            = ['-datePrepped']
         verbose_name        = _("Library Prep Batch")
@@ -314,6 +358,17 @@ class LibraryPrepBatch(models.Model):
         to sample_count + control_count.
         """
         return self.sample_count + self.control_count
+
+    @property
+    def effective_mastermix_reaction_count(self):
+        """
+        The reaction count to actually use when computing master mix
+        volumes: the persisted override if one has been set, otherwise
+        the computed total_reaction_count.
+        """
+        if self.mastermix_reaction_count is not None:
+            return self.mastermix_reaction_count
+        return self.total_reaction_count
 
 
 class LibraryPrepBatchAuditLog(models.Model):

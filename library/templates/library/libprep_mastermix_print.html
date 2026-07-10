@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Master Mix — {{ batch.batch_name|default:batch.plate.plate_name }}</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+    :root {
+        --ink:        #1a2332;
+        --muted:      #6b7a8f;
+        --accent:     #00b4d8;
+        --accent-dark:#0096b4;
+        --border:     #d7dee6;
+        --surface-alt:#f3f6f9;
+        --success:    #1a8c3d;
+    }
+    * { box-sizing: border-box; }
+    body {
+        font-family: 'IBM Plex Sans', sans-serif;
+        color: var(--ink);
+        margin: 0;
+        padding: 2rem 2.5rem 3rem;
+        max-width: 900px;
+        margin-inline: auto;
+        background: #fff;
+    }
+
+    .toolbar {
+        display: flex;
+        justify-content: flex-end;
+        gap: .6rem;
+        margin-bottom: 1.5rem;
+    }
+    .toolbar button {
+        font-family: inherit;
+        font-size: .85rem;
+        font-weight: 500;
+        padding: .5rem 1.1rem;
+        border-radius: 6px;
+        border: 1px solid var(--border);
+        background: #fff;
+        cursor: pointer;
+    }
+    .toolbar button.primary {
+        background: var(--accent);
+        border-color: var(--accent);
+        color: #fff;
+    }
+
+    .sheet-header {
+        border-bottom: 2px solid var(--ink);
+        padding-bottom: 1rem;
+        margin-bottom: 1.25rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-end;
+        gap: 1rem;
+    }
+    .sheet-title {
+        font-size: 1.4rem;
+        font-weight: 700;
+        margin: 0 0 .25rem;
+    }
+    .sheet-subtitle {
+        font-size: .85rem;
+        color: var(--muted);
+        margin: 0;
+    }
+    .sheet-meta {
+        text-align: right;
+        font-size: .78rem;
+        color: var(--muted);
+        line-height: 1.5;
+    }
+    .sheet-meta strong { color: var(--ink); }
+
+    .reaction-banner {
+        background: var(--surface-alt);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: .75rem 1.1rem;
+        margin-bottom: 1.5rem;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        font-size: .9rem;
+    }
+    .reaction-banner .count {
+        font-family: 'IBM Plex Mono', monospace;
+        font-weight: 700;
+        font-size: 1.2rem;
+        color: var(--accent-dark);
+    }
+
+    .step-card {
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        margin-bottom: 1.1rem;
+        overflow: hidden;
+        break-inside: avoid;
+        page-break-inside: avoid;
+    }
+    .step-header {
+        background: var(--ink);
+        color: #fff;
+        padding: .55rem 1rem;
+        font-size: .9rem;
+        font-weight: 600;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    .stop-badge {
+        font-size: .65rem;
+        font-weight: 700;
+        letter-spacing: .04em;
+        text-transform: uppercase;
+        background: rgba(255,255,255,0.18);
+        border: 1px solid rgba(255,255,255,0.35);
+        padding: 2px 8px;
+        border-radius: 4px;
+        white-space: nowrap;
+    }
+
+    table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: .85rem;
+    }
+    th {
+        text-align: left;
+        font-size: .68rem;
+        font-weight: 600;
+        letter-spacing: .05em;
+        text-transform: uppercase;
+        color: var(--muted);
+        padding: .45rem .9rem;
+        border-bottom: 1px solid var(--border);
+        background: var(--surface-alt);
+    }
+    td {
+        padding: .45rem .9rem;
+        border-bottom: 1px solid var(--border);
+    }
+    tbody tr:last-child td { border-bottom: none; }
+    .mono { font-family: 'IBM Plex Mono', monospace; }
+    .vol-cell { font-family: 'IBM Plex Mono', monospace; font-weight: 600; color: var(--accent-dark); }
+    .total-row td {
+        background: var(--surface-alt);
+        font-weight: 700;
+        font-family: 'IBM Plex Mono', monospace;
+    }
+    .fixed-tag {
+        font-size: .65rem;
+        color: var(--muted);
+        margin-left: .4rem;
+        font-weight: 400;
+    }
+
+    .sign-off {
+        margin-top: 2rem;
+        display: flex;
+        gap: 3rem;
+        font-size: .8rem;
+    }
+    .sign-off .field {
+        flex: 1;
+        border-top: 1px solid var(--ink);
+        padding-top: .35rem;
+        color: var(--muted);
+    }
+
+    .footer-note {
+        margin-top: 2rem;
+        font-size: .72rem;
+        color: var(--muted);
+        border-top: 1px solid var(--border);
+        padding-top: .6rem;
+    }
+
+    @media print {
+        body { padding: 0; max-width: none; }
+        .toolbar { display: none; }
+        .step-card { break-inside: avoid; page-break-inside: avoid; }
+        @page { margin: 1.4cm; }
+    }
+</style>
+</head>
+<body>
+
+<div class="toolbar">
+    <button onclick="window.close()">
+        <i class="fas fa-times"></i> Close
+    </button>
+
+    <button class="primary" onclick="window.print()">
+        <i class="fas fa-print"></i> Print / Save as PDF
+    </button>
+</div>
+
+<div class="sheet-header">
+    <div>
+        <p class="sheet-title">Master Mix Sheet</p>
+        <p class="sheet-subtitle">{{ batch.workflowType.workflowType }}</p>
+    </div>
+    <div class="sheet-meta">
+        <div><strong>{{ batch.batch_name|default:batch.plate.plate_name }}</strong></div>
+        {% if batch.project %}<div>{{ batch.project.project_name }} · {{ batch.project.client.client_name }}</div>{% endif %}
+        <div>Date Prepped: {{ batch.datePrepped|date:"F j, Y" }}</div>
+        <div>Printed: {{ printed_at|date:"F j, Y, g:i A" }}</div>
+    </div>
+</div>
+
+<div class="reaction-banner">
+    <span>Number of Reactions used for these volumes</span>
+    <span class="count">{{ reaction_count }}</span>
+</div>
+
+{% if mastermix_steps %}
+    {% for step in mastermix_steps %}
+    <div class="step-card">
+        <div class="step-header">
+            <span>{{ step.stepName }}</span>
+            {% if step.is_stopping_point %}
+            <span class="stop-badge">Safe Stopping Point</span>
+            {% endif %}
+        </div>
+        <table>
+            <thead>
+                <tr>
+                    <th>Component</th>
+                    <th>Volume / Reaction (µL)</th>
+                    <th>Master Mix Volume (µL)</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in step.ordered_rows %}
+                <tr>
+                    <td>
+                        {{ row.step_row.stepRowName }}
+                        {% if row.constantOfMM == 0 %}<span class="fixed-tag">(fixed)</span>{% endif %}
+                    </td>
+                    <td class="mono">{{ row.volumePerRxn|default:"—" }}</td>
+                    <td class="vol-cell">{{ row.computed_volume|default_if_none:"—"|floatformat:2 }}</td>
+                </tr>
+                {% endfor %}
+                <tr class="total-row">
+                    <td colspan="2">Total Volume</td>
+                    <td class="vol-cell">{{ step.computed_total|default_if_none:"—"|floatformat:2 }}</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+    {% endfor %}
+{% else %}
+    <p style="color:var(--muted);">No master mix reference data has been set up yet for this workflow.</p>
+{% endif %}
+
+<div class="sign-off">
+    <div class="field">Prepared By</div>
+    <div class="field">Date</div>
+    <div class="field">Verified By</div>
+</div>
+
+<div class="footer-note">
+    NGS-LIMS — Master Mix sheet generated from workflow "{{ batch.workflowType.workflowType }}" reference data.
+    Volumes assume {{ reaction_count }} total reaction(s). Re-print if the reaction count changes.
+</div>
+
+</body>
+</html>

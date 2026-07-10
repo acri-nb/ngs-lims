@@ -1,0 +1,142 @@
+/*  TABS (same pattern as Inventory)  */
+.libprep-tabs {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 1rem;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 0;
+}
+.libprep-tab {
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    padding: 0.5rem 1rem 0.6rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: color 0.15s, border-color 0.15s;
+    margin-bottom: -1px;
+}
+.libprep-tab:hover  { color: var(--text); }
+.libprep-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+.null-val { color: var(--text-muted); }
+.btn-export, .btn-import {
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text);
+    font-size: 0.82rem;
+    padding: 0.4rem 0.85rem;
+    border-radius: 6px;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    cursor: pointer;
+}
+.btn-export:hover { background: var(--surface-alt); }
+.btn-import[disabled] {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+/* ── MASTER MIX TAB ── */
+.mm-toolbar {
+    display: flex;
+    align-items: flex-end;
+    gap: 1.5rem;
+    flex-wrap: wrap;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1rem 1.25rem;
+    margin-bottom: 1.25rem;
+}
+.mm-toolbar .form-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 0.3rem;
+    display: block;
+}
+#mmReactionCount {
+    width: 110px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-weight: 600;
+    font-size: 1rem;
+}
+.mm-save-status {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    min-height: 1.2rem;
+}
+.mm-save-status.dirty  { color: var(--warning); }
+.mm-save-status.saved  { color: var(--success); }
+.mm-save-status.error  { color: var(--danger); }
+.mm-step-card {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--surface);
+    margin-bottom: 1rem;
+    overflow: hidden;
+}
+.mm-step-header {
+    padding: 0.7rem 1.1rem;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface-alt);
+    font-weight: 600;
+    font-size: 0.9rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+}
+.mm-stop-badge {
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: #1a6b30;
+    background: rgba(45,198,83,0.15);
+    border: 1px solid rgba(45,198,83,0.3);
+    padding: 2px 8px;
+    border-radius: 4px;
+    white-space: nowrap;
+}
+.mm-table { width: 100%; font-size: 0.85rem; }
+.mm-table th {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.68rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    text-align: left;
+    padding: 0.5rem 1.1rem;
+    border-bottom: 1px solid var(--border);
+}
+.mm-table td {
+    padding: 0.5rem 1.1rem;
+    border-bottom: 1px solid var(--border);
+}
+.mm-table tbody tr:last-child td { border-bottom: none; }
+.mm-table .mm-vol {
+    font-family: 'IBM Plex Mono', monospace;
+    font-weight: 600;
+    color: var(--accent-dark);
+}
+.mm-total-row td {
+    background: var(--surface-alt);
+    font-weight: 600;
+    font-family: 'IBM Plex Mono', monospace;
+}
+.mm-fixed-tag {
+    font-size: 0.65rem;
+    color: var(--text-muted);
+    margin-left: 0.4rem;
+    font-weight: 400;
+    text-transform: none;
+}

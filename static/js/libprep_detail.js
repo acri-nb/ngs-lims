@@ -1,4 +1,5 @@
 
+
 let activeWell = null;
 
 function selectWell(btn) {
@@ -139,3 +140,132 @@ function filterLibprepTable() {
   });
 }
 
+/*  EXPORT CSV (client-side, from the currently built table) */
+function exportLibprepCSV() {
+  buildLibprepTable(); // make sure it's populated even if user hasn't opened the tab yet
+
+  const headers = ['Well', 'Sample', 'Status', 'Concentration (ng/µL)', 'Volume Sample (µL)', 'Volume Diluent (µL)', 'Actual Input (ng)'];
+  const rows = [headers];
+
+  document.querySelectorAll('#libprepTable tbody tr.libprep-row').forEach(tr => {
+    const cells = tr.querySelectorAll('td');
+    if (cells.length < 7) return; // skip empty-state row
+    const rowData = Array.from(cells).map(td => td.textContent.trim());
+    rows.push(rowData);
+  });
+
+  const csv = rows.map(r => r.map(v => `"${v.replace(/"/g, '""')}"`).join(',')).join('\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `${LIBPREP_PLATE_NAME || 'libprep_batch'}_well_data.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+let mmSavedReactionCount = null; // set on first paint / after a successful save
+let mmSaveInFlight = false;
+
+function mmRecomputeAll() {
+  const input = document.getElementById('mmReactionCount');
+  if (!input) return;
+
+  const n = parseInt(input.value, 10);
+  if (isNaN(n) || n < 0) return;
+
+  document.querySelectorAll('.mm-step-card').forEach(card => {
+    let stepTotal = 0;
+    let anyValue = false;
+
+    card.querySelectorAll('.mm-row').forEach(row => {
+      const perRxn   = parseFloat(row.dataset.perRxn);
+      const extra    = parseInt(row.dataset.extra, 10) || 0;
+      const constant = row.dataset.constant === '0' ? 0 : 1;
+      const volCell  = row.querySelector('.mm-vol');
+
+      if (isNaN(perRxn)) {
+        volCell.textContent = '—';
+        return;
+      }
+
+      const volume = constant === 0 ? perRxn : perRxn * (n + extra);
+      volCell.textContent = volume.toFixed(2);
+      stepTotal += volume;
+      anyValue = true;
+    });
+
+    const totalCell = card.querySelector('.mm-step-total');
+    if (totalCell) totalCell.textContent = anyValue ? stepTotal.toFixed(2) : '—';
+  });
+}
+
+function onMastermixReactionCountChange() {
+  mmRecomputeAll();
+  mmSetSaveStatus('dirty', 'Unsaved changes');
+}
+
+function mmSetSaveStatus(state, text) {
+  const el = document.getElementById('mmSaveStatus');
+  if (!el) return;
+  el.className = 'mm-save-status' + (state ? ' ' + state : '');
+  el.innerHTML = state === 'saved'
+    ? `<i class="fas fa-check-circle"></i> ${text}`
+    : state === 'error'
+      ? `<i class="fas fa-exclamation-circle"></i> ${text}`
+      : state === 'dirty'
+        ? `<i class="fas fa-circle"></i> ${text}`
+        : text || '';
+}
+
+async function saveMastermixReactionCount() {
+  const input = document.getElementById('mmReactionCount');
+  if (!input || mmSaveInFlight) return;
+
+  const n = parseInt(input.value, 10);
+  if (isNaN(n) || n < 0) {
+    mmSetSaveStatus('error', 'Enter a valid, non-negative number');
+    return;
+  }
+
+  mmSaveInFlight = true;
+  mmSetSaveStatus('', 'Saving…');
+
+  try {
+    const resp = await fetch(MASTERMIX_SAVE_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'X-CSRFToken': CSRF_TOKEN,
+      },
+      body: `reaction_count=${encodeURIComponent(n)}`,
+    });
+    const data = await resp.json();
+
+    if (resp.ok && data.ok) {
+      mmSavedReactionCount = data.reaction_count;
+      mmSetSaveStatus('saved', 'Saved');
+    } else {
+      mmSetSaveStatus('error', data.error || 'Could not save');
+    }
+  } catch (err) {
+    mmSetSaveStatus('error', 'Network error — could not save');
+  } finally {
+    mmSaveInFlight = false;
+  }
+}
+
+async function printMastermixSheet() {
+  // Save first so the print sheet (a separate page/request) reflects
+  // whatever reaction count is currently on screen.
+  await saveMastermixReactionCount();
+  window.open(MASTERMIX_PRINT_URL, '_blank');
+}
+
+// Recompute once on load in case the server-rendered value and the
+// input's default value ever drift (defensive — they should match).
+document.addEventListener('DOMContentLoaded', () => {
+  if (document.getElementById('mmReactionCount')) {
+    mmRecomputeAll();
+  }
+});

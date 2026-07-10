@@ -4,6 +4,8 @@ from datetime import date
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib import messages
 from django.db import transaction
+from django.db.models import Prefetch
+from django.http import JsonResponse
 from django.utils import timezone
 
 from .models import (
@@ -11,6 +13,8 @@ from .models import (
     LibraryPrepBatchAuditLog,
     LibraryPrepSample,
     WorkflowType,
+    WorkflowTypeStep,
+    WorkflowStepRowOrder,
     PrepAction,
 )
 from locations.models import Rack, Plate, PlateWell, PlateFormat
@@ -46,6 +50,37 @@ def libprep_list(request):
         })
 
     return render(request, 'library/libprep_list.html', {'batch_data': batch_data})
+
+
+def _get_mastermix_steps(batch, reaction_count):
+    """
+    Fetch this batch's workflow steps + reagent rows and attach a computed `computed_volume` to
+    each row for the given reaction_count, so templates never need to do the math themselves 
+    """
+    steps = (
+        WorkflowTypeStep.objects
+        .filter(workflowType=batch.workflowType)
+        .order_by('sort_order', 'stepName')
+        .prefetch_related(
+            Prefetch(
+                'row_links',
+                queryset=WorkflowStepRowOrder.objects
+                    .select_related('step_row')
+                    .order_by('sort_order'),
+                to_attr='ordered_rows',
+            )
+        )
+    )
+
+    for step in steps:
+        step_total = 0.0
+        for row in step.ordered_rows:
+            row.computed_volume = row.mastermix_volume(reaction_count)
+            if row.computed_volume is not None:
+                step_total += row.computed_volume
+        step.computed_total = round(step_total, 2) if step.ordered_rows else None
+
+    return steps
 
 
 def libprep_detail(request, batch_id):
@@ -92,14 +127,82 @@ def libprep_detail(request, batch_id):
     # Recent audit log for this batch
     audit_log = batch.audit_logs.select_related('changed_by').order_by('-changed_at')[:20]
 
+    #Master Mix tab data 
+    reaction_count  = batch.effective_mastermix_reaction_count
+    mastermix_steps = _get_mastermix_steps(batch, reaction_count)
+
     return render(request, 'library/libprep_detail.html', {
-        'batch':     batch,
-        'grid':      grid,
-        'cols':      COLS,
-        'total':     total,
-        'prepped':   prepped,
-        'pending':   pending,
-        'audit_log': audit_log,
+        'batch':           batch,
+        'grid':            grid,
+        'cols':            COLS,
+        'total':           total,
+        'prepped':         prepped,
+        'pending':         pending,
+        'audit_log':       audit_log,
+        'mastermix_steps': mastermix_steps,
+        'reaction_count':  reaction_count,
+    })
+
+
+def libprep_mastermix_save(request, batch_id):
+    """
+    AJAX endpoint — persists the reaction count a lab member enters on the
+    Master Mix tab, so it's remembered the next time anyone opens this
+    batch (instead of retyping it every visit, like the old Excel sheets).
+    """
+    if request.method != 'POST':
+        return JsonResponse({'ok': False, 'error': 'Invalid request method.'}, status=405)
+
+    batch = get_object_or_404(LibraryPrepBatch, pk=batch_id)
+
+    raw_count = request.POST.get('reaction_count', '').strip()
+    try:
+        reaction_count = int(raw_count)
+        if reaction_count < 0:
+            raise ValueError
+    except (TypeError, ValueError):
+        return JsonResponse({'ok': False, 'error': 'Reaction count must be a positive whole number.'}, status=400)
+
+    previous = batch.mastermix_reaction_count
+    batch.mastermix_reaction_count = reaction_count
+    batch.save(update_fields=['mastermix_reaction_count'])
+
+    LibraryPrepBatchAuditLog.objects.create(
+        batch=batch,
+        changed_by=request.user if request.user.is_authenticated else None,
+        action=LibraryPrepBatchAuditLog.ACTION_UPDATED,
+        detail=(
+            f'Master Mix reaction count set to {reaction_count} '
+            f'(previously {previous if previous is not None else "unset — used sample+control count"}).'
+        ),
+    )
+
+    return JsonResponse({'ok': True, 'reaction_count': reaction_count})
+
+
+def libprep_mastermix_print(request, batch_id):
+    """
+    Standalone, print-friendly Master Mix sheet — no sidebar/topnav, just
+    the sheet itself. Uses the batch's saved reaction count (whatever was
+    last set from the Master Mix tab). The page has a Print button that
+    calls window.print(); the lab member can "Save as PDF" from the
+    browser's print dialog.
+    """
+    batch = get_object_or_404(
+        LibraryPrepBatch.objects.select_related(
+            'project', 'project__client', 'workflowType', 'plate',
+        ),
+        pk=batch_id,
+    )
+
+    reaction_count  = batch.effective_mastermix_reaction_count
+    mastermix_steps = _get_mastermix_steps(batch, reaction_count)
+
+    return render(request, 'library/libprep_mastermix_print.html', {
+        'batch':           batch,
+        'mastermix_steps': mastermix_steps,
+        'reaction_count':  reaction_count,
+        'printed_at':      timezone.now(),
     })
 
 
