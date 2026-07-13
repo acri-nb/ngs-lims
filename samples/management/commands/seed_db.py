@@ -307,7 +307,13 @@ WORKFLOW_TYPES = [
 #         volume_per_rxn   → µL per single reaction (WorkflowStepRowOrder.volumePerRxn)
 #         constant         → 0 = "Fixed / Header" (volume used as-is,
 #                             ignores reaction count), 1 = "Per Reaction"
-#                             (volume × reaction count). Matches
+#                             (volume × reaction count), 2 = "Ethanol
+#                             Dilution Pair" (this row's volume_per_rxn is
+#                             the 80% ethanol working-solution volume per
+#                             reaction; the model computes the actual
+#                             ethanol + water split, rounded to 5 mL
+#                             batches — see WorkflowStepRowOrder in
+#                             models.py). Matches
 #                             WorkflowStepRowOrder.constantOfMM. Default 1.
 #         extra            → extra "dead volume" reactions added on top of
 #                             the batch's reaction count for THIS reagent
@@ -318,18 +324,19 @@ WORKFLOW_TYPES = [
 #     NOT included below (deliberately — see chat writeup):
 #       - "Total Volume" rows: these are just sums of the rows above them
 #         and are meant to be computed at display time, not stored.
-#       - Bead-cleanup / 80% EtOH prep sections: the source sheets compute
-#         these with rounding/ceiling formulas (round up to nearest 5000 µL,
-#         etc.) rather than a simple volume × reactions, which doesn't fit
-#         this row model. Revisit with a dedicated calculation type later.
 #       - Adapter/probe dilution sub-tables (stock + diluent): these are a
 #         one-time dilution prep independent of reaction count and also
-#         depend on a separate "dilution factor" input — same story, needs
-#         its own concept later rather than being forced into this model.
+#         depend on a separate "dilution factor" input the lab member picks
+#         per batch — that's a different kind of input than anything else
+#         here, so it stays out of scope for now.
+#       - The KAPA "Stop Solution (ST2)" / "Resuspension Buffer (RSB)"
+#         "aliquot into 8-strip" sub-division (divide the total by 8 for
+#         pipetting) — a display nicety on top of the already-correct
+#         total volume, not a new number worth modelling yet.
 # ══════════════════════════════════════════════════════════════════════════════
 MASTERMIX_DATA = {
 
-    # MM NextFlex RiboZeroPlus 
+    # ── 1.ods — MM NextFlex RiboZeroPlus ───────────────────────────────────
     "TotalRNA": [
         {
             "stepName": "Hybridize Probe MM", "sort_order": 10,
@@ -353,6 +360,13 @@ MASTERMIX_DATA = {
             ],
         },
         {
+            "stepName": "Clean Up RNA", "sort_order": 35,
+            "rows": [
+                {"name": "80% Ethanol (RNA Clean-up)", "volume_per_rxn": 350, "extra": 2, "constant": 2},
+                {"name": "RNAClean XP Beads", "volume_per_rxn": 60},
+            ],
+        },
+        {
             "stepName": "Fragment and Denature RNA", "sort_order": 40,
             "rows": [
                 {"name": "EPH3", "volume_per_rxn": 8.5, "extra": 1},
@@ -367,9 +381,17 @@ MASTERMIX_DATA = {
         },
         {
             "stepName": "Second Strand Synthesis MM", "sort_order": 60,
-            "is_stopping_point": True,
             "rows": [
                 {"name": "SMM (invert to mix)", "volume_per_rxn": 25, "extra": 1},
+            ],
+        },
+        {
+        
+            "stepName": "Clean Up cDNA", "sort_order": 65,
+            "is_stopping_point": True,
+            "rows": [
+                {"name": "80% Ethanol (cDNA Clean-up)", "volume_per_rxn": 350, "extra": 2, "constant": 2},
+                {"name": "AMPure XP Beads", "volume_per_rxn": 90},
             ],
         },
         {
@@ -387,9 +409,18 @@ MASTERMIX_DATA = {
         },
         {
             "stepName": "Stop Ligation", "sort_order": 90,
-            "is_stopping_point": True,
             "rows": [
                 {"name": "STL", "volume_per_rxn": 5, "extra": 2},
+            ],
+        },
+        {
+            # Sheet marks "Safe Stopping Point" right after this clean-up,
+            # not after Stop Ligation itself.
+            "stepName": "Clean Up Fragments", "sort_order": 95,
+            "is_stopping_point": True,
+            "rows": [
+                {"name": "80% Ethanol (Fragment Clean-up)", "volume_per_rxn": 350, "extra": 2, "constant": 2},
+                {"name": "AMPure XP Beads", "volume_per_rxn": 34},
             ],
         },
         {
@@ -399,9 +430,16 @@ MASTERMIX_DATA = {
                 {"name": "EPM (invert to mix)", "volume_per_rxn": 20, "extra": 1},
             ],
         },
+        {
+            "stepName": "Clean Up Library", "sort_order": 110,
+            "rows": [
+                {"name": "80% Ethanol (Library Clean-up)", "volume_per_rxn": 350, "extra": 2, "constant": 2},
+                {"name": "AMPure XP Beads", "volume_per_rxn": 50},
+            ],
+        },
     ],
 
-    #  MM Illumina DNA-PCR Free 
+    # ── 2.ods — MM Illumina DNA-PCR Free ───────────────────────────────────
     "DNA PCR Free WGS": [
         {
             "stepName": "BLT-PF", "sort_order": 10,
@@ -492,6 +530,15 @@ MASTERMIX_DATA = {
             ],
         },
         {
+            # Unlike TotalRNA's clean-ups, KAPA's ethanol formula here uses
+            # the reaction count directly with no "+2" dead-volume buffer,
+            # and the sheet doesn't track a separate bead-volume line item.
+            "stepName": "Step D: Post-Ligation Cleanup", "sort_order": 35,
+            "rows": [
+                {"name": "80% Ethanol (Post-Ligation Clean-up)", "volume_per_rxn": 400, "constant": 2},
+            ],
+        },
+        {
             # Sheet note: "Add Following Samples in Order. DO NOT CREATE
             # MASTERMIX" — these two reagents are added to each reaction
             # individually rather than pre-mixed. Kept as regular rows for
@@ -501,6 +548,12 @@ MASTERMIX_DATA = {
             "rows": [
                 {"name": "Library Amplification Primer Mix (10X)", "volume_per_rxn": 5},
                 {"name": "KAPA HiFi HotStart ReadyMix (2X)", "volume_per_rxn": 25},
+            ],
+        },
+        {
+            "stepName": "Step F: Post-Amplification Cleanup", "sort_order": 45,
+            "rows": [
+                {"name": "80% Ethanol (Post-Amplification Clean-up)", "volume_per_rxn": 400, "constant": 2},
             ],
         },
     ],
@@ -541,10 +594,28 @@ MASTERMIX_DATA = {
             ],
         },
         {
+            # Ethanol formula here uses reaction count directly (no "+2");
+            # the isopropanol precipitation step does use "+2", matching
+            # the sheet's two different formulas side by side.
+            "stepName": "Step E: Bead Clean Up (without size selection)", "sort_order": 45,
+            "is_stopping_point": True,
+            "rows": [
+                {"name": "80% Ethanol (Bead Clean-up)", "volume_per_rxn": 400, "constant": 2},
+                {"name": "100% Isopropanol", "volume_per_rxn": 90, "extra": 2},
+            ],
+        },
+        {
             "stepName": "Step 7: PCR Amplification of the RT Product", "sort_order": 50,
             "is_stopping_point": True,
             "rows": [
                 {"name": "NEXTFLEX Small RNA PCR Master Mix", "volume_per_rxn": 6},
+            ],
+        },
+        {
+            "stepName": "Step 8: Size Selection and Clean Up (without size selection for exosome samples)",
+            "sort_order": 55,
+            "rows": [
+                {"name": "80% Ethanol (Size Selection Clean-up)", "volume_per_rxn": 400, "constant": 2},
             ],
         },
     ],

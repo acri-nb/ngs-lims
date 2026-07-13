@@ -54,8 +54,10 @@ def libprep_list(request):
 
 def _get_mastermix_steps(batch, reaction_count):
     """
-    Fetch this batch's workflow steps + reagent rows and attach a computed `computed_volume` to
-    each row for the given reaction_count, so templates never need to do the math themselves 
+    Fetch this batch's workflow steps + reagent rows (ordered exactly like
+    the source protocol sheets) and attach a computed `computed_volume` to
+    each row for the given reaction_count, so templates never need to do
+    the math themselves (handy for the print view, which has no JS).
     """
     steps = (
         WorkflowTypeStep.objects
@@ -76,6 +78,10 @@ def _get_mastermix_steps(batch, reaction_count):
         step_total = 0.0
         for row in step.ordered_rows:
             row.computed_volume = row.mastermix_volume(reaction_count)
+            if row.constantOfMM == 2:
+                row.computed_ethanol, row.computed_water = row.ethanol_dilution_volumes(reaction_count)
+            else:
+                row.computed_ethanol, row.computed_water = None, None
             if row.computed_volume is not None:
                 step_total += row.computed_volume
         step.computed_total = round(step_total, 2) if step.ordered_rows else None

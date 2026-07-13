@@ -1,3 +1,5 @@
+import math
+
 from django.db import models
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
@@ -141,11 +143,24 @@ class WorkflowStepRowOrder(models.Model):
     )
     constantOfMM = models.IntegerField(
         default=1,
-        choices=[(0, 'Fixed / Header'), (1, 'Per Reaction (×n)')],
+        choices=[
+            (0, 'Fixed / Header'),
+            (1, 'Per Reaction (×n)'),
+            (2, 'Ethanol Dilution Pair (rounds to nearest 5 mL batch)'),
+        ],
         verbose_name=_("Row Type"),
+        help_text=_(
+            "Per Reaction: volumePerRxn × (reactions + extra_reactions). "
+            "Fixed / Header: volumePerRxn is used as-is, ignoring reaction "
+            "count. Ethanol Dilution Pair: this single row represents a "
+            "fresh 80% ethanol prep, call ethanol_dilution_volumes() to "
+            "get the (ethanol, water) split instead of one plain volume; "
+            "volumePerRxn here is the working-solution volume per "
+            "reaction (e.g. the 350 or 400 µL of 80% EtOH used per wash), "
+            "not a straight reagent volume."
+        ),
     )
 
-    
     # Several of the source protocol sheets don't just do volumePerRxn × n;
     # they pad a fixed number of extra reactions on top as dead-volume /
     # pipetting-loss buffer, e.g. "(n + 1)" or "(n + 2)"
@@ -163,6 +178,12 @@ class WorkflowStepRowOrder(models.Model):
             "the reagent scales with reaction count exactly."
         ),
     )
+    
+    # Every source sheet that preps fresh 80% ethanol uses the exact same
+    # rounding convention, regardless of workflow.
+    ETOH_ROUND_INCREMENT_UL = 5000   # round working-solution batches to the nearest 5 mL
+    ETOH_BUFFER_THRESHOLD_UL = 1700  # if within 1.7 mL of the boundary, bump up one more batch
+    ETOH_PERCENT = 0.8               # 80% ethanol : 20% nuclease-free water
 
     class Meta:
         ordering        = ['sort_order']
@@ -176,13 +197,45 @@ class WorkflowStepRowOrder(models.Model):
     def mastermix_volume(self, reaction_count):
         """
         Compute this row's master mix volume for a given reaction count.
-        Fixed/Header rows return volumePerRxn unchanged.
+        Fixed/Header rows return volumePerRxn unchanged. 
         """
         if self.volumePerRxn is None:
             return None
         if self.constantOfMM == 0:
             return self.volumePerRxn
+        if self.constantOfMM == 2:
+            ethanol, water = self.ethanol_dilution_volumes(reaction_count)
+            return None if ethanol is None else round(ethanol + water, 2)
         return self.volumePerRxn * (reaction_count + self.extra_reactions)
+
+    def ethanol_dilution_volumes(self, reaction_count):
+        """
+        Only meaningful when constantOfMM == 2 (Ethanol Dilution Pair).
+
+        The source sheets don't measure out an exact 80% ethanol volume —
+        they prep it fresh in round 5 mL batches, with an extra batch
+        added as a buffer if the raw volume needed is already close to
+        the next boundary. Returns (ethanol_ul, water_ul), or (None, None)
+        if this row isn't an Ethanol Dilution Pair or has no volume set.
+
+            raw   = volumePerRxn * (reaction_count + extra_reactions)
+            round = CEILING(raw, 5000)
+            round = round + 5000  if raw >= round - 1700
+            ethanol = round * 0.8
+            water   = CEILING(ethanol, 5000) - ethanol
+        """
+        if self.constantOfMM != 2 or self.volumePerRxn is None:
+            return None, None
+
+        raw_total = self.volumePerRxn * (reaction_count + self.extra_reactions)
+        rounded = math.ceil(raw_total / self.ETOH_ROUND_INCREMENT_UL) * self.ETOH_ROUND_INCREMENT_UL
+        if raw_total >= rounded - self.ETOH_BUFFER_THRESHOLD_UL:
+            rounded += self.ETOH_ROUND_INCREMENT_UL
+
+        ethanol = round(rounded * self.ETOH_PERCENT, 2)
+        water_batch = math.ceil(ethanol / self.ETOH_ROUND_INCREMENT_UL) * self.ETOH_ROUND_INCREMENT_UL
+        water = round(water_batch - ethanol, 2)
+        return ethanol, water
 
 
 # 

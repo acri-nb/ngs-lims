@@ -301,9 +301,6 @@
     <div class="mm-step-card">
       <div class="mm-step-header">
         <span>{{ step.stepName }}</span>
-        {% if step.is_stopping_point %}
-        <span class="mm-stop-badge"><i class="fas fa-pause-circle"></i> Safe Stopping Point</span>
-        {% endif %}
       </div>
       <table class="mm-table">
         <thead>
@@ -315,6 +312,23 @@
         </thead>
         <tbody>
           {% for row in step.ordered_rows %}
+          {% if row.constantOfMM == 2 %}
+          <tr class="mm-row mm-row-etoh"
+              data-per-rxn="{{ row.volumePerRxn|default:'' }}"
+              data-extra="{{ row.extra_reactions }}"
+              data-constant="2">
+            <td>
+              Ethanol <span class="mm-fixed-tag">({{ row.step_row.stepRowName }}, rounded to 5 mL batch)</span>
+            </td>
+            <td class="mono">{{ row.volumePerRxn|default:"—" }}<span class="mm-fixed-tag">/rxn working solution</span></td>
+            <td class="mm-vol mm-vol-ethanol">{{ row.computed_ethanol|default_if_none:"—"|floatformat:2 }}</td>
+          </tr>
+          <tr class="mm-row-etoh-water">
+            <td>NF H<sub>2</sub>O <span class="mm-fixed-tag">(to bring ethanol up to batch volume)</span></td>
+            <td class="mono">—</td>
+            <td class="mm-vol mm-vol-water">{{ row.computed_water|default_if_none:"—"|floatformat:2 }}</td>
+          </tr>
+          {% else %}
           <tr class="mm-row"
               data-per-rxn="{{ row.volumePerRxn|default:'' }}"
               data-extra="{{ row.extra_reactions }}"
@@ -326,6 +340,7 @@
             <td class="mono">{{ row.volumePerRxn|default:"—" }}</td>
             <td class="mm-vol">{{ row.computed_volume|default_if_none:"—"|floatformat:2 }}</td>
           </tr>
+          {% endif %}
           {% endfor %}
           <tr class="mm-total-row">
             <td colspan="2">Total Volume</td>
@@ -334,6 +349,13 @@
         </tbody>
       </table>
     </div>
+
+    {% if step.is_stopping_point %}
+    <div class="stop-banner">
+      <i class="fas fa-pause-circle"></i> Safe Stopping Point
+    </div>
+    {% endif %}
+
     {% endfor %}
   {% else %}
   <div class="card">

@@ -167,8 +167,25 @@ function exportLibprepCSV() {
 let mmSavedReactionCount = null; // set on first paint / after a successful save
 let mmSaveInFlight = false;
 
-function mmRecomputeAll() {
-  const input = document.getElementById('mmReactionCount');
+// Mirrors WorkflowStepRowOrder.ethanol_dilution_volumes() in models.py —
+// keep these two in sync if the rounding convention ever changes.
+const ETOH_ROUND_INCREMENT_UL  = 5000;
+const ETOH_BUFFER_THRESHOLD_UL = 1700;
+const ETOH_PERCENT             = 0.8;
+
+function ethanolDilutionVolumes(perRxn, extra, n) {
+  const rawTotal = perRxn * (n + extra);
+  let rounded = Math.ceil(rawTotal / ETOH_ROUND_INCREMENT_UL) * ETOH_ROUND_INCREMENT_UL;
+  if (rawTotal >= rounded - ETOH_BUFFER_THRESHOLD_UL) {
+    rounded += ETOH_ROUND_INCREMENT_UL;
+  }
+  const ethanol = rounded * ETOH_PERCENT;
+  const waterBatch = Math.ceil(ethanol / ETOH_ROUND_INCREMENT_UL) * ETOH_ROUND_INCREMENT_UL;
+  const water = waterBatch - ethanol;
+  return [ethanol, water];
+}
+
+function mmRecomputeAll() { const input = document.getElementById('mmReactionCount');
   if (!input) return;
 
   const n = parseInt(input.value, 10);
@@ -181,14 +198,30 @@ function mmRecomputeAll() {
     card.querySelectorAll('.mm-row').forEach(row => {
       const perRxn   = parseFloat(row.dataset.perRxn);
       const extra    = parseInt(row.dataset.extra, 10) || 0;
-      const constant = row.dataset.constant === '0' ? 0 : 1;
-      const volCell  = row.querySelector('.mm-vol');
+      const constant = row.dataset.constant === '0' ? 0 : (row.dataset.constant === '2' ? 2 : 1);
 
       if (isNaN(perRxn)) {
-        volCell.textContent = '—';
+        const volCell = row.querySelector('.mm-vol');
+        if (volCell) volCell.textContent = '—';
         return;
       }
 
+      if (constant === 2) {
+        // Ethanol Dilution Pair — this row + its water sibling row.
+        const [ethanol, water] = ethanolDilutionVolumes(perRxn, extra, n);
+        const ethanolCell = row.querySelector('.mm-vol-ethanol');
+        if (ethanolCell) ethanolCell.textContent = ethanol.toFixed(2);
+
+        const waterRow = row.nextElementSibling;
+        const waterCell = waterRow ? waterRow.querySelector('.mm-vol-water') : null;
+        if (waterCell) waterCell.textContent = water.toFixed(2);
+
+        stepTotal += ethanol + water;
+        anyValue = true;
+        return;
+      }
+
+      const volCell = row.querySelector('.mm-vol');
       const volume = constant === 0 ? perRxn : perRxn * (n + extra);
       volCell.textContent = volume.toFixed(2);
       stepTotal += volume;

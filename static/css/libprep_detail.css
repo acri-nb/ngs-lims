@@ -140,3 +140,15 @@
     font-weight: 400;
     text-transform: none;
 }
+
+.stop-banner {
+    display: flex; align-items: center; justify-content: center; gap: .5rem;
+    background: var(--surface-alt);
+    border: 1px dashed var(--ink);
+    border-radius: 8px;
+    padding: .5rem 1rem;
+    margin: -0.3rem 0 1.1rem;
+    font-size: .72rem; font-weight: 700; letter-spacing: .05em; text-transform: uppercase;
+    color: var(--ink);
+    break-inside: avoid; page-break-inside: avoid;
+}

@@ -184,6 +184,19 @@
         .step-card { break-inside: avoid; page-break-inside: avoid; }
         @page { margin: 1.4cm; }
     }
+
+    .stop-banner {
+    display: flex; align-items: center; justify-content: center; gap: .5rem;
+    background: var(--surface-alt);
+    border: 1px dashed var(--ink);
+    border-radius: 8px;
+    padding: .5rem 1rem;
+    margin: -0.3rem 0 1.1rem;
+    font-size: .72rem; font-weight: 700; letter-spacing: .05em; text-transform: uppercase;
+    color: var(--ink);
+    break-inside: avoid; page-break-inside: avoid;
+    }
+
 </style>
 </head>
 <body>
@@ -221,9 +234,6 @@
     <div class="step-card">
         <div class="step-header">
             <span>{{ step.stepName }}</span>
-            {% if step.is_stopping_point %}
-            <span class="stop-badge">Safe Stopping Point</span>
-            {% endif %}
         </div>
         <table>
             <thead>
@@ -235,6 +245,18 @@
             </thead>
             <tbody>
                 {% for row in step.ordered_rows %}
+                {% if row.constantOfMM == 2 %}
+                <tr>
+                    <td>Ethanol <span class="fixed-tag">(fresh {{ row.step_row.stepRowName }}, rounded to 5 mL batch)</span></td>
+                    <td class="mono">{{ row.volumePerRxn|default:"—" }}<span class="fixed-tag">/rxn working solution</span></td>
+                    <td class="vol-cell">{{ row.computed_ethanol|default_if_none:"—"|floatformat:2 }}</td>
+                </tr>
+                <tr>
+                    <td>NF H<sub>2</sub>O <span class="fixed-tag">(to bring ethanol up to batch volume)</span></td>
+                    <td class="mono">—</td>
+                    <td class="vol-cell">{{ row.computed_water|default_if_none:"—"|floatformat:2 }}</td>
+                </tr>
+                {% else %}
                 <tr>
                     <td>
                         {{ row.step_row.stepRowName }}
@@ -243,6 +265,7 @@
                     <td class="mono">{{ row.volumePerRxn|default:"—" }}</td>
                     <td class="vol-cell">{{ row.computed_volume|default_if_none:"—"|floatformat:2 }}</td>
                 </tr>
+                {% endif %}
                 {% endfor %}
                 <tr class="total-row">
                     <td colspan="2">Total Volume</td>
@@ -251,6 +274,10 @@
             </tbody>
         </table>
     </div>
+
+    {% if step.is_stopping_point %}
+    <div class="stop-banner">Safe Stopping Point</div>
+    {% endif %}
     {% endfor %}
 {% else %}
     <p style="color:var(--muted);">No master mix reference data has been set up yet for this workflow.</p>
