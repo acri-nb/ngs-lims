@@ -234,3 +234,44 @@ function showToast(msg, type='') {
   wrap.appendChild(el);
   setTimeout(() => el.remove(), 3500);
 }
+
+function openGatesModal()  { document.getElementById('gatesModal').classList.add('open'); }
+function closeGatesModal() { document.getElementById('gatesModal').classList.remove('open'); }
+function openRulesModal()  { document.getElementById('rulesModal').classList.add('open'); }
+function closeRulesModal() { document.getElementById('rulesModal').classList.remove('open'); }
+
+async function saveGates() {
+  const btn = document.getElementById('btnSaveGates');
+  const msg = document.getElementById('gatesSaveMsg');
+  const inputs = document.querySelectorAll('#gatesModal input[type="number"]');
+
+  const body = new URLSearchParams();
+  inputs.forEach(inp => body.append(inp.id, inp.value));
+
+  btn.disabled = true;
+  msg.textContent = 'Saving…';
+  msg.style.color = 'var(--text-muted)';
+
+  try {
+    const resp = await fetch(GATES_SAVE_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-CSRFToken': CSRF_TOKEN },
+      body: body.toString(),
+    });
+    const data = await resp.json();
+
+    if (resp.ok && data.ok) {
+      msg.style.color = 'var(--success)';
+      msg.textContent = `Saved — ${data.recalculated} sample(s) recalculated. Reloading…`;
+      setTimeout(() => location.reload(), 700);
+    } else {
+      msg.style.color = 'var(--danger)';
+      msg.textContent = data.error || 'Could not save gates.';
+      btn.disabled = false;
+    }
+  } catch (err) {
+    msg.style.color = 'var(--danger)';
+    msg.textContent = 'Network error — could not save.';
+    btn.disabled = false;
+  }
+}

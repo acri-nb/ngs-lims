@@ -216,3 +216,13 @@ tbody tr:hover { background:var(--surface-alt); }
     text-overflow: ellipsis;
     white-space: nowrap;
 }
+
+.gates-table { width:100%; border-collapse:collapse; margin-bottom:.5rem; }
+.gates-table th { font-size:.68rem; text-transform:uppercase; letter-spacing:.05em; color:var(--text-muted); padding:.3rem .5rem; text-align:left; }
+.gates-table td { padding:.35rem .5rem; font-size:.82rem; }
+.gates-table input[type="number"] {
+  width:90px; border:1px solid var(--border); border-radius:5px;
+  padding:.3rem .5rem; font-family:'IBM Plex Mono',monospace; font-size:.82rem;
+  background:var(--surface-alt); color:var(--text); outline:none;
+}
+.gates-table input[type="number"]:focus { border-color:var(--accent); }

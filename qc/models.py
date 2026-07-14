@@ -57,6 +57,83 @@ class SampleQCBatch(models.Model):
         related_name='qc_batches'
     )
 
+    # QC GATES configurable per batch so the lab can loosen/tighten
+    # thresholds per project without a code change. 
+
+    # RNA pass logic
+    #   quantity_ok = (qubit_nm * gate_rna_elution_ul) > gate_rna_min_ng
+    #   quality_ok  = RIN > gate_rna_rin_pass
+    #                 OR (RIN > gate_rna_rin_or_min AND dv200 > gate_rna_dv200_or_min)
+    #                 OR dv200 > gate_rna_dv200_pass
+    #   PASS    if quantity_ok and quality_ok
+    #   CAUTION if RIN is between gate_rna_caution_rin_min and gate_rna_rin_pass,
+    #           AND dv200 is between gate_rna_caution_dv200_min and gate_rna_caution_dv200_max
+    #   FAIL    otherwise
+
+    # RNA gates
+    gate_rna_min_ng = models.FloatField(
+        default=100.0,
+        verbose_name=_("RNA: Minimum Quantity (ng)"),
+        help_text=_("Total ng required to pass the quantity gate (qubit_nm × elution volume)."),
+    )
+    gate_rna_elution_ul = models.FloatField(
+        default=40.0,
+        verbose_name=_("RNA: Elution Volume (µL)"),
+        help_text=_("Used to convert Qubit ng/µL into total ng: qubit_nm × this value."),
+    )
+    gate_rna_rin_pass = models.FloatField(
+        default=5.0,
+        verbose_name=_("RNA: RIN Pass Threshold (row 1)"),
+        help_text=_("RIN alone passes quality above this value."),
+    )
+    gate_rna_rin_or_min = models.FloatField(
+        default=2.0,
+        verbose_name=_("RNA: RIN Threshold, combined with dv200 (row 2)"),
+    )
+    gate_rna_dv200_or_min = models.FloatField(
+        default=55.0,
+        verbose_name=_("RNA: dv200 Threshold, combined with RIN (row 2)"),
+    )
+    gate_rna_dv200_pass = models.FloatField(
+        default=62.0,
+        verbose_name=_("RNA: dv200 Pass Threshold, alone (row 3)"),
+    )
+    gate_rna_caution_rin_min = models.FloatField(
+        default=1.99,
+        verbose_name=_("RNA: Caution Zone: RIN Minimum"),
+    )
+    gate_rna_caution_dv200_min = models.FloatField(
+        default=40.0,
+        verbose_name=_("RNA: Caution Zone: dv200 Minimum"),
+    )
+    gate_rna_caution_dv200_max = models.FloatField(
+        default=54.0,
+        verbose_name=_("RNA: Caution Zone: dv200 Maximum"),
+    )
+
+    # DNA gates
+    gate_dna_min_ng = models.FloatField(
+        default=100.0,
+        verbose_name=_("DNA: Minimum Quantity (ng)"),
+        help_text=_("Total ng required to pass the quantity gate (qubit_nm × elution volume)."),
+    )
+    gate_dna_elution_ul = models.FloatField(
+        default=100.0,
+        verbose_name=_("DNA: Elution Volume (µL)"),
+    )
+    gate_dna_260_280_min = models.FloatField(
+        default=1.79,
+        verbose_name=_("DNA: Nanodrop 260/280 Minimum"),
+    )
+    gate_dna_260_230_pass_min = models.FloatField(
+        default=1.7,
+        verbose_name=_("DNA: Nanodrop 260/230 Pass Minimum"),
+    )
+    gate_dna_260_230_caution_min = models.FloatField(
+        default=1.4,
+        verbose_name=_("DNA: Nanodrop 260/230 Caution Minimum"),
+    )
+
     def _generate_batch_name(self, project_name: str) -> str:
         hex_id = format(self.id, '04X')   # ← self.id not self.batch_id
         return f"{project_name}-SampleQC-{hex_id}"
@@ -228,47 +305,51 @@ class SampleQC(models.Model):
         Returns 'Pass', 'Fail', 'Caution', or 'Pending' if data is missing.
         """
         sample_type = self.sample.sample_type  # 'DNA' or 'RNA'
-    
+        gates = self.batch
+
         if sample_type == 'DNA':
             # Need all three values to evaluate
             if any(v is None for v in [self.qubit_nm, self.nanodrop_260_280, self.nanodrop_260_230]):
                 return self.PENDING
-    
-            qubit_total = self.qubit_nm * 100  # assumes 100 µL elution volume
-    
-            if qubit_total > 100 and self.nanodrop_260_280 > 1.79 and self.nanodrop_260_230 > 1.7:
+
+            qubit_total = self.qubit_nm * gates.gate_dna_elution_ul
+
+            if (qubit_total > gates.gate_dna_min_ng
+                    and self.nanodrop_260_280 > gates.gate_dna_260_280_min
+                    and self.nanodrop_260_230 > gates.gate_dna_260_230_pass_min):
                 return self.PASS
-            elif self.nanodrop_260_230 > 1.4:
+            elif self.nanodrop_260_230 > gates.gate_dna_260_230_caution_min:
                 return self.CAUTION
             else:
                 return self.FAIL
-    
+
         elif sample_type == 'RNA':
             # Need qubit at minimum
             if self.qubit_nm is None:
                 return self.PENDING
             if self.rin is None and self.dv200 is None:
                 return self.PENDING
-    
-            qubit_total = self.qubit_nm * 40  # assumes 40 µL elution volume
-    
+
+            qubit_total = self.qubit_nm * gates.gate_rna_elution_ul
+
             rin   = self.rin   if self.rin   is not None else 0
             dv200 = self.dv200 if self.dv200 is not None else 0
-    
-            passes_quantity = qubit_total > 100
+
+            passes_quantity = qubit_total > gates.gate_rna_min_ng
             passes_quality  = (
-                rin > 5
-                or (rin > 2 and dv200 > 55)
-                or dv200 > 62          # dv200 > L3+7 where L3=55
+                rin > gates.gate_rna_rin_pass
+                or (rin > gates.gate_rna_rin_or_min and dv200 > gates.gate_rna_dv200_or_min)
+                or dv200 > gates.gate_rna_dv200_pass
             )
-    
+
             if passes_quantity and passes_quality:
                 return self.PASS
-            elif (rin > 1.99 and rin < 5) and (dv200 > 40 and dv200 < 54):
+            elif (gates.gate_rna_caution_rin_min < rin < gates.gate_rna_rin_pass) and \
+                 (gates.gate_rna_caution_dv200_min < dv200 < gates.gate_rna_caution_dv200_max):
                 return self.CAUTION
             else:
                 return self.FAIL
-    
+
         return self.PENDING
     
     
@@ -356,6 +437,8 @@ class SampleQC(models.Model):
     def save(self, *args, skip_validation=False, **kwargs):
         # skip_validation=True is used when creating a blank PENDING stub
         # (all metrics null) from the batch board — there is nothing to validate yet.
+        # Also used when recalculating existing results after a QC gate
+        # change, since we're not touching the measured values themselves.
         if not skip_validation:
             self.full_clean()
         self.qc_status = self.calculate_qc_status()
@@ -364,34 +447,3 @@ class SampleQC(models.Model):
 
     def __str__(self):
         return f"QC {self.sample}({self.qc_status})"
-
-    """
-    QC measurement results for a sample.
-    Metrics depend on sample type:
-      DNA : qubit_nm, nanodrop_260_280, nanodrop_260_230
-      RNA : qubit_nm, rin, dv200
-
-    (Unused metrics are left null.)
-    """
-
-    PASS    = 'Pass'
-    FAIL    = 'Fail'
-    CAUTION = 'Caution'
-    PENDING = 'Pending'
-    QC_STATUS_CHOICES = [
-        (PASS,    _('Pass')),
-        (FAIL,    _('Fail')),
-        (CAUTION, _('Caution')),
-        (PENDING, _('Pending')),
-    ]
-
-    sample = models.ForeignKey(
-        Sample,
-        on_delete=models.PROTECT,
-        related_name='qc_results'
-    )
-    batch = models.ForeignKey(
-        SampleQCBatch,
-        on_delete=models.PROTECT,
-        related_name='qc_results'
-    )

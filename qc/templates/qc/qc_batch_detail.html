@@ -34,6 +34,11 @@
   </div>
 
   <div style="display:flex;gap:.65rem;flex-wrap:wrap;align-items:flex-start;">
+
+    <button class="btn-back" onclick="openRulesModal()" title="View current QC rules">
+      <i class="fas fa-info-circle"></i>
+    </button>
+
     <a href="{% url 'qc-batch-list' %}" class="btn-back">
       <i class="fas fa-arrow-left"></i> All Batches
     </a>
@@ -42,6 +47,11 @@
       <i class="fas fa-edit"></i> Edit Assignments
     </a>
     {% endif %}
+  
+    <button class="btn-export" onclick="openGatesModal()">
+      <i class="fas fa-sliders-h"></i> Edit QC Gates
+    </button>
+
     <!-- Export & Import -->
     <button class="btn-export" onclick="exportCSV()">
       <i class="fas fa-file-download"></i> Export CSV
@@ -237,6 +247,111 @@
   </div>
 </div>
 
+<!-- QC GATES MODAL -->
+<div class="modal-overlay" id="gatesModal">
+  <div class="modal-box">
+    <div class="modal-title"><i class="fas fa-sliders-h" style="color:var(--accent);margin-right:.4rem;"></i>Edit QC Gates</div>
+    <div class="modal-desc">
+      Adjust pass/caution thresholds for <strong>{{ batch.batch_name }}</strong>.
+      Saving recalculates every sample's status, measured values are not changed.
+    </div>
+
+    {% if batch.batch_type == 'RNA' %}
+    <div class="result-section-title">Quantity Gate</div>
+    <table class="gates-table">
+      <tr><td>Minimum ng (Qubit × elution)</td><td><input type="number" step=0.1 id="gate_rna_min_ng" value="{{ batch.gate_rna_min_ng }}"></td></tr>
+      <tr><td>Elution Volume (µL)</td><td><input type="number" step=0.1 id="gate_rna_elution_ul" value="{{ batch.gate_rna_elution_ul }}"></td></tr>
+    </table>
+
+    <div class="result-section-title" style="margin-top:1rem;">Quality Gate</div>
+    <table class="gates-table">
+      <thead><tr><th></th><th>RIN</th><th>dv200 (%)</th></tr></thead>
+      <tr>
+        <td>Pass (either)</td>
+        <td><input type="number" step=0.1 id="gate_rna_rin_pass" value="{{ batch.gate_rna_rin_pass }}"></td>
+        <td><input type="number" step=0.1 id="gate_rna_dv200_pass" value="{{ batch.gate_rna_dv200_pass }}"></td>
+      </tr>
+      <tr>
+        <td>OR (both)</td>
+        <td><input type="number" step=0.1 id="gate_rna_rin_or_min" value="{{ batch.gate_rna_rin_or_min }}"></td>
+        <td><input type="number" step=0.1 id="gate_rna_dv200_or_min" value="{{ batch.gate_rna_dv200_or_min }}"></td>
+      </tr>
+    </table>
+
+    <div class="result-section-title" style="margin-top:1rem;">Caution Zone</div>
+    <table class="gates-table">
+      <thead><tr><th></th><th>RIN</th><th>dv200 (%)</th></tr></thead>
+      <tr>
+        <td>Min</td>
+        <td><input type="number" step=0.1 id="gate_rna_caution_rin_min" value="{{ batch.gate_rna_caution_rin_min }}"></td>
+        <td><input type="number" step=0.1 id="gate_rna_caution_dv200_min" value="{{ batch.gate_rna_caution_dv200_min }}"></td>
+      </tr>
+      <tr>
+        <td>Max</td>
+        <td><span class="null-val">— (Pass RIN above)</span></td>
+        <td><input type="number" step=0.1 id="gate_rna_caution_dv200_max" value="{{ batch.gate_rna_caution_dv200_max }}"></td>
+      </tr>
+    </table>
+
+    {% elif batch.batch_type == 'DNA' %}
+    <table class="gates-table">
+      <tr><td>Minimum ng (Qubit × elution)</td><td><input type="number" step=0.1 id="gate_dna_min_ng" value="{{ batch.gate_dna_min_ng }}"></td></tr>
+      <tr><td>Elution Volume (µL)</td><td><input type="number" step=0.1 id="gate_dna_elution_ul" value="{{ batch.gate_dna_elution_ul }}"></td></tr>
+      <tr><td>Nanodrop 260/280 minimum</td><td><input type="number" step=0.1 id="gate_dna_260_280_min" value="{{ batch.gate_dna_260_280_min }}"></td></tr>
+      <tr><td>Nanodrop 260/230 — Pass minimum</td><td><input type="number" step=0.1 id="gate_dna_260_230_pass_min" value="{{ batch.gate_dna_260_230_pass_min }}"></td></tr>
+      <tr><td>Nanodrop 260/230 — Caution minimum</td><td><input type="number" step=0.1 id="gate_dna_260_230_caution_min" value="{{ batch.gate_dna_260_230_caution_min }}"></td></tr>
+    </table>
+    {% else %}
+    <p class="null-val">This batch has no sample type set yet — add samples first.</p>
+    {% endif %}
+
+    <div id="gatesSaveMsg" style="font-size:.8rem;margin-top:.75rem;"></div>
+
+    <div class="modal-footer">
+      <button class="btn-modal-cancel" onclick="closeGatesModal()">Cancel</button>
+      <button class="btn-modal-ok" id="btnSaveGates" onclick="saveGates()">
+        <i class="fas fa-save"></i> Save &amp; Recalculate
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- QC RULES INFO MODAL -->
+<div class="modal-overlay" id="rulesModal">
+  <div class="modal-box">
+    <div class="modal-title"><i class="fas fa-info-circle" style="color:var(--accent);margin-right:.4rem;"></i>QC Rules — {{ batch.batch_name }}</div>
+
+    {% if batch.batch_type == 'RNA' %}
+    <p style="font-size:.85rem;line-height:1.6;">
+      <strong>Quantity:</strong> Qubit (ng/µL) × {{ batch.gate_rna_elution_ul }} µL must exceed {{ batch.gate_rna_min_ng }} ng.<br><br>
+      <strong>PASS</strong> if any of:
+    </p>
+    <ul style="font-size:.85rem;line-height:1.7;">
+      <li>RIN &gt; {{ batch.gate_rna_rin_pass }}</li>
+      <li>RIN &gt; {{ batch.gate_rna_rin_or_min }} AND dv200 &gt; {{ batch.gate_rna_dv200_or_min }}%</li>
+      <li>dv200 &gt; {{ batch.gate_rna_dv200_pass }}%</li>
+    </ul>
+    <p style="font-size:.85rem;line-height:1.6;">
+      <strong>CAUTION</strong> if RIN is between {{ batch.gate_rna_caution_rin_min }}–{{ batch.gate_rna_rin_pass }}
+      and dv200 is between {{ batch.gate_rna_caution_dv200_min }}%–{{ batch.gate_rna_caution_dv200_max }}%.<br><br>
+      Otherwise <strong>FAIL</strong>.
+    </p>
+    {% elif batch.batch_type == 'DNA' %}
+    <p style="font-size:.85rem;line-height:1.6;">
+      <strong>Quantity:</strong> Qubit (ng/µL) × {{ batch.gate_dna_elution_ul }} µL must exceed {{ batch.gate_dna_min_ng }} ng.<br><br>
+      <strong>PASS</strong> requires quantity above, Nanodrop 260/280 &gt; {{ batch.gate_dna_260_280_min }}, and 260/230 &gt; {{ batch.gate_dna_260_230_pass_min }}.<br><br>
+      <strong>CAUTION</strong> if 260/230 &gt; {{ batch.gate_dna_260_230_caution_min }} but PASS isn't met.<br><br>
+      Otherwise <strong>FAIL</strong>.
+    </p>
+    {% else %}
+    <p class="null-val">This batch has no sample type set yet.</p>
+    {% endif %}
+
+    <div class="modal-footer">
+      <button class="btn-modal-cancel" onclick="closeRulesModal()">Close</button>
+    </div>
+  </div>
+</div>
 <!-- TOAST CONTAINER -->
 <div class="toast-wrap" id="toastWrap"></div>
 
@@ -246,6 +361,7 @@ const BATCH_NAME   = "{{ batch.batch_name }}";
 const IMPORT_URL   = "{% url 'qc-import-results' batch.pk %}";
 const CSRF_TOKEN   = "{{ csrf_token }}";
 
+const GATES_SAVE_URL = "{% url 'qc-gates-save' batch.pk %}";
 
 </script>
 

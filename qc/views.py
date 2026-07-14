@@ -644,3 +644,52 @@ def qc_import_results(request, batch_id):
         'skipped': skipped,
         'errors':  errors,
     })
+
+
+@require_POST
+@login_required
+def qc_gates_save(request, batch_id):
+    """
+    AJAX endpoint updates this batch's QC gate thresholds.
+    Measured values (qubit/rin/dv200/nanodrop) are untouched only qc_status is recomputed.
+    """
+    batch = get_object_or_404(SampleQCBatch, pk=batch_id)
+
+    def parse_float(name, current):
+        raw = request.POST.get(name, '').strip()
+        if raw == '':
+            return current
+        try:
+            return float(raw)
+        except ValueError:
+            return current
+
+    if batch.batch_type == 'RNA':
+        fields = [
+            'gate_rna_min_ng', 'gate_rna_elution_ul',
+            'gate_rna_rin_pass', 'gate_rna_rin_or_min',
+            'gate_rna_dv200_or_min', 'gate_rna_dv200_pass',
+            'gate_rna_caution_rin_min', 'gate_rna_caution_dv200_min',
+            'gate_rna_caution_dv200_max',
+        ]
+    elif batch.batch_type == 'DNA':
+        fields = [
+            'gate_dna_min_ng', 'gate_dna_elution_ul',
+            'gate_dna_260_280_min', 'gate_dna_260_230_pass_min',
+            'gate_dna_260_230_caution_min',
+        ]
+    else:
+        return JsonResponse({'ok': False, 'error': 'Batch has no sample type set.'}, status=400)
+
+    for f in fields:
+        setattr(batch, f, parse_float(f, getattr(batch, f)))
+    batch.save(update_fields=fields)
+
+    # Recalculate every result against the new gates — skip_validation=True
+    # is safe: we're not touching measured values, just re-deriving qc_status.
+    recalculated = 0
+    for qc in batch.qc_results.all():
+        qc.save(skip_validation=True)
+        recalculated += 1
+
+    return JsonResponse({'ok': True, 'recalculated': recalculated})

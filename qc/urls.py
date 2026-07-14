@@ -5,6 +5,7 @@ urlpatterns = [
     path('',                                          views.qc_batch_list,    name='qc-batch-list'),
 
     path('batch/<int:batch_id>/',                     views.qc_batch_detail,  name='qc-batch-detail'),
+    path('batch/<int:batch_id>/gates/save/',          views.qc_gates_save, name='qc-gates-save'),
     path('sample/<int:qc_id>/',                           views.sample_qc_detail, name='qc-detail'),
     path('batch/<int:batch_id>/import/',              views.qc_import_results, name='qc-import-results'),
     
