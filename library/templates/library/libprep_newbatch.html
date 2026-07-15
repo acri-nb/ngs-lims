@@ -53,7 +53,7 @@
   <div class="nb-option-group">
     <label class="nb-option-label">Workflow Type</label>
     <select class="nb-select" id="workflowSelect">
-      <option value="">— select —</option>
+      <option value="">— Select —</option>
       {% for wf in workflow_types %}
       <option value="{{ wf.pk }}" data-type="{{ wf.sample_type }}">{{ wf.workflowType }}</option>
       {% endfor %}
@@ -415,8 +415,12 @@
 </div>
 
 {% block extra_js %}
+<script>
+  // Inject Django URL into JS scope
+  const CHECK_URL = "{% url 'libprep-check-batch' project.pk %}";
+</script>
+
 <script src="{% static 'js/libprep_newbatch.js' %}"></script>
 {% endblock %}
-
 
 {% endblock %}
