@@ -51,7 +51,7 @@ class TempLogAdmin(admin.ModelAdmin):
         ('Temperature (°C)', {
             'fields': ('current_temp_c', 'max_temp_c', 'min_temp_c')
         }),
-        ('Humidity — Rooms only', {
+        ('Humidity (Rooms only)', {
             'fields': ('max_humidity', 'min_humidity'),
             'classes': ('collapse',),
         }),

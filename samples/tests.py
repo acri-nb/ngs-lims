@@ -55,7 +55,7 @@ class CaseModelTests(TestCase):
     def test_same_case_name_allowed_across_different_clients(self):
         other_client = Client.objects.create(client_name="Other Labs", organisation_name="Other Corp")
         Case.objects.create(client=self.client_obj, case_name="MCF10A")
-        # Should not raise — uniqueness is scoped per client.
+        # Should not raise, uniqueness is scoped per client.
         Case.objects.create(client=other_client, case_name="MCF10A")
 
 
@@ -100,7 +100,7 @@ class SpecimenModelTests(TestCase):
     def test_same_specimen_type_allowed_on_different_case(self):
         other_case = Case.objects.create(client=self.client_obj, case_name="HEK293")
         Specimen.objects.create(case=self.case, specimen_type=self.specimen_type)
-        # Should not raise — uniqueness is scoped per case.
+        # Should not raise, uniqueness is scoped per case.
         Specimen.objects.create(case=other_case, specimen_type=self.specimen_type)
 
 
@@ -154,7 +154,7 @@ class SampleModelTests(TestCase):
 
     def test_location_and_optional_fields_are_optional(self):
         # location, volume_received, concentration, receiving_condition,
-        # notes are all optional — creation shouldn't require them.
+        # notes are all optional, creation shouldn't require them.
         sample = Sample.objects.create(
             specimen=self.specimen, project=self.project, sample_type=Sample.DNA
         )

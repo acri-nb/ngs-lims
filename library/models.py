@@ -111,7 +111,7 @@ class WorkflowTypeStep(models.Model):
     is_stopping_point = models.BooleanField(
         default=False,
         verbose_name=_("Safe Stopping Point"),
-        help_text=_("Marks this step as a safe point to pause the protocol (printed sheets highlight this)."),
+        help_text=_("Marks this step as a safe point to pause the protocol after the step is done"),
     )
     stepRows = models.ManyToManyField(
         StepRow, blank=True, related_name='workflowSteps',
@@ -323,7 +323,7 @@ class LibraryPrepBatch(models.Model):
         {project_name}-Library-{4-digit uppercase hex counter}
         e.g. ACME2024-Library-003F
 
-    plate is created and linked during batch creation — it records the
+    plate is created and linked during batch creation, it records the
     physical location (rack + slot) of the plate.
     """
     project = models.ForeignKey(
@@ -504,7 +504,7 @@ class LibraryPrepSample(models.Model):
     One sample (or control) within a LibraryPrepBatch.
 
     sampleQC is nullable for control wells (positive / negative).
-    plateWell is intentionally null at batch creation time — it is
+    plateWell is intentionally null at batch creation time, it is
     assigned later when the physical plate layout is confirmed and
     PlateWell records are committed.
     Volume fields are pre-calculated at creation from the workflow
@@ -670,7 +670,7 @@ class LibraryQC(models.Model):
                 return QCStatus.FAIL
 
         # Dimer peak check was previously defined on WorkflowType but never
-        # enforced here — the docs call it out as a real fail/pooling gate.
+        # enforced here the docs call it out as a real fail/pooling gate.
         if workflow_type and workflow_type.dimer_threshold_pct is not None and self.dimerPeak_pct is not None:
             if self.dimerPeak_pct > workflow_type.dimer_threshold_pct:
                 return QCStatus.FAIL

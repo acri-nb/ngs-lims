@@ -22,7 +22,7 @@ function previewFile(input) {
     text.textContent = file.name;
     sub.textContent  = (file.size / 1024).toFixed(1) + ' KB';
     chip.style.display = 'block';
-    chip.innerHTML = '<i class="fas fa-file-csv"></i> CSV loaded — ready to import';
+    chip.innerHTML = '<i class="fas fa-file-csv"></i> CSV loaded, ready to import';
     lbl.childNodes[0].textContent = 'Replace file ';
 }
 

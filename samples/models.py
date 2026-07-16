@@ -24,7 +24,7 @@ class Client(models.Model):
 class UserProfile(models.Model):
     """
     Links a Django User to a Client (researcher account).
-    Lab staff have NO UserProfile — that's how we tell them apart.
+    Lab staff have NO UserProfile that's how we tell them apart.
     Researchers have a UserProfile pointing to their Client.
     """
     user = models.OneToOneField(
@@ -133,7 +133,7 @@ class Specimen(models.Model):
 
 
 class Sample(models.Model):
-    # AutoField so Django assigns the integer — we then convert it to hex for the name
+    # AutoField so Django assigns the integer, we then convert it to hex for the name
     sample_id = models.AutoField(primary_key=True)
  
     specimen = models.ForeignKey(
@@ -153,7 +153,7 @@ class Sample(models.Model):
         blank=True
     )
  
-    # blank=True so Django doesn't require it on the form — we generate it in save()
+    # blank=True so Django doesn't require it on the form, we generate it in save()
     sample_name = models.CharField(max_length=255, unique=True, blank=True)
  
     DNA = 'DNA'

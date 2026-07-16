@@ -309,7 +309,7 @@ def well_detail(request, well_pk):
 
 def inventory_search(request):
     """
-    AJAX endpoint — returns JSON list of matches.
+    AJAX endpoint, returns JSON list of matches.
     Searches by sample name, plate name, UDI number.
     GET ?q=<query>
     """
@@ -342,13 +342,7 @@ def inventory_search(request):
 
 
 """
-Rack slot convention
----------------------
 rack_location on Plate uses:  "A1T" (top) or "A1B" (bottom)
-Validator in models.py should be updated to:
-    regex=r"^[A-D][1-4][TB]?$"
-so old plain "A1" records still pass validation, and new records
-can use "A1T" / "A1B".
 """
 
 def inventory_home(request):
@@ -356,7 +350,7 @@ def inventory_home(request):
     Shows all racks as cards (one card per rack).
     Each card shows the 4×4 slot grid where every slot has
     a TOP and BOTTOM sub-cell (max 2 plates per slot = 32 total).
-    Location name is shown inside each rack card — no location
+    Location name is shown inside each rack card, no location
     section headers, empty locations are hidden.
     """
     racks = Rack.objects.select_related('location').prefetch_related(

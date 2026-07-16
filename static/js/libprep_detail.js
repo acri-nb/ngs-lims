@@ -207,7 +207,7 @@ function mmRecomputeAll() { const input = document.getElementById('mmReactionCou
       }
 
       if (constant === 2) {
-        // Ethanol Dilution Pair — this row + its water sibling row.
+        // Ethanol Dilution Pair, this row + its water sibling row.
         const [ethanol, water] = ethanolDilutionVolumes(perRxn, extra, n);
         const ethanolCell = row.querySelector('.mm-vol-ethanol');
         if (ethanolCell) ethanolCell.textContent = ethanol.toFixed(2);
@@ -282,7 +282,7 @@ async function saveMastermixReactionCount() {
       mmSetSaveStatus('error', data.error || 'Could not save');
     }
   } catch (err) {
-    mmSetSaveStatus('error', 'Network error — could not save');
+    mmSetSaveStatus('error', 'Network error could not save');
   } finally {
     mmSaveInFlight = false;
   }
@@ -296,7 +296,7 @@ async function printMastermixSheet() {
 }
 
 // Recompute once on load in case the server-rendered value and the
-// input's default value ever drift (defensive — they should match).
+// input's default value ever drift (defensive they should match).
 document.addEventListener('DOMContentLoaded', () => {
   if (document.getElementById('mmReactionCount')) {
     mmRecomputeAll();

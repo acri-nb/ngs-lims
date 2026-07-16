@@ -47,7 +47,7 @@ class Product(models.Model):
 
 class ProductSupplier(models.Model):
     """
-    Junction table — Supplier has many product, Product has many suppliers.
+    Junction table, Supplier has many product, Product has many suppliers.
     """
     product_supplier_id = models.AutoField(primary_key=True)
     product = models.ForeignKey(
@@ -119,7 +119,6 @@ class InventoryReceipt(models.Model):
     )   
     quantity_received = models.IntegerField(default=0)
     
-    #TODO options ml L ul bottles tubes spray bottles ... etc
     quantity_unit = models.CharField(
         max_length=50,
         blank=True

@@ -253,9 +253,6 @@ class SampleQC(models.Model):
         related_name='qc_results'
     )
  
-
-    #TODO Decimal places of the parameters
-
     # Shared
     qubit_nm = models.FloatField(
         null=True, blank=True,

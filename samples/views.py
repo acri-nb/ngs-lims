@@ -20,7 +20,7 @@ from .forms import SampleAddForm, ClientForm, ProjectForm
 
 def home(request):
     """
-    Dashboard view — passes counts and recent data to the template.
+    Dashboard view, passes counts and recent data to the template.
     Import the other models at the top of this function so Django doesn't
     choke if those apps aren't migrated yet.
     """
@@ -596,7 +596,7 @@ def sample_import(request):
         project_id = request.POST.get('project')
         action = request.POST.get('action', 'preview')
 
-        # Resolve CSV — fresh upload takes priority, fall back to session cache
+        # Resolve CSV, fresh upload takes priority, fall back to session cache
         if csv_file:
             if not csv_file.name.endswith('.csv'):
                 messages.error(request, 'File must be a CSV file.')
@@ -759,7 +759,7 @@ def sample_add(request):
     form = SampleAddForm(request.POST or None)
 
     if request.method == 'POST':
-        # Get case by name — create if doesn't exist
+        # Get case by name, create if doesn't exist
         project_id = request.POST.get('project')
         case_name  = request.POST.get('case_name', '').strip()
 

@@ -152,7 +152,7 @@ def libprep_detail(request, batch_id):
 
 def libprep_mastermix_save(request, batch_id):
     """
-    AJAX endpoint — persists the reaction count a lab member enters on the
+    AJAX endpoint persists the reaction count a lab member enters on the
     Master Mix tab, so it's remembered the next time anyone opens this
     batch (instead of retyping it every visit, like the old Excel sheets).
     """
@@ -179,7 +179,7 @@ def libprep_mastermix_save(request, batch_id):
         action=LibraryPrepBatchAuditLog.ACTION_UPDATED,
         detail=(
             f'Master Mix reaction count set to {reaction_count} '
-            f'(previously {previous if previous is not None else "unset — used sample+control count"}).'
+            f'(previously {previous if previous is not None else "unset, used sample+control count"}).'
         ),
     )
 
@@ -188,9 +188,7 @@ def libprep_mastermix_save(request, batch_id):
 
 def libprep_mastermix_print(request, batch_id):
     """
-    Standalone, print-friendly Master Mix sheet — no sidebar/topnav, just
-    the sheet itself. Uses the batch's saved reaction count (whatever was
-    last set from the Master Mix tab). The page has a Print button that
+    Standalone, print-friendly Master Mix sheet no sidebar/topnav, The page has a Print button that
     calls window.print(); the lab member can "Save as PDF" from the
     browser's print dialog.
     """
@@ -261,16 +259,16 @@ def libprep_project_list(request):
 
 def libprep_new_batch(request, project_id):
     """
-    GET  — render the drag-and-drop plate builder.
+    GET: render the drag-and-drop plate builder.
            Left sidebar: SampleQC records for this project, sorted by status.
            Location modal: all racks, grouped by location.
 
-    POST — validate inputs, then atomically:
+    POST: validate inputs, then atomically:
              1. Generate batch name  (PROJECT-Library-4HEX)
              2. Create Plate         (locations.Plate)
              3. Assign to Rack slot
              4. Create LibraryPrepBatch
-             5. Create LibraryPrepSample rows (no PlateWell yet — filled later)
+             5. Create LibraryPrepSample rows (no PlateWell yet filled later)
              6. Write initial audit log entry
     """
     project = get_object_or_404(
@@ -383,7 +381,7 @@ def _validate_batch_composition(placements, workflow):
     }
 
     if not non_control_ids:
-        errors.append('Batch contains only controls — add at least one real sample.')
+        errors.append('Batch contains only controls add at least one real sample.')
         return errors
 
     qcs = SampleQC.objects.filter(pk__in=non_control_ids).select_related('sample')
@@ -406,9 +404,9 @@ def _validate_batch_composition(placements, workflow):
 
     if workflow.uses_controls:
         if 'pos' not in control_ids:
-            errors.append(f'Workflow "{workflow.workflowType}" requires a positive control — none placed.')
+            errors.append(f'Workflow "{workflow.workflowType}" requires a positive control, none placed.')
         if 'neg' not in control_ids:
-            errors.append(f'Workflow "{workflow.workflowType}" requires a negative control — none placed.')
+            errors.append(f'Workflow "{workflow.workflowType}" requires a negative control, none placed.')
     elif control_ids:
         errors.append(f'Workflow "{workflow.workflowType}" does not use controls, but one was placed.')
 
@@ -463,7 +461,7 @@ def _save_new_batch(request, project):
     placements = {k: v for k, v in placements.items() if v and v.get('qcId')}
 
     if not placements:
-        errors.append('No samples placed on the plate — drag at least one sample before saving.')
+        errors.append('No samples placed on the plate, drag at least one sample before saving.')
 
     if errors:
         for e in errors:
@@ -515,10 +513,10 @@ def _save_new_batch(request, project):
         plate = Plate.objects.create(
             location      = rack.location,
             rack          = rack,
-            rack_location = rack_slot,          # e.g. "A1T" — full slot string
+            rack_location = rack_slot,         
             plate_name    = batch_name,
             plate_format  = PlateFormat.F_96,   # physical plate is 96-well; batch uses 48
-            notes         = f'Library prep plate — {workflow.workflowType}',
+            notes         = f'Library prep plate: {workflow.workflowType}',
             created_by    = request.user,
         )
 
@@ -558,7 +556,7 @@ def _save_new_batch(request, project):
         )
 
         # 5c. Create LibraryPrepSample rows
-        # PlateWell is intentionally left null — filled when the batch is
+        # PlateWell is intentionally left null filled when the batch is
         # fully prepared and the physical well positions are confirmed.
         created = 0
         placement_summary = []   # for the audit log
@@ -643,13 +641,13 @@ def _save_new_batch(request, project):
 
     messages.success(
         request,
-        f'Batch "{batch_name}" created — {created} well{"s" if created != 1 else ""} '
+        f'Batch "{batch_name}" created {created} well{"s" if created != 1 else ""} '
         f'placed on plate {plate.plate_name} in {rack.rack_name} slot {rack_slot}.'
     )
     return redirect('libprep-detail', batch_id=batch.pk)
 
 def libprep_check_batch(request, project_id):
-    """AJAX pre-flight check — called before the confirm modal opens."""
+    """AJAX pre-flight check, called before the confirm modal opens."""
     if request.method != 'POST':
         return JsonResponse({'ok': False, 'errors': ['Invalid request method.']}, status=405)
 
@@ -692,7 +690,7 @@ def _calc_volumes(conc, target_ng, start_vol):
             False,
         )
     else:
-        # Can't reach target mass in start_vol — take all the sample, flag SpeedVac
+        # Can't reach target mass in start_vol, take all the sample, flag SpeedVac
         actual = round(conc * start_vol, 2)
         return (
             round(start_vol, 2),

@@ -55,7 +55,7 @@ function showCaseDropdown(query) {
         dropdown.appendChild(div);
     });
 
-    // "Create new" option — show if typed text doesn't exactly match an existing case
+    // "Create new" option, show if typed text doesn't exactly match an existing case
     const exactMatch = availableCases.some(c => c.case_name.toLowerCase() === q);
     if (q && !exactMatch) {
         const div = document.createElement('div');

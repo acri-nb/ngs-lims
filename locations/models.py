@@ -329,7 +329,7 @@ class PlateWell(models.Model):
     A single well on a Plate. 
 
     The well can reference a Sample, a LibPrepLibrary, or a SequencingBatch
-    (all nullable).  Only one should be set at a time — enforced by the
+    (all nullable).  Only one should be set at a time, enforced by the
     clean() method and a DB check constraint.
 
     well_type drives the frontend colour coding and filtering:
@@ -368,7 +368,7 @@ class PlateWell(models.Model):
         help_text="Set when this well holds a raw sample aliquot.",
     )
 
-    # Placeholder FK for LibPrepLibrary — uncomment once that model exists
+    # Placeholder FK for LibPrepLibrary uncomment once that model exists
     # lib_prep_library = models.ForeignKey(
     #     "libprep.LibPrepLibrary",
     #     null=True, blank=True,
@@ -377,7 +377,7 @@ class PlateWell(models.Model):
     #     help_text="Set when this well holds a library prep.",
     # )
 
-    # Placeholder FK for SequencingBatch — uncomment once that model exists
+    # Placeholder FK for SequencingBatch uncomment once that model exists
     # sequencing_batch = models.ForeignKey(
     #     "sequencing.SequencingBatch",
     #     null=True, blank=True,

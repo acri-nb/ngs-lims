@@ -83,11 +83,11 @@ function markDirty() {
 }
 
 //  ADD VIRTUAL BATCH 
-// No API call — creates a card with a temporary negative ID.
+// No API call, creates a card with a temporary negative ID.
 // The real DB record is only created when the user saves.
 document.getElementById('btnAddBatch').addEventListener('click', () => {
   virtualCounter++;
-  const vid  = `v${virtualCounter}`;  // e.g. "v1", "v2" — never a real PK
+  const vid  = `v${virtualCounter}`;  // e.g. "v1", "v2" never a real PK
   const today = new Date().toISOString().slice(0,10);
   appendBatchCard(vid, `New Batch ${virtualCounter}`, today, true);
   markDirty();
@@ -179,7 +179,7 @@ async function openDiffModal() {
 function renderDiff(changes) {
   const el = document.getElementById('diffContent');
   if (!changes || changes.length === 0) {
-    el.innerHTML = '<div class="diff-empty">No changes detected — the board matches what\'s in the database.</div>';
+    el.innerHTML = '<div class="diff-empty">No changes detected the board matches what\'s in the database.</div>';
     document.getElementById('btnConfirmSave').disabled = true;
     return;
   }
@@ -248,7 +248,7 @@ async function confirmSave() {
       btn.innerHTML = '<i class="fas fa-check"></i> Confirm & Save';
     }
   } catch (err) {
-    showToast('Network error — please try again', 'error');
+    showToast('Network error, please try again', 'error');
     btn.disabled = false;
     btn.innerHTML = '<i class="fas fa-check"></i> Confirm & Save';
   }
@@ -306,7 +306,7 @@ function applyRecommendation() {
 
   updateAllCounters();
   markDirty();
-  showToast('Recommendation applied — remember to Save', 'success');
+  showToast('Recommendation applied, remember to Save', 'success');
 }
 
 document.getElementById('recModal').addEventListener('click', e => {

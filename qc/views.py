@@ -350,7 +350,7 @@ def qc_save_board(request, project_id):
     the lab can immediately start entering measurements.
 
     SampleQC stubs are created with all metric fields null (status=PENDING).
-    Existing SampleQC records are NEVER deleted or overwritten — only new
+    Existing SampleQC records are NEVER deleted or overwritten, only new
     ones are created for pairs that don't have one yet.
     """
     project = get_object_or_404(Project, pk=project_id)
@@ -383,12 +383,12 @@ def qc_save_board(request, project_id):
                 batch_date = timezone.now().date()
 
             if b.get('id'):
-                # Existing batch — reconcile membership
+                # Existing batch, reconcile membership
                 batch   = get_object_or_404(SampleQCBatch, pk=b['id'])
                 old_ids = db_batches_before.get(batch.pk, set())
                 new_ids = set(sample_ids)
 
-                # Only touch memberships — never touch SampleQC rows
+                # Only touch memberships, never touch SampleQC rows
                 added   = new_ids - old_ids
                 removed = old_ids - new_ids
 
@@ -400,7 +400,7 @@ def qc_save_board(request, project_id):
                     ).exists()
                     if not qc_exists:
                         BatchSample.objects.filter(batch=batch, sample_id=sid).delete()
-                    # If QC exists, leave the BatchSample row — data safety
+                    # If QC exists, leave the BatchSample row, data safety
 
                 # Add new BatchSample rows
                 for sid in added:
@@ -414,7 +414,7 @@ def qc_save_board(request, project_id):
                     })
 
             else:
-                #  New virtual batch — create in DB now
+                #  New virtual batch, create in DB now
                 if not sample_ids:
                     continue
                 batch = SampleQCBatch.objects.create(
@@ -442,7 +442,7 @@ def qc_save_board(request, project_id):
             elif len(current_types) == 0:
                 batch.batch_type = None
             # (mixed is prevented client-side; if it somehow arrives we leave
-            #  batch_type as-is rather than crash — the board will show a warning)
+            #  batch_type as-is rather than crash, the board will show a warning)
             batch.save(update_fields=['batch_type', 'date_batched']
                        if batch.date_batched != batch_date
                        else ['batch_type'])
@@ -481,15 +481,15 @@ def qc_save_board(request, project_id):
                 if batch.qc_results.filter(
                     qc_status__in=[SampleQC.PASS, SampleQC.FAIL, SampleQC.CAUTION]
                 ).exists():
-                    # Has real QC data — refuse silent deletion, surface in diff
+                    # Has real QC data, refuse silent deletion, surface in diff
                     diff_summary.append({
                         'batch':   batch.batch_name,
                         'added':   [],
                         'removed': [],
-                        'error':   'Cannot delete — has completed QC results. Remove from the board only.',
+                        'error':   'Cannot delete, has completed QC results. Remove from the board only.',
                     })
                 else:
-                    # Only PENDING stubs (or none) — safe to delete
+                    # Only PENDING stubs (or none) safe to delete
                     diff_summary.append({
                         'batch':   batch.batch_name,
                         'added':   [],
@@ -562,7 +562,7 @@ def qc_import_results(request, batch_id):
     try:
         text = csv_file.read().decode('utf-8-sig')  # strip BOM if present
     except UnicodeDecodeError:
-        return JsonResponse({'ok': False, 'error': 'Could not decode file — make sure it is UTF-8.'}, status=400)
+        return JsonResponse({'ok': False, 'error': 'Could not decode file, make sure it is UTF-8.'}, status=400)
 
     batch_type = batch.batch_type  # 'DNA' or 'RNA'
 
@@ -614,7 +614,7 @@ def qc_import_results(request, batch_id):
         for line_num, row in enumerate(reader, start=2):  # start=2 because row 1 is header
             sample_id_val = get_col(row, 'sample_id', 'sampleid', 'sample_name', 'sample')
             if not sample_id_val:
-                errors.append(f'Row {line_num}: missing sample_id — skipped.')
+                errors.append(f'Row {line_num}: missing sample_id.')
                 continue
 
             if sample_id_val not in valid_names:
@@ -635,7 +635,7 @@ def qc_import_results(request, batch_id):
                 qc.dv200    = to_float(get_col(row, 'dv200')) or qc.dv200
 
             qc.edited_by = request.user
-            qc.save(skip_validation=False)  # run full validation now — real data
+            qc.save(skip_validation=False)  # run full validation now real data
             updated.append(sample_id_val)
 
     return JsonResponse({
@@ -685,7 +685,7 @@ def qc_gates_save(request, batch_id):
         setattr(batch, f, parse_float(f, getattr(batch, f)))
     batch.save(update_fields=fields)
 
-    # Recalculate every result against the new gates — skip_validation=True
+    # Recalculate every result against the new gates, skip_validation=True
     # is safe: we're not touching measured values, just re-deriving qc_status.
     recalculated = 0
     for qc in batch.qc_results.all():

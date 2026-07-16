@@ -47,7 +47,7 @@ class WorkflowStepRowOrderInline(admin.TabularInline):
     fields = ("sort_order", "step_row", "constantOfMM", "volumePerRxn")
     ordering = ("sort_order",)
     verbose_name = "Reagent Row"
-    verbose_name_plural = "Reagent Rows — printed on the sheet in this order"
+    verbose_name_plural = "Reagent Rows, printed on the sheet in this order"
 
 
 @admin.register(WorkflowTypeStep)
@@ -84,7 +84,7 @@ class WorkflowTypeStepInline(admin.TabularInline):
     show_change_link = True
     verbose_name = "Step"
     verbose_name_plural = (
-        "Workflow Steps — in print order. Save first, then use each row's "
+        "Workflow Steps, in print order. Save first, then use each row's "
         "'Change' link to edit its reagents."
     )
 
@@ -117,7 +117,7 @@ class WorkflowTypeAdmin(admin.ModelAdmin):
         }),
         ("Library QC gates", {
             "fields": ("qc_method", "min_nm_threshold", "fragment_min_bp", "fragment_max_bp", "dimer_threshold_pct"),
-            "description": "These drive LibraryQC.calculate_qc_status() — the automatic pass/fail on the QC step.",
+            "description": "These drive LibraryQC.calculate_qc_status(), the automatic pass/fail on the QC step.",
         }),
         ("Prep defaults", {
             "fields": ("requires_pcr", "uses_controls", "target_input_ng", "target_volume_ul", "diluent_name"),
@@ -149,7 +149,7 @@ class IndexKitAdmin(admin.ModelAdmin):
 class LibraryIndexAdmin(admin.ModelAdmin):
     """
     Registered separately (rather than inlined on IndexKit) since a kit can
-    have 96–384+ wells — better browsed/filtered here than loaded all at
+    have 96 wells, better browsed/filtered here than loaded all at
     once on the kit page.
     """
     list_display = ("indexKit", "plateSet", "well", "udi_number", "i7Sequence", "i5Sequence")
@@ -201,7 +201,6 @@ class LibraryPrepBatchAdmin(admin.ModelAdmin):
         "project",
         "workflowType",
         "datePrepped",
-        "sample_count",
         "control_count",
         "createdBy",
     )
@@ -248,7 +247,7 @@ class LibraryPrepSampleAdmin(admin.ModelAdmin):
 
 @admin.register(LibraryPrepBatchAuditLog)
 class LibraryPrepBatchAuditLogAdmin(admin.ModelAdmin):
-    """Read-only ledger — nothing here should ever be created/edited/deleted by hand."""
+    """Read-only ledger nothing here should ever be created/edited/deleted by hand."""
     list_display = ("batch", "action", "changed_by", "changed_at")
     list_filter = ("action", "changed_at")
     search_fields = ("batch__batch_name", "detail")

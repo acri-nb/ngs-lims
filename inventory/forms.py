@@ -8,7 +8,7 @@ class BulkQuantityForm(forms.Form):
         if inventory_items:
             for item in inventory_items:
                 self.fields[f'qty_{item.inventory_id}'] = forms.IntegerField(
-                    label=f"{item.product.product_name} @ {item.location} — Lot {item.receipt.lot_number}",
+                    label=f"{item.product.product_name} @ {item.location}: Lot {item.receipt.lot_number}",
                     initial=item.quantity_on_hand,
                     min_value=0,
                 )

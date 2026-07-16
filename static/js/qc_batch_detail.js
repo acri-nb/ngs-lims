@@ -90,7 +90,7 @@ function exportCSV() {
   a.download = `${BATCH_NAME}_QC_template.csv`;
   a.click();
   URL.revokeObjectURL(url);
-  showToast('CSV exported — fill in the values and import when done', 'success');
+  showToast('CSV exported, fill in the values and import when done', 'success');
 }
 
 //  IMPORT MODAL 
@@ -174,12 +174,12 @@ async function doImport() {
     btn.innerHTML = '<i class="fas fa-check"></i> Done';
 
     if (data.updated.length > 0) {
-      showToast(`${data.updated.length} record${data.updated.length > 1 ? 's' : ''} updated — reloading…`, 'success');
+      showToast(`${data.updated.length} record${data.updated.length > 1 ? 's' : ''} updated, reloading…`, 'success');
       setTimeout(() => location.reload(), 1800);
     }
 
   } catch (err) {
-    showToast('Network error — please try again', 'error');
+    showToast('Network error, please try again', 'error');
     btn.disabled = false;
     btn.innerHTML = '<i class="fas fa-upload"></i> Upload & Import';
   }
@@ -201,7 +201,7 @@ function renderImportResult(data) {
 
   if (data.skipped.length > 0) {
     html += `<div class="result-section">
-      <div class="result-section-title r-skip"><i class="fas fa-exclamation-triangle"></i> Skipped — not in batch (${data.skipped.length})</div>
+      <div class="result-section-title r-skip"><i class="fas fa-exclamation-triangle"></i> Skipped, not in batch (${data.skipped.length})</div>
       <ul class="result-list">
         ${data.skipped.map(n => `<li class="r-skip"><i class="fas fa-minus" style="font-size:.7rem;"></i>${n}</li>`).join('')}
       </ul>
@@ -218,7 +218,7 @@ function renderImportResult(data) {
   }
 
   if (!html) {
-    html = '<div style="color:var(--text-muted);font-size:.83rem;">Nothing was changed — the file may be empty or all samples were unrecognised.</div>';
+    html = '<div style="color:var(--text-muted);font-size:.83rem;">Nothing was changed, the file may be empty or all samples were unrecognised.</div>';
   }
 
   el.innerHTML = html;
@@ -262,7 +262,7 @@ async function saveGates() {
 
     if (resp.ok && data.ok) {
       msg.style.color = 'var(--success)';
-      msg.textContent = `Saved — ${data.recalculated} sample(s) recalculated. Reloading…`;
+      msg.textContent = `Saved, ${data.recalculated} sample(s) recalculated. Reloading…`;
       setTimeout(() => location.reload(), 700);
     } else {
       msg.style.color = 'var(--danger)';
@@ -271,7 +271,7 @@ async function saveGates() {
     }
   } catch (err) {
     msg.style.color = 'var(--danger)';
-    msg.textContent = 'Network error — could not save.';
+    msg.textContent = 'Network error, could not save.';
     btn.disabled = false;
   }
 }

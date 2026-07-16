@@ -374,7 +374,7 @@
 
 {% block extra_js %}
 <script>
-    // Values that only Django knows about — handed off to the external JS file.
+    // Values that only Django knows about, handed off to the external JS file.
     const LIBPREP_PLATE_NAME    = "{{ batch.plate.plate_name|default:'libprep_batch'|escapejs }}";
     const MASTERMIX_SAVE_URL    = "{% url 'libprep-mastermix-save' batch.pk %}";
     const MASTERMIX_PRINT_URL   = "{% url 'libprep-mastermix-print' batch.pk %}";

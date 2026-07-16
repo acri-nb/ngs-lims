@@ -81,7 +81,7 @@ class WorkflowStepRowOrderModelTests(TestCase):
     def test_same_row_can_be_reused_at_different_volume_in_another_step(self):
         other_step = WorkflowTypeStep.objects.create(workflowType=self.wf, stepName="Final Cleanup", sort_order=2)
         WorkflowStepRowOrder.objects.create(step=self.step, step_row=self.beads, volumePerRxn=90.0)
-        # Should not raise — same reagent, different step, different volume.
+        # Should not raise same reagent, different step, different volume.
         WorkflowStepRowOrder.objects.create(step=other_step, step_row=self.beads, volumePerRxn=34.0)
 
 
@@ -123,14 +123,12 @@ class LibraryIndexModelTests(TestCase):
 
     def test_same_well_allowed_in_different_plate_sets(self):
         LibraryIndex.objects.create(indexKit=self.kit, plateSet="Set A", well="A01", i7Sequence="ACGT")
-        # Should not raise — same well, different plate set.
         LibraryIndex.objects.create(indexKit=self.kit, plateSet="Set B", well="A01", i7Sequence="TTTT")
 
     def test_udi_number_can_repeat_across_kits(self):
         wf2 = WorkflowType.objects.create(workflowType="DNA PCR-Free")
         other_kit = IndexKit.objects.create(name="KAPA-UDI", workflowType=wf2)
         LibraryIndex.objects.create(indexKit=self.kit, well="A01", udi_number="UDP0001", i7Sequence="ACGT")
-        # Should not raise — udi_number is a display label only, not unique.
         LibraryIndex.objects.create(indexKit=other_kit, well="A01", udi_number="UDP0001", i7Sequence="TTTT")
 
 
