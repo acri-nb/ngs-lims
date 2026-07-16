@@ -16,6 +16,7 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path, include
+from django.views.generic.base import RedirectView
 import debug_toolbar
 from samples.views_auth import smart_redirect, researcher_portal, researcher_project_detail
 from samples.views import home
@@ -25,6 +26,7 @@ admin.site.index_title = 'Admin'
 
 urlpatterns = [
     path('',smart_redirect,name='smart-redirect'),
+    path('favicon.ico', RedirectView.as_view(url='/static/favicon.ico', permanent=True)),
     
     path('dashboard/', home,                     name='home'),
     path('portal/',    researcher_portal,         name='researcher-portal'),

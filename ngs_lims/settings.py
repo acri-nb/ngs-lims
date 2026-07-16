@@ -178,6 +178,28 @@ STATICFILES_DIRS = [
 LOGIN_REDIRECT_URL = '/'
 LOGOUT_REDIRECT_URL = '/accounts/login/'
 
+# Email (used for password reset links, and future notifications) 
+# Dev default: prints emails to the console instead of actually sending them.
+# In production .env, set EMAIL_BACKEND=django.core.mail.backends.smtp.EmailBackend
+# and fill in the SMTP_* values.
+
+EMAIL_BACKEND = os.getenv('EMAIL_BACKEND', 'django.core.mail.backends.console.EmailBackend')
+EMAIL_HOST = os.getenv('EMAIL_HOST', '')
+EMAIL_PORT = int(os.getenv('EMAIL_PORT', 587))
+EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', '')
+EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '')
+EMAIL_USE_TLS = os.getenv('EMAIL_USE_TLS', 'True') == 'True'
+DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', 'no-reply@ngs-lims.local')
+
+# Password reset links expire after this many seconds (default here: 3 days)
+PASSWORD_RESET_TIMEOUT = int(os.getenv('PASSWORD_RESET_TIMEOUT', 60 * 60 * 24 * 3))
+
+# Session
+# Log users out after 4 hours of inactivity rather than relying on the
+# browser session cookie alone (which persists until the browser closes).
+SESSION_COOKIE_AGE = int(os.getenv('SESSION_COOKIE_AGE', 60 * 60 * 4))
+SESSION_SAVE_EVERY_REQUEST = True
+
 # Default primary key field type
 # https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field
 
