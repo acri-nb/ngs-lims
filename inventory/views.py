@@ -6,7 +6,7 @@ from django.db import IntegrityError
 from datetime import timedelta
 
 from .models import Inventory, InventoryReceipt, Product, Supplier, ProductSupplier
-
+from samples.views_auth import lab_staff_required
 from locations.models import Location
 
 LOW_STOCK_THRESHOLD  = 0.25   # below 25% of original qty = low
@@ -84,7 +84,7 @@ def _stock_status(inventory_item):
 
 
 
-@login_required
+@lab_staff_required
 def inventory_dashboard(request):
     today      = timezone.localdate()
     in_30_days = today + timedelta(days=30)
@@ -141,7 +141,7 @@ def inventory_dashboard(request):
 
 
 
-@login_required
+@lab_staff_required
 def inventory_receipt_add(request):
     from django.contrib.auth import get_user_model
     User = get_user_model()
@@ -201,7 +201,7 @@ def inventory_receipt_add(request):
     })
 
 
-@login_required
+@lab_staff_required
 def inventory_adjust(request, inventory_id):
     item = get_object_or_404(Inventory, pk=inventory_id)
 

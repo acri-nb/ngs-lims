@@ -1,0 +1,23 @@
+1. Copy the qc app's pattern — but adapt the relationship, don't blindly clone it
+SampleQCBatch needs a drag-and-drop board because QC batches are independently assembled from a pool of unbatched samples (many-to-many). LibraryQCBatch is a OneToOneField to LibraryPrepBatch — it's 1:1, always exists implicitly the moment a prep batch exists. So you don't need a batch board or project picker for this. The natural UX is a third tab on libprep_detail.html (you already have a grid tab and a Master Mix tab) — a "Library QC" tab that does get_or_create on the LibraryQCBatch and shows one row per LibraryPrepSample, mirroring the qc_batch_detail/sample_qc_detail split.
+
+2. Don't miss this gotcha: calculate_qc_status() takes workflow_type as an argument, it doesn't fetch it itself
+
+python
+def calculate_qc_status(self, workflow_type=None):
+
+If your save view calls qc.calculate_qc_status() without passing libPrepSample.libPrepBatch.workflowType, it silently falls back to a hardcoded min_nm=2.0 with no fragment-size or dimer checks — exactly the kind of bug that passes testing on one workflow and produces wrong results on another. Bake workflow_type=obj.libPrepSample.libPrepBatch.workflowType into every call site, and put it in the model's own save() if it isn't already, so it can't be forgotten from a view.
+
+3. Build the entry form off the batch, not off individual libraries
+Reuse the sample_qc_detail pattern from qc/views.py: one form per LibraryPrepSample with qubit_ng_ul, fragmentSizesAvgBP, dimerPeak_pct — nmCalculated and QCstatus should never be user-editable, they're always derived on save. Skip validation for blank "stub" rows the same way SampleQC.save(skip_validation=True) does, so you can pre-create pending rows when the QC batch is first opened (one per LibraryPrepSample in the prep batch, controls included — controls should probably be visually flagged but still get a QC row).
+
+4. CSV import — mirror qc_import_results, but key off well position or plate, not sample name
+Your existing SampleQC import matches rows by sample_name. For LibraryQC, the TapeStation/Qubit exports will come back per-well, not per-sample-name necessarily — decide up front whether you're matching on LibraryPrepSample.planned_well_position within the batch or on a sample-name column, and normalize headers the same defensive way (norm() + get_col() helper) since instrument export column names vary.
+
+5. The one real gap in the prep side worth fixing before you build QC on top of it: index assignment is unwired
+LibraryPrepSample.libraryIndex exists as a field and is select_related'd in libprep_detail, but nothing in _save_new_batch ever actually sets it — it's always None today. In the Excel sheet this was the XLOOKUP(plateSet, well) → i7/i5 sequence formula; you now have that as real relational data (IndexKit → LibraryIndex), so this should be a straightforward LibraryIndex.objects.get(indexKit=workflow's kit, plateSet=..., well=...) lookup inside the placement loop in _save_new_batch, rather than a formula. Do this now — once QC data starts flowing, you'll want the index sequence sitting right next to it for the sequencing sample sheet later, and it's much easier to backfill correctly before you have real batches in the DB.
+
+6. PCRCycles is a field with nowhere populating it
+Looking at the Excel sheet, PCR cycles wasn't actually formula-driven either (it was a fixed 15 in the example row) — so this is fine to leave as a manual input field on the QC/prep form rather than something you need to derive. Don't over-engineer a calculation that doesn't exist in the source protocol.
+
+Suggested build order: index assignment fix → LibraryQC batch detail view + manual entry form → CSV import → tab it into libprep_detail.html alongside the existing grid/mastermix tabs, rather than a standalone library/qc/ URL namespace. That keeps one batch = one page, which is the mental model your lab will already have from the Excel sheet (everything lived in one workbook).

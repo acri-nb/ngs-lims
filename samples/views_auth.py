@@ -16,6 +16,18 @@ from django.views.generic import View
 from .models import Client, Project, Sample, UserProfile
 from qc.models import SampleQC
 
+from django.contrib.auth.mixins import LoginRequiredMixin
+
+class LabStaffRequiredMixin(LoginRequiredMixin):
+    """
+    Class-based-view equivalent of lab_staff_required.
+    Blocks researcher accounts, redirecting them to their portal.
+    """
+    def dispatch(self, request, *args, **kwargs):
+        if request.user.is_authenticated and is_researcher(request.user):
+            return redirect('researcher-portal')
+        return super().dispatch(request, *args, **kwargs)
+
 
 #get client from logged-in user
 

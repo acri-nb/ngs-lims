@@ -15,9 +15,11 @@ from django.views.decorators.http import require_POST
 
 from .models import Location, Rack, Plate, PlateWell, TempLog
 
+from samples.views_auth import lab_staff_required
+
 
 # LOCATION LIST (/locations/) logs tab
-@login_required
+@lab_staff_required
 def location_list(request):
     """
     Shows all locations as cards.
@@ -44,7 +46,7 @@ def location_list(request):
 
 
 # ADD TEMP LOG (POST only)
-@login_required
+@lab_staff_required
 def add_temp_log(request, location_pk):
     """
     Handles the quick-log form submission from either the list or history page.
@@ -101,7 +103,7 @@ def add_temp_log(request, location_pk):
 
 
 # LOCATION HISTORY (/locations/<pk>/history/)
-@login_required
+@lab_staff_required
 def location_log_history(request, location_pk):
     """
     Full temperature log history for a single location.
@@ -140,7 +142,7 @@ def location_log_history(request, location_pk):
 
 
 # For /locations/history/
-@login_required
+@lab_staff_required
 def location_history_index(request):
     locations = Location.objects.all().order_by('storageType', 'locationName')
     today = timezone.localdate()
@@ -155,6 +157,7 @@ def location_history_index(request):
 
 
 # For (/locations/log/<pk>/edit/)
+@login_required
 @permission_required('locations.change_templog', raise_exception=True)
 def edit_temp_log(request, log_pk):
     log = get_object_or_404(TempLog, pk=log_pk)
@@ -179,7 +182,7 @@ def edit_temp_log(request, log_pk):
 PLATE_ROWS = list('ABCDEFGH')       # 8 rows
 PLATE_COLS = [f'{c:02d}' for c in range(1, 13)]   # 01-12
 
-
+@lab_staff_required
 def _build_96_grid(plate):
     """
     Return a list of row dicts for a 96-well plate.
@@ -213,7 +216,7 @@ def _build_96_grid(plate):
         grid.append({'row_letter': row, 'cells': cells})
     return grid
 
-
+@lab_staff_required
 def rack_detail(request, rack_pk):
 
     rack = get_object_or_404(
@@ -247,7 +250,7 @@ def rack_detail(request, rack_pk):
         'cols': cols,
     })
 
-
+@lab_staff_required
 def plate_detail(request, plate_pk):
     """96-well plate board click a well to see its contents."""
     plate = get_object_or_404(
@@ -268,7 +271,7 @@ def plate_detail(request, plate_pk):
         'empty':    96 - occupied,
     })
 
-
+@lab_staff_required
 def well_detail(request, well_pk):
     """
     Single well: shows sample info + full pipeline summary.
@@ -306,7 +309,7 @@ def well_detail(request, well_pk):
         'lib_samples': lib_samples,
     })
 
-
+@lab_staff_required
 def inventory_search(request):
     """
     AJAX endpoint, returns JSON list of matches.
@@ -344,7 +347,7 @@ def inventory_search(request):
 """
 rack_location on Plate uses:  "A1T" (top) or "A1B" (bottom)
 """
-
+@lab_staff_required
 def inventory_home(request):
     """
     Shows all racks as cards (one card per rack).
@@ -415,7 +418,7 @@ def inventory_home(request):
 
 SLOT_RE = re.compile(r'^[A-D][1-4][TB]$')
 
-
+@lab_staff_required
 def rack_slots_json(request, rack_pk):
     """
     AJAX endpoint: returns occupancy for every slot in a rack so the
@@ -453,7 +456,7 @@ def rack_slots_json(request, rack_pk):
         'slots': slots,
     })
 
-
+@lab_staff_required
 def rack_list_json(request):
     """AJAX endpoint: all racks for the 'move plate' rack dropdown."""
     racks = Rack.objects.select_related('location').order_by(
@@ -470,7 +473,7 @@ def rack_list_json(request):
     return JsonResponse({'racks': data})
 
 
-@login_required
+@lab_staff_required
 @require_POST
 def move_plate(request, plate_pk):
     """

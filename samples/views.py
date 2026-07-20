@@ -18,6 +18,9 @@ from qc.models import SampleQC
 from django.http import JsonResponse,HttpResponse
 from .forms import SampleAddForm, ClientForm, ProjectForm
 
+from .views_auth import lab_staff_required, LabStaffRequiredMixin
+
+@lab_staff_required
 def home(request):
     """
     Dashboard view, passes counts and recent data to the template.
@@ -71,8 +74,7 @@ def home(request):
     }
     return render(request, 'home.html', context)
 
-class SampleListView(ListView):
-    model = Sample
+class SampleListView(LabStaffRequiredMixin, ListView): 
     template_name = 'samples/sample_list.html'
     context_object_name = 'samples'
     paginate_by = 100
@@ -186,7 +188,7 @@ def _pipeline_stage(sample):
 
 
 # CLIENT
-
+@lab_staff_required
 def client_list(request):
     clients = Client.objects.all().order_by('client_name')
 
@@ -206,7 +208,7 @@ def client_list(request):
         'clients': client_data,
     })
 
-
+@lab_staff_required
 def client_detail(request, client_pk):
 
     client = get_object_or_404(
@@ -315,6 +317,7 @@ def client_detail(request, client_pk):
 
 
 # Project 
+@lab_staff_required
 def project_list(request):
     query = request.GET.get("q", "").strip()
 
@@ -337,7 +340,8 @@ def project_list(request):
             "projects": projects,
         }
     )
-
+    
+@login_required
 def project_detail(request, project_id):
     project = get_object_or_404(
         Project.objects.select_related("client"),
@@ -466,8 +470,7 @@ def sample_detail(request, sample_id):
 
 
 # BULK ACTION 
-
-@login_required
+@lab_staff_required
 def sample_bulk_action(request):
     if request.method != 'POST':
         return redirect('sample-list')
@@ -582,7 +585,7 @@ CSV_COLUMNS = [
     },
 ]
 
-@login_required
+@lab_staff_required
 def sample_import(request):
     preview_rows = []
     preview_errors = []
@@ -722,7 +725,7 @@ def sample_import(request):
         'has_cached_csv':    bool(request.session.get('csv_cache')),
     })
     
-@login_required
+@lab_staff_required
 def sample_import_template(request):
     response = HttpResponse(content_type='text/csv')
     response['Content-Disposition'] = (
@@ -754,7 +757,7 @@ def sample_import_template(request):
 
     return response
 
-@login_required
+@lab_staff_required
 def sample_add(request):
     form = SampleAddForm(request.POST or None)
 
@@ -819,7 +822,7 @@ def sample_add(request):
 
 
 # AJAX Load cases for a projct
-@login_required
+@lab_staff_required
 def ajax_cases_for_project(request):
     '''
     Called by JS when the user picks a project.
@@ -844,7 +847,7 @@ def ajax_cases_for_project(request):
 
 from django.db.models import Count
 
-@login_required
+@lab_staff_required
 def case_list(request):
 
     cases = (
@@ -995,7 +998,7 @@ def case_detail(request, case_id):
 
 from django.shortcuts import render, redirect
 from django.contrib import messages
-
+@lab_staff_required
 def client_create(request):
     if request.method == "POST":
         form = ClientForm(request.POST)
@@ -1013,7 +1016,7 @@ def client_create(request):
         "samples/client_create.html",
         {"form": form}
     )
-
+@lab_staff_required
 def project_create(request):
 
     if request.method == "POST":
