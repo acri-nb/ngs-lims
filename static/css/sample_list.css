@@ -74,5 +74,4 @@ th.sortable.sorted-desc .sort-icon { opacity: 1; color: var(--accent); }
 .pag-btn.active  { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
 .pag-btn.disabled{ opacity: 0.35; pointer-events: none; }
 
-/*  LAST ROW BORDER FIX */
 .table-lims tbody tr:last-child td { border-bottom: none; }

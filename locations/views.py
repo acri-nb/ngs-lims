@@ -182,7 +182,6 @@ def edit_temp_log(request, log_pk):
 PLATE_ROWS = list('ABCDEFGH')       # 8 rows
 PLATE_COLS = [f'{c:02d}' for c in range(1, 13)]   # 01-12
 
-@lab_staff_required
 def _build_96_grid(plate):
     """
     Return a list of row dicts for a 96-well plate.

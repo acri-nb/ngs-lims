@@ -11,6 +11,7 @@ urlpatterns = [
     path('samples/import/template/',  views.sample_import_template,name='sample-import-template'),
     path('samples/add/',                views.sample_add,               name='sample-add'),
     path('samples/ajax/cases/',         views.ajax_cases_for_project,   name='ajax-cases-for-project'),
+    path('samples/<int:sample_id>/toggle-compliance/', views.sample_toggle_compliance, name='sample-toggle-compliance'),
     
     path('cases/', views.case_list, name='case-list'),
     path('cases/<int:case_id>/', views.case_detail, name='case-detail'),

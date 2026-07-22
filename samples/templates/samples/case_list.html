@@ -109,6 +109,7 @@
                         </div>
                         <div style="font-size:0.68rem;color:var(--text-muted);margin-top:2px;font-family:'IBM Plex Mono',monospace;">
                             {% if case.qc_pass    %}{{ case.qc_pass }}✓ {% endif %}
+                            {% if case.qc_caution    %}{{ case.qc_caution }}~ {% endif %}
                             {% if case.qc_fail    %}{{ case.qc_fail }}✗ {% endif %}
                             {% if case.qc_pending %}{{ case.qc_pending }} pending{% endif %}
                         </div>

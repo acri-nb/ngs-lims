@@ -23,7 +23,7 @@ from qc.models import SampleQC
 
 
 ROWS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H']
-COLS = [f'{c:02d}' for c in range(1, 7)]   # 01–06  →  48 wells
+COLS = [f'{c:02d}' for c in range(1, 13)]   
 
 
 def libprep_list(request):

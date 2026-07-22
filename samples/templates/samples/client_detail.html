@@ -20,6 +20,14 @@
         <div style="font-size:0.875rem;color:var(--text-muted);margin-top:2px;">
             {{ client.organisation_name }}
         </div>
+        {% if client.contact_email %}
+        <div style="font-size:0.875rem;margin-top:2px;">
+            <a href="mailto:{{ client.contact_email }}"
+               style="color:var(--accent);text-decoration:none;">
+                <i class="fas fa-envelope me-1"></i>{{ client.contact_email }}
+            </a>
+        </div>
+        {% endif %}
     </div>
     <a href="{% url 'projects-create' %}" class="btn btn-accent ms-auto">
         <i class="fas fa-plus me-1"></i> New Project
@@ -133,6 +141,7 @@
                         </div>
                         <div style="font-size:0.7rem;color:var(--text-muted);margin-top:2px;">
                             {% if item.qc_pass %}{{ item.qc_pass }}✓{% endif %}
+                            {% if item.qc_caution %}{{ item.qc_caution }}~{% endif %}
                             {% if item.qc_fail %} {{ item.qc_fail }}✗{% endif %}
                             {% if item.qc_pending %} {{ item.qc_pending }} pending{% endif %}
                         </div>

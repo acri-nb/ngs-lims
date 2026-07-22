@@ -168,8 +168,6 @@ class InventoryAdmin(admin.ModelAdmin):
 
     bulk_edit_quantity.short_description = "Edit quantity for selected items"
 
-    #TODO Inventory status (low inventory vs OK)
-
     @admin.display(description='Lot Number')
     def lot_number(self, obj):
         return obj.receipt.lot_number

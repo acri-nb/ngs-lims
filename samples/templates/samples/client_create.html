@@ -59,6 +59,20 @@
                         </div>
                     </div>
 
+                    <div class="col-12">
+                        <label class="form-label-lims" for="id_contact_email">
+                            Contact Email 
+                            <span style="font-size:0.7rem;font-weight:400;color:var(--text-muted);text-transform:none;letter-spacing:0;">(optional)</span>
+                        </label>
+                        {{ form.contact_email }}
+                        {% if form.contact_email.errors %}
+                        <div class="field-error">{{ form.contact_email.errors.0 }}</div>
+                        {% endif %}
+                        <div class="field-hint">
+                            Best email to reach this client for reports and updates.
+                        </div>
+                    </div>
+
                 </div>
             </div>
         </div>

@@ -11,12 +11,16 @@ User = get_user_model()
 
 # Model for : Client, Case, Specimen, Samples and Projects
 
-#TODO Look at all the on_delete behaviors for good implementation in the lab
-
 class Client(models.Model):
     client_id = models.AutoField(primary_key=True)
     client_name = models.CharField(max_length=255)
     organisation_name = models.CharField(max_length=255)
+    contact_email = models.EmailField(
+        max_length=255,
+        blank=True,
+        null=True,
+        help_text="Optional contact email for this client."
+    )
 
     def __str__(self):
         return f"{self.client_name}"

@@ -109,15 +109,26 @@
                         <tr>
                             <td class="detail-label">Compliance</td>
                             <td>
-                                {% if sample.compliance %}
-                                <span style="color:var(--success);font-size:0.82rem;">
-                                    <i class="fas fa-check me-1"></i>OK
-                                </span>
-                                {% else %}
-                                <span style="color:var(--warning);font-size:0.82rem;">
-                                    <i class="fas fa-exclamation-triangle me-1"></i>Flagged
-                                </span>
-                                {% endif %}
+                                <div class="d-flex align-items-center gap-2">
+                                    {% if sample.compliance %}
+                                    <span style="color:var(--success);font-size:0.82rem;">
+                                        <i class="fas fa-check me-1"></i>OK
+                                    </span>
+                                    {% else %}
+                                    <span style="color:var(--warning);font-size:0.82rem;">
+                                        <i class="fas fa-exclamation-triangle me-1"></i>Flagged
+                                    </span>
+                                    {% endif %}
+                                
+                                    {% if not user.profile.client %}
+                                    <form method="post" action="{% url 'sample-toggle-compliance' sample.sample_id %}" class="mb-0">
+                                        {% csrf_token %}
+                                        <button type="submit" class="btn btn-outline-lims btn-sm" style="padding:2px 10px;font-size:0.72rem;">
+                                            {% if sample.compliance %}Flag{% else %}Clear flag{% endif %}
+                                        </button>
+                                    </form>
+                                    {% endif %}
+                                </div>
                             </td>
                         </tr>
                         {% if sample.notes %}

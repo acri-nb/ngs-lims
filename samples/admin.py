@@ -74,7 +74,6 @@ class SpecimenTypeAdmin(admin.ModelAdmin):
     list_display = ['specimen_type']
     search_fields = ['specimen_type']
 
-#TODO Sample in specimen does not work (/samples/specimen/<ID>/change/)
 @admin.register(Specimen)
 class SpecimenAdmin(admin.ModelAdmin):
     list_display = ['__str__', 'specimen_id', 'specimen_type', 'case']

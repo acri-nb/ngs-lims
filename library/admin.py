@@ -247,7 +247,6 @@ class LibraryPrepSampleAdmin(admin.ModelAdmin):
 
 @admin.register(LibraryPrepBatchAuditLog)
 class LibraryPrepBatchAuditLogAdmin(admin.ModelAdmin):
-    """Read-only ledger nothing here should ever be created/edited/deleted by hand."""
     list_display = ("batch", "action", "changed_by", "changed_at")
     list_filter = ("action", "changed_at")
     search_fields = ("batch__batch_name", "detail")
@@ -260,8 +259,9 @@ class LibraryPrepBatchAuditLogAdmin(admin.ModelAdmin):
     def has_change_permission(self, request, obj=None):
         return False
 
+    # Allow deletion for deleting library
     def has_delete_permission(self, request, obj=None):
-        return False
+        return True
 
 
 #  Library QC

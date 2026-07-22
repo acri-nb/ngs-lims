@@ -123,18 +123,23 @@ class SampleAddForm(forms.Form):
 class ClientForm(forms.ModelForm):
     class Meta:
         model  = Client
-        fields = ["client_name", "organisation_name"]
+        fields = ["client_name", "organisation_name", 'contact_email']
         widgets = {
             "client_name": forms.TextInput(attrs={
                 "class":       "form-control form-control-lims",
                 "placeholder": "Dr. Jane Smith...",
             }),
+            
             "organisation_name": forms.TextInput(attrs={
                 "class":       "form-control form-control-lims",
                 "placeholder": "Atlantic Cancer Research Institute...",
             }),
-        }
 
+            'contact_email': forms.EmailInput(attrs={
+                'class': 'form-control form-control-lims',
+                'placeholder': 'client@hospital.org'
+            }),
+        }
 
 class ProjectForm(forms.ModelForm):
 

@@ -1040,3 +1040,18 @@ def project_create(request):
         "samples/project_create.html",
         {"form": form}
     )
+
+@lab_staff_required
+def sample_toggle_compliance(request, sample_id):
+    sample = get_object_or_404(Sample, pk=sample_id)
+
+    if request.method != 'POST':
+        return redirect('sample-detail', sample_id=sample_id)
+
+    sample.compliance = not sample.compliance
+    sample.save()
+
+    status = "compliant" if sample.compliance else "flagged"
+    messages.success(request, f"{sample.sample_name} marked as {status}.")
+
+    return redirect('sample-detail', sample_id=sample_id)

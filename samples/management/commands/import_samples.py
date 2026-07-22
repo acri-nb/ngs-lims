@@ -274,8 +274,7 @@ class Command(BaseCommand):
         # If anything fails mid-import the whole thing rolls back cleanly.
         with transaction.atomic():
 
-            #TODO make an automatic batch system (divide this batch in 4 equally and add control sample for the batches?)
-            #TODO max batch of 96 for a plate. Make it so the user can say i want all these samples to be divided in n batches
+           
             from django.utils import timezone
             if not batch_name:
                 batch_hex  = format(SampleQCBatch.objects.count() + 1, '04X')

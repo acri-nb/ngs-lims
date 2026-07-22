@@ -10,13 +10,6 @@
     </a>
 </div>
 
-{% if messages %}
-    {% for message in messages %}
-    <div class="alert alert-{{ message.tags }} alert-dismissible fade show">
-        {{ message }}<button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-    </div>
-    {% endfor %}
-{% endif %}
 
 {% if not clients %}
 <div class="empty-state">
@@ -35,6 +28,15 @@
                     <div class="client-info">
                         <div class="client-name">{{ item.client.client_name }}</div>
                         <div class="client-org">{{ item.client.organisation_name }}</div>
+                        {% if item.client.contact_email %}
+                        <div class="client-email">
+                            <a href="mailto:{{ item.client.contact_email }}"
+                               onclick="event.stopPropagation();"
+                               style="color:var(--accent);text-decoration:none;font-size:0.78rem;">
+                                <i class="fas fa-envelope me-1"></i>{{ item.client.contact_email }}
+                            </a>
+                        </div>
+                        {% endif %}
                     </div>
                     <i class="fas fa-chevron-right client-arrow"></i>
                 </div>
