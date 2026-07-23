@@ -8,7 +8,7 @@ from django.db import transaction
 from datetime import date
 
 from samples.models import Project, Sample
-from .models import SampleQCBatch, BatchSample, BatchAuditLog, SampleQC
+from .models import SampleQCBatch, BatchSample, BatchAuditLog, SampleQC, QCGatePreset
 from django.contrib import messages
 from django.shortcuts import redirect
 
@@ -63,9 +63,26 @@ def qc_batch_detail(request, batch_id):
         .select_related('sample__specimen__case', 'sample__specimen__specimen_type', 'edited_by')
         .order_by('-sample__sample_id')
     )
+
+    presets = (
+        QCGatePreset.objects.filter(sample_type=batch.batch_type)
+        if batch.batch_type else QCGatePreset.objects.none()
+    )
+    presets_data = [
+        {
+            'id': p.pk,
+            'name': p.name,
+            'description': p.description,
+            'gates': {f: getattr(p, f) for f in p.gate_fields_for_type()},
+        }
+        for p in presets
+    ]
+
     return render(request, 'qc/qc_batch_detail.html', {
-        'batch':      batch,
-        'qc_results': qc_results,
+        'batch':        batch,
+        'qc_results':   qc_results,
+        'presets':      presets,
+        'presets_data': presets_data,
     })
 
 
@@ -675,8 +692,8 @@ def qc_gates_save(request, batch_id):
     elif batch.batch_type == 'DNA':
         fields = [
             'gate_dna_min_ng', 'gate_dna_elution_ul',
-            'gate_dna_260_280_min', 'gate_dna_260_230_pass_min',
-            'gate_dna_260_230_caution_min',
+            'gate_dna_260_280_min', 'gate_dna_260_280_max',
+            'gate_dna_260_230_pass_min', 'gate_dna_260_230_caution_min',
         ]
     else:
         return JsonResponse({'ok': False, 'error': 'Batch has no sample type set.'}, status=400)

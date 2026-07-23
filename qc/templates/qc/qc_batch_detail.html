@@ -255,7 +255,19 @@
       Adjust pass/caution thresholds for <strong>{{ batch.batch_name }}</strong>.
       Saving recalculates every sample's status, measured values are not changed.
     </div>
-
+    <div class="result-section-title">Apply a Preset</div>
+    <div class="preset-row" id="presetRow">
+      {% for p in presets %}
+      <button type="button" class="preset-card" data-preset-id="{{ p.pk }}" onclick="applyPreset({{ p.pk }})">
+        <div class="preset-name">{{ p.name }}</div>
+        {% if p.description %}<div class="preset-desc">{{ p.description }}</div>{% endif %}
+      </button>
+      {% empty %}
+      <p class="null-val" style="margin:0;">No presets available for this sample type yet.</p>
+      {% endfor %}
+    </div>
+    <div class="preset-hint" id="presetHint" style="display:none;"></div>
+    
     {% if batch.batch_type == 'RNA' %}
     <div class="result-section-title">Quantity Gate</div>
     <table class="gates-table">
@@ -298,6 +310,7 @@
       <tr><td>Minimum ng (Qubit × elution)</td><td><input type="number" step=0.1 id="gate_dna_min_ng" value="{{ batch.gate_dna_min_ng }}"></td></tr>
       <tr><td>Elution Volume (µL)</td><td><input type="number" step=0.1 id="gate_dna_elution_ul" value="{{ batch.gate_dna_elution_ul }}"></td></tr>
       <tr><td>Nanodrop 260/280 minimum</td><td><input type="number" step=0.1 id="gate_dna_260_280_min" value="{{ batch.gate_dna_260_280_min }}"></td></tr>
+      <tr><td>Nanodrop 260/280 maximum (optional)</td><td><input type="number" step=0.1 id="gate_dna_260_280_max" value="{{ batch.gate_dna_260_280_max|default_if_none:'' }}" placeholder="none"></td></tr>  
       <tr><td>Nanodrop 260/230 — Pass minimum</td><td><input type="number" step=0.1 id="gate_dna_260_230_pass_min" value="{{ batch.gate_dna_260_230_pass_min }}"></td></tr>
       <tr><td>Nanodrop 260/230 — Caution minimum</td><td><input type="number" step=0.1 id="gate_dna_260_230_caution_min" value="{{ batch.gate_dna_260_230_caution_min }}"></td></tr>
     </table>
@@ -339,7 +352,7 @@
     {% elif batch.batch_type == 'DNA' %}
     <p style="font-size:.85rem;line-height:1.6;">
       <strong>Quantity:</strong> Qubit (ng/µL) × {{ batch.gate_dna_elution_ul }} µL must exceed {{ batch.gate_dna_min_ng }} ng.<br><br>
-      <strong>PASS</strong> requires quantity above, Nanodrop 260/280 &gt; {{ batch.gate_dna_260_280_min }}, and 260/230 &gt; {{ batch.gate_dna_260_230_pass_min }}.<br><br>
+      <strong>PASS</strong> requires quantity above, Nanodrop 260/280 &gt; {{ batch.gate_dna_260_280_min }}{% if batch.gate_dna_260_280_max %} and &lt; {{ batch.gate_dna_260_280_max }}{% endif %}, and 260/230 &gt; {{ batch.gate_dna_260_230_pass_min }}.<br><br>
       <strong>CAUTION</strong> if 260/230 &gt; {{ batch.gate_dna_260_230_caution_min }} but PASS isn't met.<br><br>
       Otherwise <strong>FAIL</strong>.
     </p>
@@ -355,14 +368,14 @@
 <!-- TOAST CONTAINER -->
 <div class="toast-wrap" id="toastWrap"></div>
 
+{{ presets_data|json_script:"presets-data" }}
+
 <script>
 const BATCH_TYPE   = "{{ batch.batch_type }}";
 const BATCH_NAME   = "{{ batch.batch_name }}";
 const IMPORT_URL   = "{% url 'qc-import-results' batch.pk %}";
 const CSRF_TOKEN   = "{{ csrf_token }}";
-
 const GATES_SAVE_URL = "{% url 'qc-gates-save' batch.pk %}";
-
 </script>
 
 <script src="{% static 'js/qc_batch_detail.js' %}"></script>

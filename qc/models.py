@@ -125,6 +125,12 @@ class SampleQCBatch(models.Model):
         default=1.79,
         verbose_name=_("DNA: Nanodrop 260/280 Minimum"),
     )
+    gate_dna_260_280_max = models.FloatField(
+        null=True, blank=True,
+        verbose_name=_("DNA: Nanodrop 260/280 Maximum (optional)"),
+        help_text=_("Leave blank for no upper bound. Some workflows (e.g. DNA PCR-Free) "
+                     "require 260/280 to stay under a ceiling, not just above a floor."),
+    )
     gate_dna_260_230_pass_min = models.FloatField(
         default=1.7,
         verbose_name=_("DNA: Nanodrop 260/230 Pass Minimum"),
@@ -311,8 +317,12 @@ class SampleQC(models.Model):
 
             qubit_total = self.qubit_nm * gates.gate_dna_elution_ul
 
+            passes_280 = self.nanodrop_260_280 > gates.gate_dna_260_280_min
+            if gates.gate_dna_260_280_max is not None:
+                passes_280 = passes_280 and self.nanodrop_260_280 < gates.gate_dna_260_280_max
+
             if (qubit_total > gates.gate_dna_min_ng
-                    and self.nanodrop_260_280 > gates.gate_dna_260_280_min
+                    and passes_280
                     and self.nanodrop_260_230 > gates.gate_dna_260_230_pass_min):
                 return self.PASS
             elif self.nanodrop_260_230 > gates.gate_dna_260_230_caution_min:
@@ -444,3 +454,58 @@ class SampleQC(models.Model):
 
     def __str__(self):
         return f"QC {self.sample}({self.qc_status})"
+
+class QCGatePreset(models.Model):
+    """
+    A named, reusable set of QC gate values (e.g. "TotalRNA", "KAPA HyperPlus DNA")
+    that a lab member can apply to a batch with one click instead of retyping.
+    """
+    name = models.CharField(max_length=100, unique=True)
+    sample_type = models.CharField(
+        max_length=10,
+        choices=[('DNA', 'DNA'), ('RNA', 'RNA')],
+    )
+    description = models.CharField(max_length=255, blank=True, default='')
+    order = models.PositiveIntegerField(default=0)
+
+    # RNA gate values (mirror SampleQCBatch.gate_rna_* fields)
+    gate_rna_min_ng            = models.FloatField(null=True, blank=True)
+    gate_rna_elution_ul        = models.FloatField(null=True, blank=True)
+    gate_rna_rin_pass          = models.FloatField(null=True, blank=True)
+    gate_rna_rin_or_min        = models.FloatField(null=True, blank=True)
+    gate_rna_dv200_or_min      = models.FloatField(null=True, blank=True)
+    gate_rna_dv200_pass        = models.FloatField(null=True, blank=True)
+    gate_rna_caution_rin_min   = models.FloatField(null=True, blank=True)
+    gate_rna_caution_dv200_min = models.FloatField(null=True, blank=True)
+    gate_rna_caution_dv200_max = models.FloatField(null=True, blank=True)
+
+    # DNA gate values (mirror SampleQCBatch.gate_dna_* fields)
+    gate_dna_min_ng               = models.FloatField(null=True, blank=True)
+    gate_dna_elution_ul           = models.FloatField(null=True, blank=True)
+    gate_dna_260_280_min          = models.FloatField(null=True, blank=True)
+    gate_dna_260_280_max          = models.FloatField(null=True, blank=True)
+    gate_dna_260_230_pass_min     = models.FloatField(null=True, blank=True)
+    gate_dna_260_230_caution_min  = models.FloatField(null=True, blank=True)
+
+    class Meta:
+        verbose_name = "QC Gate Preset"
+        verbose_name_plural = "QC Gate Presets"
+        ordering = ['sample_type', 'order', 'name']
+
+    def __str__(self):
+        return f"{self.name} ({self.sample_type})"
+
+    def gate_fields_for_type(self):
+        if self.sample_type == 'RNA':
+            return [
+                'gate_rna_min_ng', 'gate_rna_elution_ul',
+                'gate_rna_rin_pass', 'gate_rna_rin_or_min',
+                'gate_rna_dv200_or_min', 'gate_rna_dv200_pass',
+                'gate_rna_caution_rin_min', 'gate_rna_caution_dv200_min',
+                'gate_rna_caution_dv200_max',
+            ]
+        return [
+            'gate_dna_min_ng', 'gate_dna_elution_ul',
+            'gate_dna_260_280_min', 'gate_dna_260_280_max',
+            'gate_dna_260_230_pass_min', 'gate_dna_260_230_caution_min',
+        ]

@@ -226,3 +226,15 @@ tbody tr:hover { background:var(--surface-alt); }
   background:var(--surface-alt); color:var(--text); outline:none;
 }
 .gates-table input[type="number"]:focus { border-color:var(--accent); }
+
+.preset-row { display:flex; gap:.6rem; flex-wrap:wrap; margin-bottom:.5rem; }
+.preset-card {
+  background:var(--surface-alt); border:1px solid var(--border); border-radius:8px;
+  padding:.55rem .8rem; text-align:left; cursor:pointer; min-width:140px;
+  transition:border-color .15s, background .15s;
+}
+.preset-card:hover { border-color:var(--accent); }
+.preset-card.active { border-color:var(--accent); background:rgba(0,180,216,.08); }
+.preset-name { font-family:'IBM Plex Mono',monospace; font-size:.8rem; font-weight:600; color:var(--primary); }
+.preset-desc { font-size:.72rem; color:var(--text-muted); margin-top:.2rem; line-height:1.4; }
+.preset-hint { font-size:.8rem; color:var(--text-muted); margin:.5rem 0 1rem; }

@@ -46,8 +46,7 @@ function exportCSV() {
     // Convert nM back to ng/µL for the export (what the instrument shows)
     let qubitNgUl = '';
     if (qubitNM !== '') {
-      const factor = BATCH_TYPE === 'RNA' ? 40 : 100;
-      qubitNgUl = (parseFloat(qubitNM) * factor).toFixed(3);
+      qubitNgUl = (parseFloat(qubitNM)).toFixed(1);
     }
 
     let rowData;
@@ -274,4 +273,27 @@ async function saveGates() {
     msg.textContent = 'Network error, could not save.';
     btn.disabled = false;
   }
+}
+
+// QC GATE PRESETS 
+const presetsEl = document.getElementById('presets-data');
+const PRESETS = presetsEl ? JSON.parse(presetsEl.textContent) : [];
+
+function applyPreset(id) {
+  const preset = PRESETS.find(p => p.id === id);
+  if (!preset) return;
+
+  Object.entries(preset.gates).forEach(([field, value]) => {
+    const input = document.getElementById(field);
+    if (input) input.value = (value === null || value === undefined) ? '' : value;
+  });
+
+  document.querySelectorAll('.preset-card').forEach(c => c.classList.remove('active'));
+  const btn = document.querySelector(`.preset-card[data-preset-id="${id}"]`);
+  if (btn) btn.classList.add('active');
+
+  const hint = document.getElementById('presetHint');
+  hint.style.display = 'block';
+  hint.innerHTML = `<i class="fas fa-check-circle" style="color:var(--success);margin-right:.35rem;"></i>`
+    + `"${preset.name}" values loaded into the fields below — click <strong>Save &amp; Recalculate</strong> to apply.`;
 }

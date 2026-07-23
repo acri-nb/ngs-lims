@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import SampleQCBatch, BatchSample, SampleQC, BatchAuditLog
+from .models import SampleQCBatch, BatchSample, SampleQC, BatchAuditLog, QCGatePreset
 
 from django import forms
 from django.shortcuts import render, redirect
@@ -308,4 +308,80 @@ class BatchAuditLogAdmin(admin.ModelAdmin):
         }),
     )
 
-    
+@admin.register(QCGatePreset)
+class QCGatePresetAdmin(admin.ModelAdmin):
+    list_display = (
+        "name",
+        "sample_type",
+        "order",
+        "description",
+    )
+
+    list_filter = (
+        "sample_type",
+    )
+
+    search_fields = (
+        "name",
+        "description",
+    )
+
+    ordering = (
+        "sample_type",
+        "order",
+        "name",
+    )
+
+    list_editable = (
+        "order",
+    )
+
+    fieldsets = (
+        ("Preset Information", {
+            "fields": (
+                "name",
+                "sample_type",
+                "description",
+                "order",
+            )
+        }),
+
+        ("RNA Quantity Gates", {
+            "fields": (
+                "gate_rna_min_ng",
+                "gate_rna_elution_ul",
+            ),
+            "classes": ("collapse",),
+        }),
+
+        ("RNA Pass Gates", {
+            "fields": (
+                "gate_rna_rin_pass",
+                "gate_rna_rin_or_min",
+                "gate_rna_dv200_or_min",
+                "gate_rna_dv200_pass",
+            ),
+            "classes": ("collapse",),
+        }),
+
+        ("RNA Caution Gates", {
+            "fields": (
+                "gate_rna_caution_rin_min",
+                "gate_rna_caution_dv200_min",
+                "gate_rna_caution_dv200_max",
+            ),
+            "classes": ("collapse",),
+        }),
+
+        ("DNA Gates", {
+            "fields": (
+                "gate_dna_min_ng",
+                "gate_dna_elution_ul",
+                "gate_dna_260_280_min",
+                "gate_dna_260_280_max",
+                "gate_dna_260_230_pass_min",
+                "gate_dna_260_230_caution_min",
+            ),
+            "classes": ("collapse",),
+        }),
+    )
