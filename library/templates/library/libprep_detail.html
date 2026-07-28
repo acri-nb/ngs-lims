@@ -62,7 +62,10 @@
 
 <!-- TABS -->
 <div class="libprep-tabs">
-    <button class="libprep-tab active" onclick="showLibprepTab('plate', this)">
+    <button class="libprep-tab active" onclick="showLibprepTab('prepsheet', this)">
+        <i class="fas fa-vial me-1"></i> Prep Sheet
+    </button>
+    <button class="libprep-tab" onclick="showLibprepTab('plate', this)">
         <i class="fas fa-th me-1"></i> Plate View
     </button>
     <button class="libprep-tab" onclick="showLibprepTab('table', this)">
@@ -73,8 +76,102 @@
     </button>
 </div>
 
+<!-- TAB: PREP SHEET -->
+<div id="libprep-tab-prepsheet" class="libprep-pane">
+
+  <div class="mm-toolbar">
+    <div>
+      <span class="detail-section-label" style="margin:0;">
+        Target: {{ workflow.target_input_ng|floatformat:0 }} ng
+        in {{ workflow.target_volume_ul|floatformat:0 }} uL
+        {% if workflow.uses_qia_spike %}+ {{ workflow.qia_spike_volume_ul|floatformat:1 }} uL QIA Spike{% endif %}
+        &nbsp;·&nbsp; Diluent: {{ workflow.diluent_name }}
+      </span>
+    </div>
+    <div style="margin-left:auto;">
+      <a class="btn-accent" href="{% url 'libprep-prepsheet-print' batch.pk %}" target="_blank">
+        <i class="fas fa-print me-1"></i> Print / Export PDF
+      </a>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="table-responsive">
+      <table class="table table-lims" id="prepSheetTable">
+        <thead>
+          <tr>
+            <th>Well</th>
+            <th>Sample</th>
+            <th>Conc. (ng/uL)</th>
+            <th>{{ workflow.sample_type }} (uL)</th>
+            <th>{{ workflow.diluent_name }} (uL)</th>
+            {% if workflow.uses_qia_spike %}<th>QIA Spike (uL)</th>{% endif %}
+            <th>Actual Input (ng)</th>
+            <th>Flags</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in prep_rows %}
+          <tr class="{% if row.calc.insufficient %}prep-row-insufficient{% elif row.calc.speedvac_required %}prep-row-speedvac{% elif row.calc.dilution %}prep-row-dilute-{{ row.calc.dilution.factor }}{% endif %}">
+            <td class="mono">{{ row.well_pos|default:"—" }}</td>
+            <td>
+              {% if row.is_control %}<span class="mm-fixed-tag">Control</span>{% else %}{{ row.sample_name }}{% endif %}
+            </td>
+            {% if row.is_control %}
+              <td colspan="{% if workflow.uses_qia_spike %}5{% else %}4{% endif %}" class="text-muted">
+                No prep calculation, control well.
+              </td>
+            {% else %}
+              <td class="mono">{{ row.conc|default_if_none:"—"|floatformat:2 }}
+                {% if row.calc.dilution %}<div class="mm-fixed-tag"> 1:{{ row.calc.dilution.factor }} dilution ({{ row.calc.dilution.diluted_conc|floatformat:2 }} ng/µL)</div>{% endif %}
+              </td>
+              <td class="mono">
+                {{ row.calc.vol_sample_ul|default_if_none:"—"|floatformat:2 }}
+              
+              </td>
+              <td class="mono">{{ row.calc.vol_diluent_ul|default_if_none:"—"|floatformat:2 }}</td>
+              {% if workflow.uses_qia_spike %}<td class="mono">{{ workflow.qia_spike_volume_ul|default_if_none:"—"|floatformat:2 }}</td>{% endif %}
+              <td class="mono">{{ row.calc.actual_input_ng|default_if_none:"—"|floatformat:2 }}</td>
+              <td>
+                {% if row.calc.insufficient %}
+                  <span class="badge-flag badge-flag-danger" title="Whole tube isn't enough to reach target input.">
+                    <i class="fas fa-triangle-exclamation"></i> Insufficient
+                  </span>
+                {% elif row.calc.speedvac_required %}
+                  <span class="badge-flag badge-flag-warning" title="Pipette the listed volume, then SpeedVac down to the target volume.">
+                    <i class="fas fa-wind"></i> SpeedVac
+                  </span>
+                {% elif row.calc.dilution %}
+                  <span class="badge-flag badge-dilution-{{ row.calc.dilution.factor }}" title="Stock is too concentrated to pipette accurately, pre-dilute before adding to the well.">
+                    <i class="fas fa-droplet"></i> 1:{{ row.calc.dilution.factor }} dilution
+                  </span>
+                {% elif row.calc.status == 'no_conc' %}
+                  <span class="badge-flag badge-flag-muted">No concentration on file</span>
+                {% else %}
+                  <span class="badge-flag badge-flag-ok"><i class="fas fa-check"></i> OK</span>
+                {% endif %}
+              </td>
+            {% endif %}
+          </tr>
+          {% empty %}
+          <tr><td colspan="8" class="text-center text-muted py-4">No wells placed yet.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <p class="text-muted" style="font-size:.8rem;margin-top:.5rem;">
+    <i class="fas fa-circle-info me-1"></i>
+    Dilution suggestions are a rough bench guide, not a precision instruction, adjust as needed at the bench.
+    Plate Set / Well{% if not workflow.logs_plate_and_well %} (UDI){% endif %}, PCR cycles, Qubit, and TapeStation
+    columns are filled in on the printed sheet and entered back into the LIMS after the bench work is done.
+  </p>
+
+</div>
+
 <!--  TAB: PLATE VIEW -->
-<div id="libprep-tab-plate" class="libprep-pane">
+<div id="libprep-tab-plate" class="libprep-pane" style="display:none;">
 
 <!-- MAIN LAYOUT-->
 <div class="plate-layout">

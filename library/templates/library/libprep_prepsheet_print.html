@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Prep Sheet | {{ batch.batch_name|default:batch.plate.plate_name }}</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+    :root {
+        --ink:        #1a2332;
+        --muted:      #6b7a8f;
+        --accent:     #00b4d8;
+        --accent-dark:#0096b4;
+        --border:     #d7dee6;
+        --surface-alt:#f3f6f9;
+        --success:    #1a8c3d;
+        --warning:    #8a5a00;
+        --warning-bg: #fff3d6;
+        --danger:     #b81f2c;
+        --danger-bg:  #fbe2e4;
+    }
+    * { box-sizing: border-box; }
+    body {
+        font-family: 'IBM Plex Sans', sans-serif;
+        color: var(--ink);
+        margin: 0;
+        padding: 2rem 2.5rem 3rem;
+        max-width: 1200px;
+        margin-inline: auto;
+        background: #fff;
+    }
+
+    .toolbar {
+        display: flex;
+        justify-content: flex-end;
+        gap: .6rem;
+        margin-bottom: 1.5rem;
+    }
+    .toolbar button {
+        font-family: inherit;
+        font-size: .85rem;
+        font-weight: 500;
+        padding: .5rem 1.1rem;
+        border-radius: 6px;
+        border: 1px solid var(--border);
+        background: #fff;
+        cursor: pointer;
+    }
+    .toolbar button.primary {
+        background: var(--accent);
+        border-color: var(--accent);
+        color: #fff;
+    }
+
+    .sheet-header {
+        border-bottom: 2px solid var(--ink);
+        padding-bottom: 1rem;
+        margin-bottom: 1.1rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-end;
+        gap: 1rem;
+    }
+    .sheet-title {
+        font-size: 1.4rem;
+        font-weight: 700;
+        margin: 0 0 .25rem;
+    }
+    .sheet-subtitle {
+        font-size: .85rem;
+        color: var(--muted);
+        margin: 0;
+    }
+    .sheet-meta {
+        text-align: right;
+        font-size: .78rem;
+        color: var(--muted);
+        line-height: 1.5;
+    }
+    .sheet-meta strong { color: var(--ink); }
+
+    /* Fill-in-by-hand header fields, matching the source protocol sheets */
+    .fillin-row {
+        display: flex;
+        gap: 2rem;
+        margin-bottom: 1.1rem;
+        font-size: .82rem;
+    }
+    .fillin-field {
+        flex: 1;
+        display: flex;
+        align-items: baseline;
+        gap: .5rem;
+    }
+    .fillin-field .label {
+        color: var(--muted);
+        white-space: nowrap;
+        font-weight: 600;
+    }
+    .fillin-field .blank {
+        flex: 1;
+        border-bottom: 1px solid var(--border);
+        min-height: 1.1em;
+    }
+
+    .info-banner {
+        background: var(--surface-alt);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: .75rem 1.1rem;
+        margin-bottom: 1.5rem;
+        font-size: .82rem;
+        display: flex;
+        flex-wrap: wrap;
+        gap: .4rem 2rem;
+    }
+    .info-banner div strong { color: var(--ink); }
+
+    table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: .74rem;
+    }
+    th {
+        text-align: left;
+        font-size: .62rem;
+        font-weight: 600;
+        letter-spacing: .04em;
+        text-transform: uppercase;
+        color: var(--muted);
+        padding: .4rem .5rem;
+        border-bottom: 1px solid var(--border);
+        background: var(--surface-alt);
+        white-space: nowrap;
+    }
+    td {
+        padding: .4rem .5rem;
+        border-bottom: 1px solid var(--border);
+        white-space: nowrap;
+    }
+    tbody tr:last-child td { border-bottom: none; }
+    .mono { font-family: 'IBM Plex Mono', monospace; }
+    .vol-cell { font-family: 'IBM Plex Mono', monospace; font-weight: 600; color: var(--accent-dark); }
+    .blank-cell { min-width: 3.2rem; }
+    th.section-divider, td.section-divider { border-left: 2px solid var(--ink); }
+
+    .row-speedvac    { background: var(--warning-bg); }
+    .row-insufficient{ background: var(--danger-bg); }
+    .row-dilute-2    { background: #eaf4ff; }
+    .row-dilute-5    { background: #ecfaf1; }
+    .row-dilute-10   { background: #f8fce0; }
+    .row-dilute-20   { background: #fff3de; }
+    .row-dilute-50   { background: #ffeaee; }
+    .row-dilute-100  { background: #f3ecff; }
+    .flag-note {
+        font-size: .64rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: .03em;
+    }
+    .flag-speedvac    { color: var(--warning); }
+    .flag-insufficient{ color: var(--danger); }
+    .flag-dilute-2   { color: #1c5a96; }
+    .flag-dilute-5   { color: #1a7a4d; }
+    .flag-dilute-10  { color: #6b7a10; }
+    .flag-dilute-20  { color: #8a5a00; }
+    .flag-dilute-50  { color: #a13355; }
+    .flag-dilute-100 { color: #5c34a8; }
+
+    .legend {
+        display: flex;
+        gap: 1.5rem;
+        margin-top: .9rem;
+        font-size: .72rem;
+        color: var(--muted);
+    }
+    .legend .swatch {
+        display: inline-block;
+        width: .8em;
+        height: .8em;
+        border-radius: 2px;
+        margin-right: .35rem;
+        vertical-align: middle;
+    }
+    .swatch-speedvac { background: var(--warning-bg); border: 1px solid var(--warning); }
+    .swatch-insufficient { background: var(--danger-bg); border: 1px solid var(--danger); }
+    .swatch-dilute-2   { background: #eaf4ff; border: 1px solid #4a90d9; }
+    .swatch-dilute-5   { background: #ecfaf1; border: 1px solid #2fa66b; }
+    .swatch-dilute-10  { background: #f8fce0; border: 1px solid #a3b91b; }
+    .swatch-dilute-20  { background: #fff3de; border: 1px solid #d98c1f; }
+    .swatch-dilute-50  { background: #ffeaee; border: 1px solid #d9527a; }
+    .swatch-dilute-100 { background: #f3ecff; border: 1px solid #8656d9; }
+
+    .sign-off {
+        margin-top: 2rem;
+        display: flex;
+        gap: 3rem;
+        font-size: .8rem;
+    }
+    .sign-off .field {
+        flex: 1;
+        border-top: 1px solid var(--ink);
+        padding-top: .35rem;
+        color: var(--muted);
+    }
+
+    .footer-note {
+        margin-top: 1.5rem;
+        font-size: .7rem;
+        color: var(--muted);
+        border-top: 1px solid var(--border);
+        padding-top: .6rem;
+    }
+
+    @media print {
+        body { padding: 0; max-width: none; }
+        .toolbar { display: none; }
+        table { font-size: .68rem; }
+        @page { size: landscape; margin: 1.2cm; }
+    }
+</style>
+</head>
+<body>
+
+<div class="toolbar">
+    <button onclick="window.close()">Close</button>
+    <button class="primary" onclick="window.print()">Print / Save as PDF</button>
+</div>
+
+<div class="sheet-header">
+    <div>
+        <p class="sheet-title">Library Prep Sheet</p>
+        <p class="sheet-subtitle">{{ workflow.workflowType }}</p>
+    </div>
+    <div class="sheet-meta">
+        <div><strong>{{ batch.batch_name|default:batch.plate.plate_name }}</strong></div>
+        {% if batch.project %}<div>{{ batch.project.project_name }} · {{ batch.project.client.client_name }}</div>{% endif %}
+        <div>Date Prepped: {{ batch.datePrepped|date:"F j, Y" }}</div>
+        <div>Printed: {{ printed_at|date:"F j, Y, g:i A" }}</div>
+    </div>
+</div>
+
+<div class="fillin-row">
+    <div class="fillin-field"><span class="label">Prepared By</span><span class="blank"></span></div>
+    <div class="fillin-field"><span class="label">Date</span><span class="blank"></span></div>
+</div>
+
+<div class="info-banner">
+    <div>Target Input: <strong>{{ workflow.target_input_ng|floatformat:0 }} ng</strong></div>
+    <div>Starting Volume: <strong>{{ workflow.target_volume_ul|floatformat:0 }} µL</strong></div>
+    {% if workflow.uses_qia_spike %}<div>QIA Spike: <strong>{{ workflow.qia_spike_volume_ul|floatformat:1 }} µL / well</strong></div>{% endif %}
+    <div>Diluent: <strong>{{ workflow.diluent_name }}</strong></div>
+    {% if workflow.requires_pcr %}<div>PCR Cycles: <strong>fill in below</strong></div>{% else %}<div><strong>PCR-Free protocol</strong></div>{% endif %}
+</div>
+
+<table>
+    <thead>
+        <tr>
+            <th>Well</th>
+            <th>Sample Name</th>
+            <th>Input (ng)</th>
+            <th>Conc. (ng/uL)</th>
+            <th>{{ workflow.sample_type }} (uL)</th>
+            <th>{{ workflow.diluent_name }} (uL)</th>
+            {% if workflow.uses_qia_spike %}<th>QIA Spike (uL)</th>{% endif %}
+            <th>Actual Input (ng)</th>
+            <th class="section-divider">{% if workflow.logs_plate_and_well %}Plate Set{% else %}UDI{% endif %}</th>
+            {% if workflow.logs_plate_and_well %}<th>Well (X##)</th>{% endif %}
+            {% if workflow.requires_pcr %}<th>PCR Cycles</th>{% endif %}
+            <th class="section-divider">Qubit (ng/uL)</th>
+            <th>in nM</th>
+            {% if workflow.qc_method == 'qubit_tapestation' %}
+            <th>Avg Lib Size</th>
+            <th>Dimer Peak %</th>
+            {% endif %}
+            <th>QC</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for row in prep_rows %}
+        <tr class="{% if row.calc.insufficient %}row-insufficient{% elif row.calc.speedvac_required %}row-speedvac{% elif row.calc.dilution %}row-dilute-{{ row.calc.dilution.factor }}{% endif %}">
+            <td class="mono">{{ row.well_pos|default:"—" }}</td>
+            <td>{% if row.is_control %}Control{% else %}{{ row.sample_name }}{% endif %}</td>
+            {% if row.is_control %}
+                <td colspan="{% if workflow.uses_qia_spike %}5{% else %}4{% endif %}" style="color:var(--muted);">no prep calculation</td>
+            {% else %}
+                <td class="mono">{{ workflow.target_input_ng|floatformat:0 }}</td>
+                <td class="mono">{{ row.conc|default_if_none:"—"|floatformat:2 }}
+                    {% if row.calc.dilution %}<div class="flag-note flag-dilute-{{ row.calc.dilution.factor }}">1:{{ row.calc.dilution.factor }} dilution ({{ row.calc.dilution.diluted_conc|floatformat:2 }} ng/uL)</div>{% endif %}
+                </td>
+                <td class="vol-cell">
+                    {{ row.calc.vol_sample_ul|default_if_none:"—"|floatformat:2 }}
+                </td>
+                <td class="vol-cell">{{ row.calc.vol_diluent_ul|default_if_none:"—"|floatformat:2 }}</td>
+                {% if workflow.uses_qia_spike %}<td class="vol-cell">{{ workflow.qia_spike_volume_ul|default_if_none:"—"|floatformat:2 }}</td>{% endif %}
+                <td class="mono">
+                    {{ row.calc.actual_input_ng|default_if_none:"—"|floatformat:2 }}
+                    {% if row.calc.insufficient %}<div class="flag-note flag-insufficient">Insufficient</div>{% elif row.calc.speedvac_required %}<div class="flag-note flag-speedvac">SpeedVac</div>{% endif %}
+                </td>
+            {% endif %}
+            <td class="blank-cell section-divider"></td>
+            {% if workflow.logs_plate_and_well %}<td class="blank-cell"></td>{% endif %}
+            {% if workflow.requires_pcr %}<td class="blank-cell"></td>{% endif %}
+            <td class="blank-cell section-divider"></td>
+            <td class="blank-cell"></td>
+            {% if workflow.qc_method == 'qubit_tapestation' %}
+            <td class="blank-cell"></td>
+            <td class="blank-cell"></td>
+            {% endif %}
+            <td class="blank-cell"></td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="16" style="text-align:center;color:var(--muted);padding:1.5rem;">No wells placed on this batch yet.</td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<div class="legend">
+    <span><span class="swatch swatch-speedvac"></span>SpeedVac required</span>
+    <span><span class="swatch swatch-insufficient"></span>Insufficient material — actual input below target</span>
+    <span><span class="swatch swatch-dilute-2"></span>1:2 dilution</span>
+    <span><span class="swatch swatch-dilute-5"></span>1:5 dilution</span>
+    <span><span class="swatch swatch-dilute-10"></span>1:10 dilution</span>
+    <span><span class="swatch swatch-dilute-20"></span>1:20 dilution</span>
+    <span><span class="swatch swatch-dilute-50"></span>1:50 dilution</span>
+    <span><span class="swatch swatch-dilute-100"></span>1:100 dilution</span>
+</div>
+
+<div class="sign-off">
+    <div class="field">Prepared By</div>
+    <div class="field">Verified By</div>
+</div>
+
+<div class="footer-note">
+    NGS-LIMS — Prep Sheet generated from workflow "{{ workflow.workflowType }}". {{ workflow.sample_type }} and
+    {{ workflow.diluent_name }} volumes are calculated from each sample's logged QC concentration and received
+    volume. Plate Set / Well{% if not workflow.logs_plate_and_well %} (UDI){% endif %}, PCR cycles, Qubit, and
+    TapeStation values are filled in by hand and entered back into the LIMS after bench work.
+</div>
+
+</body>
+</html>

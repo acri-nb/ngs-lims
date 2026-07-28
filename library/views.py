@@ -137,6 +137,10 @@ def libprep_detail(request, batch_id):
     reaction_count  = batch.effective_mastermix_reaction_count
     mastermix_steps = _get_mastermix_steps(batch, reaction_count)
 
+    # Prep Sheet tab data ordered A01, B01 ... H01, A02 ... to match the
+    # paper sheet's column-major fill order (8 rows = column A on the sheet)
+    prep_rows = _get_prep_sheet_rows(batch)
+
     return render(request, 'library/libprep_detail.html', {
         'batch':           batch,
         'grid':            grid,
@@ -147,6 +151,8 @@ def libprep_detail(request, batch_id):
         'audit_log':       audit_log,
         'mastermix_steps': mastermix_steps,
         'reaction_count':  reaction_count,
+        'prep_rows':       prep_rows,
+        'workflow':        batch.workflowType,
     })
 
 
@@ -154,7 +160,7 @@ def libprep_mastermix_save(request, batch_id):
     """
     AJAX endpoint persists the reaction count a lab member enters on the
     Master Mix tab, so it's remembered the next time anyone opens this
-    batch (instead of retyping it every visit, like the old Excel sheets).
+    batch
     """
     if request.method != 'POST':
         return JsonResponse({'ok': False, 'error': 'Invalid request method.'}, status=405)
@@ -207,6 +213,227 @@ def libprep_mastermix_print(request, batch_id):
         'mastermix_steps': mastermix_steps,
         'reaction_count':  reaction_count,
         'printed_at':      timezone.now(),
+    })
+
+
+# PREP SHEET  (RNA/DNA + diluent volume calc, printable working sheet)
+
+STANDARD_DILUTION_FACTORS = [2, 5, 10, 20, 50, 100]   # 1:2, 1:5, 1:10, 1:20, 1:50, 1:100
+MIN_PIPETTE_UL = 1.5   # below this, pipetting raw stock isn't accurate and need to dilute it
+
+
+def _suggest_dilution(conc, target_ng, target_vol_ul, min_pipette_ul=MIN_PIPETTE_UL):
+    """
+    When the raw pipette volume needed is under min_pipette_ul (too small
+    to pipette accurately), pick the smallest standard dilution factor
+    (1:2, 1:5, 1:10, ...) that brings the diluted-stock pipette volume
+    back up to at least min_pipette_ul.
+    """
+    vol_needed = target_ng / conc
+    if vol_needed >= min_pipette_ul:
+        return None
+
+    for factor in STANDARD_DILUTION_FACTORS:
+        vol_from_diluted = vol_needed * factor
+        if vol_from_diluted >= min_pipette_ul:
+            return {
+                'factor': factor,
+                'diluted_conc': round(conc / factor, 4),
+                'vol_from_diluted_ul': round(min(vol_from_diluted, target_vol_ul), 2),
+            }
+
+    # Even the largest standard factor doesn't clear the threshold,
+    # use it anyway, better than nothing, and it's clearly labelled.
+    factor = STANDARD_DILUTION_FACTORS[-1]
+    return {
+        'factor': factor,
+        'diluted_conc': round(conc / factor, 4),
+        'vol_from_diluted_ul': round(min(vol_needed * factor, target_vol_ul), 2),
+    }
+
+
+def _calc_prep_volumes(conc, volume_available, target_ng, target_vol_ul):
+    """
+    Core per-sample prep-volume calculation, matching the lab's paper
+    protocol sheets (see NGS_workflows.md).
+    
+    - "Impossible" check: even pipetting the ENTIRE available volume, is there enough material to hit target_ng?
+    - Simple case: vol_needed (target_ng / conc) fits within target_vol_ul and can get diluted or changed
+    - SpeedVac case: vol_needed exceeds target_vol_ul (i.e. the diluent volume would go negative) 
+    - Insufficient case: vol_needed exceeds volume_available itself (the whole tube isn't enough) 
+
+    """
+    base = {
+        'status': 'no_conc',
+        'vol_sample_ul': None,
+        'vol_diluent_ul': None,
+        'actual_input_ng': None,
+        'speedvac_required': False,
+        'insufficient': False,
+        'dilution': None,
+    }
+
+    if not conc or conc <= 0:
+        return base
+
+    # Case 4: not even the whole available volume has enough material.
+    if volume_available and (conc * volume_available) < target_ng:
+        actual = round(conc * volume_available, 2)
+        speedvac = volume_available > target_vol_ul
+        base.update({
+            'status': 'insufficient',
+            'vol_sample_ul': round(volume_available, 2),
+            'vol_diluent_ul': 0.0 if speedvac else round(target_vol_ul - volume_available, 2),
+            'actual_input_ng': actual,
+            'speedvac_required': speedvac,
+            'insufficient': True,
+        })
+        return base
+
+    vol_needed = round(target_ng / conc, 2)
+
+    # Case 2 / 2b: fits directly, top up with diluent, unless the raw
+    # volume is too small to pipette accurately, then suggest a dilution.
+    if vol_needed <= target_vol_ul:
+        dilution = _suggest_dilution(conc, target_ng, target_vol_ul)
+        if dilution:
+            pipette_vol = dilution['vol_from_diluted_ul']
+            base.update({
+                'status': 'dilute',
+                'vol_sample_ul': pipette_vol,
+                'vol_diluent_ul': round(target_vol_ul - pipette_vol, 2),
+                'actual_input_ng': round(target_ng, 2),
+                'speedvac_required': False,
+                'dilution': dilution,
+            })
+            return base
+
+        base.update({
+            'status': 'ok',
+            'vol_sample_ul': vol_needed,
+            'vol_diluent_ul': round(target_vol_ul - vol_needed, 2),
+            'actual_input_ng': round(target_ng, 2),
+            'speedvac_required': False,
+        })
+        return base
+
+    # Case 3: enough material overall, but need to SpeedVac down
+    # (this is the "diluent volume would go negative" trigger).
+    base.update({
+        'status': 'speedvac',
+        'vol_sample_ul': vol_needed,
+        'vol_diluent_ul': 0.0,
+        'actual_input_ng': round(target_ng, 2),
+        'speedvac_required': True,
+    })
+    return base
+
+
+def _get_prep_sheet_rows(batch):
+    """
+    Builds the row data for the Prep Sheet tab / print view, one row per
+    LibraryPrepSample, ordered to match the paper sheet's fill order
+    (column-major: A01..H01, A02..H02, ...) so the first 8 rows a lab
+    member fills in correspond to column A on the physical plate
+    """
+    samples = (
+        batch.samples
+        .select_related('sampleQC__sample', 'plateWell', 'libraryIndex')
+    )
+
+    # Column-major sort key from planned_well_position / plateWell position
+    def sort_key(s):
+        pos = (s.plateWell.well_position if s.plateWell_id else s.planned_well_position) or 'Z99'
+        row_letter, col_num = pos[0], pos[1:]
+        try:
+            col_num = int(col_num)
+        except ValueError:
+            col_num = 99
+        return (col_num, row_letter)
+
+    samples = sorted(samples, key=sort_key)
+
+    rows = []
+    for s in samples:
+        is_control = s.sampleQC_id is None
+        well_pos = s.plateWell.well_position if s.plateWell_id else s.planned_well_position
+
+        if is_control:
+            rows.append({
+                'well_pos':      well_pos,
+                'is_control':    True,
+                'sample':        None,
+                'sample_name':   'Control',
+                'conc':          None,
+                'calc':          None,
+                'library_sample': s,
+            })
+            continue
+
+        sample_obj = s.sampleQC.sample
+
+        dilution = None
+        if s.suggestedDilutionFactor:
+            diluted_conc = (
+                round(s.concentrationInput / s.suggestedDilutionFactor, 4)
+                if s.concentrationInput else None
+            )
+            dilution = {
+                'factor': s.suggestedDilutionFactor,
+                'diluted_conc': diluted_conc,
+            }
+
+        if s.insufficientMaterial:
+            status = 'insufficient'
+        elif s.speedVacRequired:
+            status = 'speedvac'
+        elif dilution:
+            status = 'dilute'
+        elif s.volumeSample_ul is not None:
+            status = 'ok'
+        else:
+            status = 'no_conc'
+
+        calc = {
+            'status':            status,
+            'vol_sample_ul':     s.volumeSample_ul,
+            'vol_diluent_ul':    s.volumeDiluent_ul,
+            'actual_input_ng':   s.actual_Input_ng,
+            'speedvac_required': s.speedVacRequired,
+            'insufficient':      s.insufficientMaterial,
+            'dilution':          dilution,
+        }
+
+        rows.append({
+            'well_pos':       well_pos,
+            'is_control':     False,
+            'sample':         sample_obj,
+            'sample_name':    sample_obj.sample_name,
+            'conc':           s.concentrationInput,
+            'calc':           calc,
+            'library_sample': s,
+        })
+
+    return rows
+
+
+def libprep_prep_sheet_print(request, batch_id):
+    """
+    Standalone, print-friendly Prep Sheet: the working sheet a lab member
+    takes to the bench. """
+    batch = get_object_or_404(
+        LibraryPrepBatch.objects.select_related(
+            'project', 'project__client', 'workflowType', 'plate',
+        ),
+        pk=batch_id,
+    )
+    prep_rows = _get_prep_sheet_rows(batch)
+
+    return render(request, 'library/libprep_prepsheet_print.html', {
+        'batch':      batch,
+        'workflow':   batch.workflowType,
+        'prep_rows':  prep_rows,
+        'printed_at': timezone.now(),
     })
 
 
@@ -454,11 +681,16 @@ def _save_new_batch(request, project):
 
     try:
         placements = json.loads(placements_raw) if placements_raw else {}
-    except (json.JSONDecodeError, ValueError):
+        if not isinstance(placements, dict):
+            placements = {}
+    except (json.JSONDecodeError, ValueError, TypeError):
         placements = {}
 
     # Strip empty / null entries
-    placements = {k: v for k, v in placements.items() if v and v.get('qcId')}
+    placements = {
+        k: v for k, v in placements.items()
+        if isinstance(v, dict) and v.get('qcId')
+    }
 
     if not placements:
         errors.append('No samples placed on the plate, drag at least one sample before saving.')
@@ -578,7 +810,12 @@ def _save_new_batch(request, project):
             else:
                 try:
                     source_qc = SampleQC.objects.select_related('sample').get(pk=int(qc_id))
-                    conc = source_qc.qubit_nm    # ng/µL from Qubit reading
+                    # Prep math runs off the sample's own original intake
+                    # values, not the QC measurement. SampleQC only gates
+                    # which samples are eligible for a batch (Pass/
+                    # Caution/Fail) — it isn't a re-measurement of the
+                    # tube's concentration for prep purposes.
+                    conc = source_qc.sample.concentration
                     placement_summary.append(
                         f'{well_pos}: {source_qc.sample.sample_name} [{status}]'
                     )
@@ -586,11 +823,19 @@ def _save_new_batch(request, project):
                     source_qc = None
                     placement_summary.append(f'{well_pos}: unknown sample [error]')
 
-            vol_sample, vol_diluent, actual_input, speedvac = _calc_volumes(
+            volume_available = source_qc.sample.volume_received if source_qc else None
+            calc = _calc_prep_volumes(
                 conc,
+                volume_available,
                 workflow.target_input_ng,
                 workflow.target_volume_ul,
             )
+            vol_sample   = calc['vol_sample_ul']
+            vol_diluent  = calc['vol_diluent_ul']
+            actual_input = calc['actual_input_ng']
+            speedvac     = calc['speedvac_required']
+            insufficient = calc['insufficient']
+            dilution_factor = calc['dilution']['factor'] if calc['dilution'] else None
 
             plate_well = PlateWell.objects.get(
                 plate=plate,
@@ -609,6 +854,12 @@ def _save_new_batch(request, project):
             plate_well.created_by = request.user
             plate_well.save()
 
+            # If a sample can't reach target ng even using the whole tube,
+            # pre-flag it as REQUEUE instead of PREP so the lab sees it
+            # needs a decision (new material, or proceed with reduced
+            # input) before this well gets worked on.
+            prep_action = PrepAction.REQUEUE if insufficient else PrepAction.PREP
+
             LibraryPrepSample.objects.create(
                 libPrepBatch=batch,
                 sampleQC=source_qc,
@@ -618,7 +869,9 @@ def _save_new_batch(request, project):
                 volumeDiluent_ul=vol_diluent,
                 actual_Input_ng=actual_input,
                 speedVacRequired=speedvac,
-                prepAction=PrepAction.PREP,
+                insufficientMaterial=insufficient,
+                suggestedDilutionFactor=dilution_factor,
+                prepAction=prep_action,
                 createdBy=request.user,
             )
             created += 1
@@ -661,40 +914,14 @@ def libprep_check_batch(request, project_id):
 
     try:
         placements = json.loads(placements_raw) if placements_raw else {}
-    except (json.JSONDecodeError, ValueError):
+        if not isinstance(placements, dict):
+            placements = {}
+    except (json.JSONDecodeError, ValueError, TypeError):
         placements = {}
-    placements = {k: v for k, v in placements.items() if v and v.get('qcId')}
+    placements = {
+        k: v for k, v in placements.items()
+        if isinstance(v, dict) and v.get('qcId')
+    }
 
     errors = _validate_batch_composition(placements, workflow)
     return JsonResponse({'ok': not errors, 'errors': errors})
-
-def _calc_volumes(conc, target_ng, start_vol):
-    """
-    Returns (vol_sample_ul, vol_diluent_ul, actual_input_ng, speedvac_required).
-    All None / False if concentration is missing or zero.
-
-    Cases:
-      - conc is sufficient: dilute into start_vol with diluent
-      - conc too low (vol_needed > start_vol): flag SpeedVac, use full start_vol
-    """
-    if not conc or conc <= 0:
-        return None, None, None, False
-
-    vol_needed = round(target_ng / conc, 2)
-
-    if vol_needed <= start_vol:
-        return (
-            vol_needed,
-            round(start_vol - vol_needed, 2),
-            round(target_ng, 2),
-            False,
-        )
-    else:
-        # Can't reach target mass in start_vol, take all the sample, flag SpeedVac
-        actual = round(conc * start_vol, 2)
-        return (
-            round(start_vol, 2),
-            0.0,
-            actual,
-            True,
-        )

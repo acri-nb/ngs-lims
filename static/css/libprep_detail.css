@@ -152,3 +152,36 @@
     color: var(--ink);
     break-inside: avoid; page-break-inside: avoid;
 }
+/* PREP SHEET TAB */
+.prep-row-speedvac {
+    background: rgba(255, 176, 32, 0.08);
+}
+.prep-row-insufficient {
+    background: rgba(230, 57, 70, 0.08);
+}
+.badge-flag {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-size: 0.72rem;
+    font-weight: 600;
+    padding: 0.2rem 0.55rem;
+    border-radius: 999px;
+    white-space: nowrap;
+}
+.badge-flag-ok {
+    background: rgba(45, 198, 83, 0.12);
+    color: #1a8a3d;
+}
+.badge-flag-warning {
+    background: rgba(255, 176, 32, 0.15);
+    color: #8a5a00;
+}
+.badge-flag-danger {
+    background: rgba(230, 57, 70, 0.12);
+    color: #b81f2c;
+}
+.badge-flag-muted {
+    background: var(--surface-alt);
+    color: var(--text-muted);
+}

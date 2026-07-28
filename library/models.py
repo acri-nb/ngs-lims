@@ -1,5 +1,4 @@
 import math
-
 from django.db import models
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
@@ -76,6 +75,31 @@ class WorkflowType(models.Model):
         default=2.0,
         verbose_name=_("Minimum nM Threshold"),
         help_text=_("Library QC pass gate. Was hardcoded at 2.0 in LibraryQC; now modifiable per workflow."),
+    )
+
+    # Prep Sheet configuration 
+    uses_qia_spike = models.BooleanField(
+        default=False,
+        verbose_name=_("Uses QIA Spike"),
+        help_text=_(
+            "Small RNA prep only: adds a fixed volume of QIAseq Spike-In "
+            "(internal control) to every well, on top of the RNA + diluent "
+            "volume. When True, target_volume_ul should be the RNA+diluent "
+            "fill volume ONLY (e.g. 4.5 µL), not including the spike."
+        ),
+    )
+    qia_spike_volume_ul = models.FloatField(
+        null=True, blank=True, default=None,
+        verbose_name=_("QIA Spike Volume (µL)"),
+        help_text=_("Fixed volume added per well when uses_qia_spike is True (e.g. 0.5 µL)."),
+    )
+    logs_plate_and_well = models.BooleanField(
+        default=True,
+        verbose_name=_("Logs Plate Set + Well"),
+        help_text=_(
+            "True (TotalRNA, DNA PCR-Free): lab logs an index Plate Set "
+            "(A-D) + Well, and the LIMS looks up the UDI + sequences. "
+        ),
     )
 
     class Meta:
@@ -556,6 +580,23 @@ class LibraryPrepSample(models.Model):
     volumeDiluent_ul   = models.FloatField(null=True, blank=True, verbose_name=_("Volume Diluent (µL)"))
     actual_Input_ng    = models.FloatField(null=True, blank=True, verbose_name=_("Actual Input (ng)"))
     speedVacRequired   = models.BooleanField(default=False, verbose_name=_("SpeedVac Required"))
+    insufficientMaterial = models.BooleanField(
+        default=False,
+        verbose_name=_("Insufficient Material"),
+        help_text=_(
+            "True when the sample's total available volume at the lab doesn't contain "
+            "enough material to reach the workflow's target input ng"
+        ),
+    )
+    suggestedDilutionFactor = models.PositiveSmallIntegerField(
+        null=True, blank=True,
+        verbose_name=_("Suggested Dilution Factor"),
+        help_text=_(
+            "Set when the raw pipette volume needed was under 1.5 µL (too "
+            "small to pipette accurately). Stores the suggested pre-"
+            "dilution ratio denominator (e.g. 10 means '1:10'). "
+        ),
+    )
     PCRCycles          = models.IntegerField(null=True, blank=True, verbose_name=_("PCR Cycles"))
 
     prepAction = models.CharField(
