@@ -244,6 +244,11 @@ PRODUCTS = [
 #     workflowType MUST exactly match the values used in INDEX_KIT_WORKFLOW_MAP
 #     and in MASTERMIX_DATA below, since those look these up by name.
 # ══════════════════════════════════════════════════════════════════════════════
+from django.utils.translation import gettext_lazy as _
+
+QUBIT_ONLY        = 'qubit',            _('Qubit Only')
+QUBIT_TAPESTATION  = 'qubit_tapestation', _('Qubit + TapeStation')
+
 WORKFLOW_TYPES = [
     {
         "workflowType":      "TotalRNA",
@@ -254,6 +259,9 @@ WORKFLOW_TYPES = [
         "fragment_min_bp":   200,
         "fragment_max_bp":   475,
         "dimer_threshold_pct": 10.0,
+        "uses_controls": True, 
+        "requires_pcr": True,
+        "qc_method": QUBIT_TAPESTATION,
     },
     {
         "workflowType":      "Small RNA",
@@ -265,6 +273,10 @@ WORKFLOW_TYPES = [
         "fragment_min_bp":   140,
         "fragment_max_bp":   250,
         "dimer_threshold_pct": 10.0,
+        "uses_controls": True, 
+        "requires_pcr": False,
+        "qc_method": QUBIT_TAPESTATION,
+        "uses_qia_spike": True,
     },
     {
         "workflowType":      "KAPA HyperPlus DNA",
@@ -275,6 +287,9 @@ WORKFLOW_TYPES = [
         "fragment_min_bp":   200,
         "fragment_max_bp":   600,
         "dimer_threshold_pct": 10.0,
+        "uses_controls": True, 
+        "requires_pcr": True,
+        "qc_method": QUBIT_TAPESTATION,
     },
     {
         "workflowType":      "DNA PCR Free WGS",
@@ -287,6 +302,9 @@ WORKFLOW_TYPES = [
         "fragment_min_bp":   None,
         "fragment_max_bp":   None,
         "dimer_threshold_pct": None,
+        "uses_controls": False, 
+        "requires_pcr": False,
+        "qc_method": QUBIT_ONLY,
     },
 ]
 

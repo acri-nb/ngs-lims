@@ -127,14 +127,14 @@
            draggable="true"
            data-qc-id="{{ qc.pk }}"
            data-sample-name="{{ qc.sample.sample_name }}"
-           data-conc="{{ qc.qubit_nm|default:'' }}"
+           data-conc="{{ qc.sample.concentration|default:'' }}"
            data-status="pass"
            data-is-control="false"
            id="card-{{ qc.pk }}"
            ondragstart="onDragStart(event)">
         <div class="nb-sc-name">{{ qc.sample.sample_name }}</div>
         <div class="nb-sc-meta">
-          {% if qc.qubit_nm %}{{ qc.qubit_nm }} ng/µL · {% endif %}{{ qc.sample.sample_type }}
+          {% if qc.sample.concentration %}{{ qc.sample.concentration|floatformat:2 }} ng/µL · {% endif %}{{ qc.sample.sample_type }}
         </div>
         <span class="nb-sc-badge nb-sc-pass">Pass</span>
       </div>
@@ -153,13 +153,13 @@
            draggable="true"
            data-qc-id="{{ qc.pk }}"
            data-sample-name="{{ qc.sample.sample_name }}"
-           data-conc="{{ qc.qubit_nm|default:'' }}"
+           data-conc="{{ qc.sample.concentration|default:'' }}"
            data-status="caution"
            data-is-control="false"
            id="card-{{ qc.pk }}"
            ondragstart="onDragStart(event)">
         <div class="nb-sc-name">{{ qc.sample.sample_name }}</div>
-        <div class="nb-sc-meta">{% if qc.qubit_nm %}{{ qc.qubit_nm }} ng/µL · {% endif %}{{ qc.sample.sample_type }}</div>
+        <div class="nb-sc-meta">{% if qc.sample.concentration %}{{ qc.sample.concentration|floatformat:2 }} ng/µL · {% endif %}{{ qc.sample.sample_type }}</div>
         <span class="nb-sc-badge nb-sc-caution">Caution</span>
       </div>
       {% empty %}<div class="nb-section-empty">No new caution samples</div>{% endfor %}
@@ -184,7 +184,7 @@
              id="card-{{ qc.pk }}"
              ondragstart="onDragStart(event)">
           <div class="nb-sc-name">{{ qc.sample.sample_name }}</div>
-          <div class="nb-sc-meta">{% if qc.qubit_nm %}{{ qc.qubit_nm }} ng/µL{% endif %}</div>
+          <div class="nb-sc-meta">{% if qc.sample.concentration %}{{ qc.sample.concentration|floatformat:2 }} ng/µL{% endif %}</div>
           <span class="nb-sc-badge nb-sc-fail">Fail</span>
         </div>
         {% empty %}<div class="nb-section-empty">No failed samples</div>{% endfor %}
@@ -205,14 +205,14 @@
              draggable="true"
              data-qc-id="{{ qc.pk }}"
              data-sample-name="{{ qc.sample.sample_name }}"
-             data-conc="{{ qc.qubit_nm|default:'' }}"
+             data-conc="{{ qc.sample.concentration|default:'' }}"
              data-status="{{ qc.qc_status|lower }}"
              data-is-control="false"
              id="card-{{ qc.pk }}"
              ondragstart="onDragStart(event)">
           <div class="nb-sc-name">{{ qc.sample.sample_name }}</div>
           <div class="nb-sc-meta">
-            {% if qc.qubit_nm %}{{ qc.qubit_nm }} ng/µL · {% endif %}{{ qc.sample.sample_type }}
+            {% if qc.sample.concentration %}{{ qc.sample.concentration|floatformat:2 }} ng/µL · {% endif %}{{ qc.sample.sample_type }}
           </div>
           <span class="nb-sc-badge nb-sc-{{ qc.qc_status|lower }}">{{ qc.status_label }}</span>
           
@@ -235,12 +235,13 @@
              draggable="true"
              data-qc-id="{{ qc.pk }}"
              data-sample-name="{{ qc.sample.sample_name }}"
+             data-conc="{{ qc.sample.concentration|default:'' }}"
              data-status="pending"
              data-is-control="false"
              id="card-{{ qc.pk }}"
              ondragstart="onDragStart(event)">
           <div class="nb-sc-name">{{ qc.sample.sample_name }}</div>
-          <div class="nb-sc-meta">Pending QC</div>
+          <div class="nb-sc-meta">{% if qc.sample.concentration %}{{ qc.sample.concentration|floatformat:2 }} ng/µL · {% endif %}Pending QC</div>
           <span class="nb-sc-badge nb-sc-pending">Pending</span>
         </div>
         {% empty %}<div class="nb-section-empty">No pending samples</div>{% endfor %}
