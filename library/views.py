@@ -16,6 +16,7 @@ from .models import (
     WorkflowTypeStep,
     WorkflowStepRowOrder,
     PrepAction,
+    LibraryBatchStatus,
 )
 from locations.models import Rack, Plate, PlateWell, PlateFormat
 from samples.models import Project
@@ -777,14 +778,15 @@ def _save_new_batch(request, project):
         )
 
         batch = LibraryPrepBatch.objects.create(
-            project      = project,
-            plate        = plate,
-            workflowType = workflow,
-            datePrepped  = prepped_date,
-            batch_name   = batch_name,
-            max_samples  = sample_count,
-            notes        = notes,
-            createdBy    = request.user,
+            project=project,
+            plate=plate,
+            workflowType=workflow,
+            datePrepped=prepped_date,
+            batch_name=batch_name,
+            max_samples=sample_count,
+            notes=notes,
+            createdBy=request.user,
+            status=LibraryBatchStatus.PENDING_PREP,
         )
 
         # 5c. Create LibraryPrepSample rows
@@ -883,6 +885,7 @@ def _save_new_batch(request, project):
             action     = LibraryPrepBatchAuditLog.ACTION_CREATED,
             detail     = (
                 f'Batch "{batch_name}" created.\n'
+                f'Status: Pending LibraryPrep\n'
                 f'Workflow: {workflow.workflowType}\n'
                 f'Date prepped: {prepped_date}\n'
                 f'Plate: {plate.plate_name} → {rack.rack_name} slot {rack_slot} '

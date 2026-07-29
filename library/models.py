@@ -16,6 +16,14 @@ class QCMethod(models.TextChoices):
     QUBIT_ONLY        = 'qubit',            _('Qubit Only')
     QUBIT_TAPESTATION  = 'qubit_tapestation', _('Qubit + TapeStation')
 
+class LibraryBatchStatus(models.TextChoices):
+    PENDING_PREP = "pending_prep", _("Pending LibraryPrep")
+    PREPPED = "prepped", _("Library Prepped")
+    PENDING_QC = "pending_qc", _("Pending LibraryQC")
+    QC_PASS = "qc_pass", _("LibraryQC: Pass")
+    QC_CAUTION = "qc_caution", _("LibraryQC: Caution")
+    QC_FAIL = "qc_fail", _("LibraryQC: Fail")
+
 
 class WorkflowType(models.Model):
     workflowType = models.CharField(
@@ -410,6 +418,12 @@ class LibraryPrepBatch(models.Model):
         ),
     )
 
+    status = models.CharField(
+        max_length=30,
+        choices=LibraryBatchStatus.choices,
+        default=LibraryBatchStatus.PENDING_PREP,
+        verbose_name=_("Library Status"),
+    )
     class Meta:
         ordering            = ['-datePrepped']
         verbose_name        = _("Library Prep Batch")
