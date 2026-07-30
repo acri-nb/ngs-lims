@@ -1,4 +1,6 @@
 import json
+import csv
+import io
 from datetime import date
 
 from django.shortcuts import render, get_object_or_404, redirect
@@ -17,6 +19,10 @@ from .models import (
     WorkflowStepRowOrder,
     PrepAction,
     LibraryBatchStatus,
+    IndexKit,
+    LibraryIndex,
+    LibraryQCBatch,
+    LibraryQC,
 )
 from locations.models import Rack, Plate, PlateWell, PlateFormat
 from samples.models import Project
@@ -100,7 +106,7 @@ def libprep_detail(request, batch_id):
     )
 
     samples_qs = batch.samples.select_related(
-        'plateWell', 'sampleQC', 'sampleQC__sample', 'libraryIndex',
+        'plateWell', 'sampleQC', 'sampleQC__sample', 'libraryIndex', 'qcResult',
     )
     sample_map = {}
     for s in samples_qs:
@@ -436,6 +442,214 @@ def libprep_prep_sheet_print(request, batch_id):
         'prep_rows':  prep_rows,
         'printed_at': timezone.now(),
     })
+
+
+# WELL DATA IMPORT  (Plate Set/Well or UDI, PCR cycles, Qubit, TapeStation)
+
+def _lookup_library_index(workflow, plate_set, index_well, udi):
+    """
+    Resolve a LibraryIndex row against this workflow's index kit(s).
+
+    Two modes, matching workflow.logs_plate_and_well:
+      - True  (TotalRNA, DNA PCR-Free): look up by (plateSet, well).
+      - False (KAPA, Small RNA): look up by udi_number directly.
+    """
+    kits = IndexKit.objects.filter(workflowType=workflow)
+    if not kits.exists():
+        return None, f'No Index Kit configured for workflow "{workflow.workflowType}".'
+
+    qs = LibraryIndex.objects.filter(indexKit__in=kits)
+
+    if workflow.logs_plate_and_well:
+        if not plate_set or not index_well:
+            return None, None
+        match_qs = qs.filter(plateSet__iexact=plate_set.strip(), well__iexact=index_well.strip())
+        match = match_qs.first()
+        if not match:
+            return None, f'No index found for Plate Set "{plate_set}" / Well "{index_well}".'
+        return match, None
+
+    if not udi:
+        return None, None
+    match_qs = qs.filter(udi_number__iexact=udi.strip())
+    if match_qs.count() > 1:
+        return None, f'UDI "{udi}" matches more than one index for this workflow, resolve manually.'
+    match = match_qs.first()
+    if not match:
+        return None, f'No index found for UDI "{udi}".'
+    return match, None
+
+
+def libprep_import_results(request, batch_id):
+    """
+    Accepts a CSV upload, the same shape as the Well Data export / printed
+    Prep Sheet, and writes back the values a lab member filled in by hand:
+    the index (Plate Set + Well, or UDI directly depending on the
+    workflow), PCR cycles, and Library QC measurements (Qubit, and
+    TapeStation fields where the workflow uses them).
+    """
+    if request.method != 'POST':
+        return JsonResponse({'ok': False, 'error': 'Invalid request method.'}, status=405)
+
+    batch = get_object_or_404(
+        LibraryPrepBatch.objects.select_related('workflowType'), pk=batch_id
+    )
+    workflow = batch.workflowType
+
+    if 'csv_file' not in request.FILES:
+        return JsonResponse({'ok': False, 'error': 'No file uploaded.'}, status=400)
+
+    csv_file = request.FILES['csv_file']
+    if not csv_file.name.endswith('.csv'):
+        return JsonResponse({'ok': False, 'error': 'File must be a .csv'}, status=400)
+
+    try:
+        text = csv_file.read().decode('utf-8-sig')
+    except UnicodeDecodeError:
+        return JsonResponse({'ok': False, 'error': 'Could not decode file, make sure it is UTF-8.'}, status=400)
+
+    reader = csv.DictReader(io.StringIO(text))
+    if reader.fieldnames is None:
+        return JsonResponse({'ok': False, 'error': 'CSV appears to be empty.'}, status=400)
+
+    def norm(s):
+        return (
+            s.strip().lower()
+            .replace(' ', '_').replace('/', '_')
+            .replace('(', '').replace(')', '')
+        )
+
+    raw_headers = reader.fieldnames
+    norm_headers = [norm(h) for h in raw_headers]
+
+    def get_col(row, *candidates):
+        for candidate in candidates:
+            for raw, normed in zip(raw_headers, norm_headers):
+                if normed == candidate:
+                    val = row.get(raw, '').strip()
+                    return val if val != '' else None
+        return None
+
+    def to_float(val):
+        if val is None:
+            return None
+        try:
+            return float(val)
+        except ValueError:
+            return None
+
+    def to_int(val):
+        if val is None:
+            return None
+        try:
+            return int(float(val))
+        except ValueError:
+            return None
+
+    sample_map = {
+        s.plateWell.well_position: s
+        for s in batch.samples.select_related('sampleQC__sample', 'plateWell', 'libraryIndex')
+        if s.plateWell_id
+    }
+
+    updated, skipped, errors = [], [], []
+
+    with transaction.atomic():
+        libqc_batch = None  # created lazily, only if a row actually has QC data
+
+        for line_num, row in enumerate(reader, start=2):  # row 1 is the header
+            well = get_col(row, 'well')
+            if not well:
+                errors.append(f'Row {line_num}: missing Well.')
+                continue
+
+            sample = sample_map.get(well.strip().upper())
+            if sample is None:
+                skipped.append(well)
+                continue
+
+            row_label = (
+                sample.sampleQC.sample.sample_name
+                if sample.sampleQC_id else f'{well} (control)'
+            )
+            row_changed = False
+
+            # Index: Plate Set + Well, or UDI directly
+            if workflow.logs_plate_and_well:
+                plate_set  = get_col(row, 'plate_set', 'index_plate_set')
+                index_well = get_col(row, 'index_well', 'well_x')
+                index_obj, err = _lookup_library_index(workflow, plate_set, index_well, None)
+            else:
+                udi = get_col(row, 'udi', 'udi_number')
+                index_obj, err = _lookup_library_index(workflow, None, None, udi)
+
+            if err:
+                errors.append(f'{row_label}: {err}')
+            elif index_obj:
+                sample.libraryIndex = index_obj
+                row_changed = True
+
+            # PCR cycles, only meaningful for workflows that PCR at all
+            if workflow.requires_pcr:
+                pcr = to_int(get_col(row, 'pcr_cycles', 'pcr'))
+                if pcr is not None:
+                    sample.PCRCycles = pcr
+                    row_changed = True
+
+            if row_changed:
+                sample.save(update_fields=['libraryIndex', 'PCRCycles'])
+
+            # Library QC values, only meaningful for real samples (not controls)
+            qubit        = to_float(get_col(row, 'qubit_ng_ul', 'qubit'))
+            avg_lib_size = None
+            dimer_pct    = None
+            region_pct   = None
+            region_nm    = None
+
+            if workflow.qc_method == 'qubit_tapestation':
+                avg_lib_size = to_float(get_col(row, 'avg_lib_size'))
+                dimer_pct    = to_float(get_col(row, 'dimer_peak_%', 'dimer_peak_pct'))
+                region_pct   = to_float(get_col(row, 'region_%', 'region_pct'))
+                region_nm    = to_float(get_col(row, 'region_nm'))
+
+            has_qc_data = any(v is not None for v in (qubit, avg_lib_size, dimer_pct, region_pct, region_nm))
+
+            if not has_qc_data or sample.sampleQC_id is None:
+                # Controls don't carry a SampleQC/Sample and don't get
+                # Library QC rows (for now); nothing more to do for them.
+                if row_changed:
+                    updated.append(row_label)
+                continue
+
+            if libqc_batch is None:
+                libqc_batch, _ = LibraryQCBatch.objects.get_or_create(
+                    libPrepBatch=batch,
+                    defaults={'batchName': f'{batch.batch_name} Library QC', 'createdBy': request.user},
+                )
+
+            libqc, _ = LibraryQC.objects.get_or_create(
+                libPrepSample=sample,
+                defaults={'libQCBatch': libqc_batch},
+            )
+            if qubit is not None:
+                libqc.qubit_ng_ul = qubit
+            if avg_lib_size is not None:
+                libqc.fragmentSizesAvgBP = avg_lib_size
+            if dimer_pct is not None:
+                libqc.dimerPeak_pct = dimer_pct
+            if region_pct is not None:
+                libqc.region_pct = region_pct
+            if region_nm is not None:
+                libqc.region_nm = region_nm
+
+            libqc.nmCalculated = None  # force recalculation from the new values
+            libqc.createdBy = request.user
+            libqc.QCstatus = libqc.calculate_qc_status(workflow_type=workflow)
+            libqc.save()
+
+            updated.append(row_label)
+
+    return JsonResponse({'ok': True, 'updated': updated, 'skipped': skipped, 'errors': errors})
 
 
 def libprep_project_list(request):

@@ -211,6 +211,13 @@
           data-index-well="{{ cell.sample.libraryIndex.well|default:'' }}"
           data-index-i7="{{ cell.sample.libraryIndex.i7Sequence|default:'' }}"
           data-index-i5="{{ cell.sample.libraryIndex.i5Sequence|default:'' }}"
+          data-qubit="{{ cell.sample.qcResult.qubit_ng_ul|default:'' }}"
+          data-nm="{{ cell.sample.qcResult.nmCalculated|default:'' }}"
+          data-avg-lib-size="{{ cell.sample.qcResult.fragmentSizesAvgBP|default:'' }}"
+          data-dimer-peak="{{ cell.sample.qcResult.dimerPeak_pct|default:'' }}"
+          data-region-pct="{{ cell.sample.qcResult.region_pct|default:'' }}"
+          data-region-nm="{{ cell.sample.qcResult.region_nm|default:'' }}"
+          data-libqc-status="{{ cell.sample.qcResult.QCstatus|default:'' }}"
           {% endif %}
           onclick="selectWell(this)"
           title="{{ cell.position }}{% if cell.occupied %}: {{ cell.sample.sampleQC.sample.sample_name|default:'Control' }}{% endif %}"
@@ -340,7 +347,7 @@
         <button class="btn-export" onclick="exportLibprepCSV()">
           <i class="fas fa-file-download"></i> Export CSV
         </button>
-        <button class="btn-import" disabled title="Coming soon">
+        <button class="btn-import" onclick="openImportModal()">
           <i class="fas fa-file-upload"></i> Import Results
         </button>
       </div>
@@ -351,14 +358,8 @@
     <div class="table-responsive">
       <table class="table table-lims" id="libprepTable">
         <thead>
-          <tr>
-            <th>Well</th>
-            <th>Sample</th>
-            <th>Status</th>
-            <th>Concentration</th>
-            <th>Volume Sample</th>
-            <th>Volume Diluent</th>
-            <th>Actual Input</th>
+          <tr id="libprepTableHeadRow">
+            <!-- populated via JS: buildLibprepTableHead(), columns depend on the workflow -->
           </tr>
         </thead>
         <tbody id="libprepTableBody">
@@ -467,6 +468,40 @@
 </div>
 
 
+<!-- IMPORT RESULTS MODAL -->
+<div class="import-modal-backdrop" id="importModal">
+  <div class="import-modal">
+    <div class="import-modal-header">
+      <span><i class="fas fa-file-upload me-2"></i>Import Well Data</span>
+      <button class="import-modal-close" onclick="closeImportModal()">&times;</button>
+    </div>
+    <div class="import-modal-body">
+      <p class="text-muted" style="font-size:.83rem;">
+        Upload the filled-in CSV, exported from this batch's Well Data tab (or the printed Prep
+        Sheet transcribed to the same columns). Rows are matched by <strong>Well</strong>.
+      </p>
+
+      <div class="import-drop-zone" id="dropZone" onclick="document.getElementById('csvInput').click()">
+        <i class="fas fa-cloud-upload-alt"></i>
+        <p>Click to choose a file, or drag and drop it here</p>
+        <span id="fileNameDisplay" style="display:none;"></span>
+      </div>
+      <input type="file" id="csvInput" accept=".csv" style="display:none;">
+
+      <div id="importResult" style="display:none;"></div>
+    </div>
+    <div class="import-modal-actions">
+      <button class="btn-outline-lims" onclick="closeImportModal()">Cancel</button>
+      <button class="btn-accent" id="btnDoImport" disabled onclick="doImport()">
+        <i class="fas fa-upload"></i> Upload &amp; Import
+      </button>
+    </div>
+  </div>
+</div>
+
+<div id="toastWrap" class="toast-wrap"></div>
+
+
 {% endblock %}
 
 {% block extra_js %}
@@ -475,7 +510,18 @@
     const LIBPREP_PLATE_NAME    = "{{ batch.plate.plate_name|default:'libprep_batch'|escapejs }}";
     const MASTERMIX_SAVE_URL    = "{% url 'libprep-mastermix-save' batch.pk %}";
     const MASTERMIX_PRINT_URL   = "{% url 'libprep-mastermix-print' batch.pk %}";
+    const IMPORT_URL             = "{% url 'libprep-import-results' batch.pk %}";
     const CSRF_TOKEN            = "{{ csrf_token }}";
+
+  
+    const WORKFLOW_CONFIG = {
+        sampleType:        "{{ workflow.sample_type|escapejs }}",
+        diluentName:       "{{ workflow.diluent_name|escapejs }}",
+        usesQiaSpike:      {{ workflow.uses_qia_spike|yesno:"true,false" }},
+        requiresPcr:       {{ workflow.requires_pcr|yesno:"true,false" }},
+        logsPlateAndWell:  {{ workflow.logs_plate_and_well|yesno:"true,false" }},
+        usesTapestation:   {% if workflow.qc_method == 'qubit_tapestation' %}true{% else %}false{% endif %},
+    };
 </script>
 <script src="{% static 'js/libprep_detail.js' %}"></script>
 {% endblock %}

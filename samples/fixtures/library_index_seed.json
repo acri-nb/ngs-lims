@@ -3,7 +3,7 @@
     "kit_name": "ILLMN-DNA-RNA-V2",
     "sets": [
       {
-        "set_label": "Set A V2",
+        "set_label": "AV2",
         "wells": [
           {
             "well": "A01",
@@ -584,7 +584,7 @@
         ]
       },
       {
-        "set_label": "Set B V2",
+        "set_label": "BV2",
         "wells": [
           {
             "well": "A01",
@@ -1165,7 +1165,7 @@
         ]
       },
       {
-        "set_label": "Set C V2",
+        "set_label": "CV2",
         "wells": [
           {
             "well": "A01",
@@ -1746,7 +1746,7 @@
         ]
       },
       {
-        "set_label": "Set D V2",
+        "set_label": "DV2",
         "wells": [
           {
             "well": "A01",
@@ -2332,7 +2332,7 @@
     "kit_name": "ILLMN-DNA-RNA-V3",
     "sets": [
       {
-        "set_label": "Set A (forward i5) V3",
+        "set_label": "AV3",
         "wells": [
           {
             "well": "A01",
@@ -2913,7 +2913,7 @@
         ]
       },
       {
-        "set_label": "Set B (forward i5) V3",
+        "set_label": "BV3",
         "wells": [
           {
             "well": "A01",
@@ -3494,7 +3494,7 @@
         ]
       },
       {
-        "set_label": "Set C (forward i5) V3",
+        "set_label": "CV3",
         "wells": [
           {
             "well": "A01",
@@ -4075,7 +4075,7 @@
         ]
       },
       {
-        "set_label": "Set D (forward i5) V3",
+        "set_label": "DV3",
         "wells": [
           {
             "well": "A01",
@@ -4661,7 +4661,7 @@
     "kit_name": "KAPA-UDI",
     "sets": [
       {
-        "set_label": "Plate 1",
+        "set_label": "A",
         "wells": [
           {
             "well": "A01",
@@ -5247,7 +5247,7 @@
     "kit_name": "sRNA-V4",
     "sets": [
       {
-        "set_label": "Plate 1",
+        "set_label": "A",
         "wells": [
           {
             "well": "A01",
@@ -5828,7 +5828,7 @@
         ]
       },
       {
-        "set_label": "Plate 2",
+        "set_label": "B",
         "wells": [
           {
             "well": "A01",
@@ -6409,7 +6409,7 @@
         ]
       },
       {
-        "set_label": "Plate 3",
+        "set_label": "C",
         "wells": [
           {
             "well": "A01",
@@ -6990,7 +6990,7 @@
         ]
       },
       {
-        "set_label": "Plate 4",
+        "set_label": "D",
         "wells": [
           {
             "well": "A01",

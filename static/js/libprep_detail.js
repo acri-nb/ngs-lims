@@ -1,5 +1,3 @@
-
-
 let activeWell = null;
 
 function selectWell(btn) {
@@ -84,9 +82,62 @@ function parsePos(pos) {
   return { rowLetter: m[1], col: parseInt(m[2], 10) };
 }
 
+
+function getLibprepColumns() {
+  const cfg = (typeof WORKFLOW_CONFIG !== 'undefined') ? WORKFLOW_CONFIG : {};
+
+  const cols = [
+    { key: 'well',   label: 'Well',   get: d => d.pos || '' },
+    { key: 'sample', label: 'Sample', get: d => d.sampleName || '' },
+    { key: 'conc',   label: 'Conc. (ng/uL)', get: d => d.conc || '', unit: '' },
+    { key: 'volSample',  label: `${cfg.sampleType || 'Sample'} (uL)`, get: d => d.volSample || '' },
+    { key: 'volDiluent', label: `${cfg.diluentName || 'Diluent'} (uL)`, get: d => d.volDiluent || '' },
+  ];
+
+  if (cfg.usesQiaSpike) {
+    cols.push({ key: 'qiaSpike', label: 'QIA Spike (uL)', get: d => d.qiaSpike || '' });
+  }
+
+  cols.push({ key: 'actualInput', label: 'Actual Input (ng)', get: d => d.actualInput || '' });
+
+  if (cfg.logsPlateAndWell) {
+    cols.push({ key: 'plateSet',  label: 'Plate Set',  get: d => d.indexSet  || '', editable: true });
+    cols.push({ key: 'indexWell', label: 'Index Well', get: d => d.indexWell || '', editable: true });
+    cols.push({ key: 'udi',       label: 'UDI',         get: d => d.indexUdi  || '' }); // computed, not imported
+  } else {
+    cols.push({ key: 'udi', label: 'UDI', get: d => d.indexUdi || '', editable: true });
+  }
+
+  if (cfg.requiresPcr) {
+    cols.push({ key: 'pcrCycles', label: 'PCR Cycles', get: d => d.pcr || '', editable: true });
+  }
+
+  cols.push({ key: 'qubit', label: 'Qubit (ng/uL)', get: d => d.qubit || '', editable: true });
+  cols.push({ key: 'nm',    label: 'in nM',          get: d => d.nm    || '' }); // computed, not imported
+
+  if (cfg.usesTapestation) {
+    cols.push({ key: 'avgLibSize', label: 'Avg Lib Size',   get: d => d.avgLibSize || '', editable: true });
+    cols.push({ key: 'dimerPeak',  label: 'Dimer Peak %',   get: d => d.dimerPeak  || '', editable: true });
+    cols.push({ key: 'regionPct',  label: 'Region %',       get: d => d.regionPct  || '', editable: true });
+    cols.push({ key: 'regionNm',   label: 'Region nM',      get: d => d.regionNm   || '', editable: true });
+  }
+
+  cols.push({ key: 'qc', label: 'QC', get: d => d.libqcStatus || '' }); // computed, not imported
+
+  return cols;
+}
+
+function buildLibprepTableHead() {
+  const headRow = document.getElementById('libprepTableHeadRow');
+  if (!headRow) return;
+  headRow.innerHTML = getLibprepColumns().map(c => `<th>${c.label}</th>`).join('');
+}
+
 function buildLibprepTable() {
   if (libprepTableBuilt) return; // build once; plate wells don't change after page load
   libprepTableBuilt = true;
+
+  buildLibprepTableHead();
 
   const wells = Array.from(document.querySelectorAll('#libprep-tab-plate .well.well-occupied'));
 
@@ -98,14 +149,12 @@ function buildLibprepTable() {
     return pa.rowLetter.localeCompare(pb.rowLetter);
   });
 
-  const actionLabels  = { prep: 'Prepped', skip: 'Skipped', requeue: 'Requeued' };
-  const actionClasses = { prep: 'badge-pass', skip: 'badge-fail', requeue: 'badge-caution' };
-
+  const columns = getLibprepColumns();
   const tbody = document.getElementById('libprepTableBody');
   tbody.innerHTML = '';
 
   if (wells.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="7" class="text-center py-5 text-muted">No samples assigned to this plate yet.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="${columns.length}" class="text-center py-5 text-muted">No samples assigned to this plate yet.</td></tr>`;
     return;
   }
 
@@ -113,22 +162,33 @@ function buildLibprepTable() {
     const d = w.dataset;
     const isControl = w.classList.contains('well-control');
     const sampleName = d.sampleName || 'Control';
-    const statusLabel = isControl ? 'Control' : (actionLabels[d.action] || d.wellType || '—');
-    const statusClass = isControl ? 'badge-pending' : (actionClasses[d.action] || 'badge-pending');
 
     const tr = document.createElement('tr');
     tr.className = 'libprep-row';
     tr.dataset.search = (d.pos + ' ' + sampleName).toLowerCase();
 
-    tr.innerHTML = `
-      <td><span class="sample-id">${d.pos}</span></td>
-      <td style="font-weight:600;font-size:0.875rem;">${sampleName}</td>
-      <td><span class="lims-badge ${statusClass}">${statusLabel}</span></td>
-      <td class="mono">${d.conc        ? d.conc + ' ng/µL' : '<span class="null-val">—</span>'}</td>
-      <td class="mono">${d.volSample   ? d.volSample + ' µL' : '<span class="null-val">—</span>'}</td>
-      <td class="mono">${d.volDiluent  ? d.volDiluent + ' µL' : '<span class="null-val">—</span>'}</td>
-      <td class="mono">${d.actualInput ? d.actualInput + ' ng' : '<span class="null-val">—</span>'}</td>
-    `;
+    if (isControl) {
+      tr.innerHTML = `
+        <td><span class="sample-id">${d.pos}</span></td>
+        <td style="font-weight:600;font-size:0.875rem;">${sampleName}</td>
+        <td colspan="${columns.length - 2}" class="text-muted">No prep calculation, control well.</td>
+      `;
+      tbody.appendChild(tr);
+      return;
+    }
+
+    tr.innerHTML = columns.map(c => {
+      const raw = c.get(d);
+      if (c.key === 'well') return `<td><span class="sample-id">${raw}</span></td>`;
+      if (c.key === 'sample') return `<td style="font-weight:600;font-size:0.875rem;">${raw}</td>`;
+      if (c.key === 'qc') {
+        if (!raw) return `<td><span class="null-val">—</span></td>`;
+        const qcClass = { pass: 'badge-pass', fail: 'badge-fail', caution: 'badge-caution', pending: 'badge-pending' }[raw] || 'badge-pending';
+        return `<td><span class="lims-badge ${qcClass}">${raw.charAt(0).toUpperCase() + raw.slice(1)}</span></td>`;
+      }
+      return `<td class="mono">${raw ? raw : '<span class="null-val">—</span>'}</td>`;
+    }).join('');
+
     tbody.appendChild(tr);
   });
 }
@@ -144,17 +204,24 @@ function filterLibprepTable() {
 function exportLibprepCSV() {
   buildLibprepTable(); // make sure it's populated even if user hasn't opened the tab yet
 
-  const headers = ['Well', 'Sample', 'Status', 'Concentration (ng/µL)', 'Volume Sample (µL)', 'Volume Diluent (µL)', 'Actual Input (ng)'];
+  const columns = getLibprepColumns();
+  const headers = columns.map(c => c.label);
   const rows = [headers];
 
-  document.querySelectorAll('#libprepTable tbody tr.libprep-row').forEach(tr => {
-    const cells = tr.querySelectorAll('td');
-    if (cells.length < 7) return; // skip empty-state row
-    const rowData = Array.from(cells).map(td => td.textContent.trim());
-    rows.push(rowData);
+  const wells = Array.from(document.querySelectorAll('#libprep-tab-plate .well.well-occupied'));
+  wells.sort((a, b) => {
+    const pa = parsePos(a.dataset.pos);
+    const pb = parsePos(b.dataset.pos);
+    if (pa.col !== pb.col) return pa.col - pb.col;
+    return pa.rowLetter.localeCompare(pb.rowLetter);
   });
 
-  const csv = rows.map(r => r.map(v => `"${v.replace(/"/g, '""')}"`).join(',')).join('\n');
+  wells.forEach(w => {
+    const d = w.dataset;
+    rows.push(columns.map(c => c.get(d) || ''));
+  });
+
+  const csv = rows.map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\r\n');
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -162,6 +229,147 @@ function exportLibprepCSV() {
   a.download = `${LIBPREP_PLATE_NAME || 'libprep_batch'}_well_data.csv`;
   a.click();
   URL.revokeObjectURL(url);
+  showToast('CSV exported, fill in the blanks and re-import when done', 'success');
+}
+
+/* IMPORT RESULTS MODAL */
+let selectedImportFile = null;
+
+function openImportModal() {
+  selectedImportFile = null;
+  document.getElementById('fileNameDisplay').style.display = 'none';
+  document.getElementById('fileNameDisplay').textContent   = '';
+  document.getElementById('csvInput').value = '';
+  document.getElementById('btnDoImport').disabled = true;
+  document.getElementById('importResult').style.display    = 'none';
+  document.getElementById('importResult').innerHTML        = '';
+  document.getElementById('importModal').classList.add('open');
+}
+function closeImportModal() {
+  document.getElementById('importModal').classList.remove('open');
+}
+document.getElementById('importModal').addEventListener('click', e => {
+  if (e.target === e.currentTarget) closeImportModal();
+});
+
+document.getElementById('csvInput').addEventListener('change', e => {
+  const file = e.target.files[0];
+  if (file) setImportFile(file);
+});
+
+const importDropZone = document.getElementById('dropZone');
+importDropZone.addEventListener('dragover', e => { e.preventDefault(); importDropZone.classList.add('dragover'); });
+importDropZone.addEventListener('dragleave', () => importDropZone.classList.remove('dragover'));
+importDropZone.addEventListener('drop', e => {
+  e.preventDefault();
+  importDropZone.classList.remove('dragover');
+  const file = e.dataTransfer.files[0];
+  if (file) setImportFile(file);
+});
+
+function setImportFile(file) {
+  if (!file.name.endsWith('.csv')) {
+    showToast('Please select a .csv file', 'error');
+    return;
+  }
+  selectedImportFile = file;
+  const display = document.getElementById('fileNameDisplay');
+  display.textContent = file.name;
+  display.style.display = 'block';
+  document.getElementById('btnDoImport').disabled = false;
+  document.getElementById('importResult').style.display = 'none';
+  document.getElementById('importResult').innerHTML     = '';
+}
+
+async function doImport() {
+  if (!selectedImportFile) return;
+
+  const btn = document.getElementById('btnDoImport');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Importing…';
+
+  const formData = new FormData();
+  formData.append('csv_file', selectedImportFile);
+
+  try {
+    const res  = await fetch(IMPORT_URL, {
+      method: 'POST',
+      headers: { 'X-CSRFToken': CSRF_TOKEN },
+      body: formData,
+    });
+    const data = await res.json();
+
+    if (!data.ok) {
+      showToast(data.error || 'Import failed', 'error');
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fas fa-upload"></i> Upload & Import';
+      return;
+    }
+
+    renderImportResult(data);
+    btn.innerHTML = '<i class="fas fa-check"></i> Done';
+
+    if (data.updated.length > 0) {
+      showToast(`${data.updated.length} record${data.updated.length > 1 ? 's' : ''} updated, reloading…`, 'success');
+      setTimeout(() => location.reload(), 1800);
+    }
+
+  } catch (err) {
+    showToast('Network error, please try again', 'error');
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-upload"></i> Upload & Import';
+  }
+}
+
+function renderImportResult(data) {
+  const el = document.getElementById('importResult');
+  el.style.display = 'block';
+  let html = '';
+
+  if (data.updated.length > 0) {
+    html += `<div class="result-section">
+      <div class="result-section-title r-ok"><i class="fas fa-check-circle"></i> Updated (${data.updated.length})</div>
+      <ul class="result-list">
+        ${data.updated.map(n => `<li class="r-ok"><i class="fas fa-check" style="font-size:.7rem;"></i>${n}</li>`).join('')}
+      </ul>
+    </div>`;
+  }
+
+  if (data.skipped.length > 0) {
+    html += `<div class="result-section">
+      <div class="result-section-title r-skip"><i class="fas fa-exclamation-triangle"></i> Skipped, well not found in this batch (${data.skipped.length})</div>
+      <ul class="result-list">
+        ${data.skipped.map(n => `<li class="r-skip"><i class="fas fa-minus" style="font-size:.7rem;"></i>${n}</li>`).join('')}
+      </ul>
+    </div>`;
+  }
+
+  if (data.errors.length > 0) {
+    html += `<div class="result-section">
+      <div class="result-section-title r-err"><i class="fas fa-times-circle"></i> Errors (${data.errors.length})</div>
+      <ul class="result-list">
+        ${data.errors.map(e => `<li class="r-err"><i class="fas fa-times" style="font-size:.7rem;"></i>${e}</li>`).join('')}
+      </ul>
+    </div>`;
+  }
+
+  if (!html) {
+    html = '<div style="color:var(--text-muted);font-size:.83rem;">Nothing was changed, the file may be empty or no wells matched.</div>';
+  }
+
+  el.innerHTML = html;
+}
+
+/* TOAST */
+function showToast(msg, type = '') {
+  const wrap = document.getElementById('toastWrap');
+  if (!wrap) return;
+  const el   = document.createElement('div');
+  el.className = `toast ${type}`;
+  const icon = type === 'success' ? 'fa-check-circle' : type === 'error' ? 'fa-times-circle' : 'fa-info-circle';
+  el.innerHTML = `<i class="fas ${icon}"></i> ${msg}`;
+  wrap.appendChild(el);
+  setTimeout(() => el.remove(), 3500);
 }
 
 let mmSavedReactionCount = null; // set on first paint / after a successful save

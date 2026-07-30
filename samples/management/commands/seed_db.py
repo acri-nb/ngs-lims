@@ -641,9 +641,14 @@ MASTERMIX_DATA = {
 
 
 INDEX_KIT_WORKFLOW_MAP = {
-    "ILLMN-DNA-RNA-V2": "Illumina DNA/RNA UD Indexes v2",
-    "ILLMN-DNA-RNA-V3": "Illumina DNA/RNA UD Indexes v3",
+    "ILLMN-DNA-RNA-V2": "TotalRNA",
+    "ILLMN-DNA-RNA-V3": "TotalRNA",
+
+    "ILLMN-DNA-RNA-V2": "DNA PCR Free WGS",
+    "ILLMN-DNA-RNA-V3": "DNA PCR Free WGS",
+
     "KAPA-UDI":         "KAPA HyperPlus DNA",
+    
     "sRNA-V4":          "Small RNA",
 }
 

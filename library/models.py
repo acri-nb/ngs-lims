@@ -686,6 +686,18 @@ class LibraryQC(models.Model):
         default=QCStatus.PENDING,
         verbose_name=_("QC Status"),
     )
+
+    region_pct = models.FloatField(
+        null=True, blank=True,
+        verbose_name=_("Region (%)"),
+        help_text=_("TapeStation region percentage, from the 'Region %' column on the protocol sheets."),
+    )
+    region_nm = models.FloatField(
+        null=True, blank=True,
+        verbose_name=_("Region (nM)"),
+        help_text=_("TapeStation region molarity, from the 'Region nM' column. Not present on every workflow's sheet (e.g. Small RNA omits it) — left blank when unused."),
+    )
+
     createdBy = models.ForeignKey(
         User, on_delete=models.SET_NULL,
         null=True, blank=True,
