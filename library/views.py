@@ -3,6 +3,12 @@ import csv
 import io
 from datetime import date
 
+import os
+from django.template.loader import render_to_string
+from django.http import FileResponse
+from weasyprint import HTML
+from pypdf import PdfReader, PdfWriter
+
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib import messages
 from django.db import transaction
@@ -222,7 +228,53 @@ def libprep_mastermix_print(request, batch_id):
         'printed_at':      timezone.now(),
     })
 
+def libprep_mastermix_pdf(request, batch_id):
+    """
+    Server-rendered Master Mix PDF: same content as libprep_mastermix_print,
+    but rendered to PDF with WeasyPrint and with the workflow's static
+    protocol PDF (WorkflowType.protocol_file) appended at the end.
+    """
+    batch = get_object_or_404(
+        LibraryPrepBatch.objects.select_related(
+            'project', 'project__client', 'workflowType', 'plate',
+        ),
+        pk=batch_id,
+    )
 
+    reaction_count  = batch.effective_mastermix_reaction_count
+    mastermix_steps = _get_mastermix_steps(batch, reaction_count)
+
+    html_string = render_to_string('library/libprep_mastermix_print.html', {
+        'batch':           batch,
+        'mastermix_steps': mastermix_steps,
+        'reaction_count':  reaction_count,
+        'printed_at':      timezone.now(),
+    })
+
+    mastermix_pdf_bytes = HTML(
+        string=html_string,
+        base_url=request.build_absolute_uri('/'),
+    ).write_pdf()
+
+    writer = PdfWriter()
+    for page in PdfReader(io.BytesIO(mastermix_pdf_bytes)).pages:
+        writer.add_page(page)
+
+    protocol = batch.workflowType.protocol_file
+    if protocol and os.path.exists(protocol.path):
+        for page in PdfReader(protocol.path).pages:
+            writer.add_page(page)
+    # If no protocol_file is set for this workflow, we just skip appending
+    # silently — the mastermix sheet alone still gets returned.
+
+    output = io.BytesIO()
+    writer.write(output)
+    output.seek(0)
+
+    filename = f"MasterMix_{batch.batch_name or batch.plate.plate_name}.pdf"
+    return FileResponse(output, filename=filename, content_type='application/pdf')
+
+    
 # PREP SHEET  (RNA/DNA + diluent volume calc, printable working sheet)
 
 STANDARD_DILUTION_FACTORS = [2, 5, 10, 20, 50, 100]   # 1:2, 1:5, 1:10, 1:20, 1:50, 1:100

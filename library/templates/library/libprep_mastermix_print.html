@@ -206,9 +206,13 @@
         <i class="fas fa-times"></i> Close
     </button>
 
-    <button class="primary" onclick="window.print()">
-        <i class="fas fa-print"></i> Print / Save as PDF
+    <button onclick="window.print()">
+        <i class="fas fa-print"></i> Print
     </button>
+    
+    <a class="primary" href="{% url 'libprep-mastermix-pdf' batch.id %}" style="text-decoration:none; display:inline-flex; align-items:center;">
+        <i class="fas fa-file-pdf"></i> Download PDF (with Protocol)
+    </a>
 </div>
 
 <div class="sheet-header">

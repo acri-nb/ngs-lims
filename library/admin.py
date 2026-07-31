@@ -105,6 +105,7 @@ class WorkflowTypeAdmin(admin.ModelAdmin):
         "requires_pcr",
         "uses_controls",
         "step_count",
+        'protocol_file',
     )
     list_filter = ("sample_type", "read_length_type", "qc_method", "requires_pcr", "uses_controls")
     search_fields = ("workflowType",)
@@ -121,6 +122,10 @@ class WorkflowTypeAdmin(admin.ModelAdmin):
         }),
         ("Prep defaults", {
             "fields": ("requires_pcr", "uses_controls", "target_input_ng", "target_volume_ul", "diluent_name"),
+        }),
+        ("Documentation", {
+            "fields": ("protocol_file",),
+            "description": "Static protocol PDF appended to the Master Mix sheet when downloaded.",
         }),
     )
 

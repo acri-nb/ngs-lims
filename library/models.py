@@ -110,6 +110,15 @@ class WorkflowType(models.Model):
         ),
     )
 
+    protocol_file = models.FileField(
+        upload_to='protocols/',
+        null=True, blank=True,
+        verbose_name=_("Protocol PDF"),
+        help_text=_(
+            "Static protocol PDF appended to the end of the Master Mix "
+            "sheet when a lab member downloads/prints it."
+        ),
+    )
     class Meta:
         ordering = ['workflowType']
         verbose_name        = _("Workflow Type")
@@ -639,6 +648,8 @@ class LibraryPrepSample(models.Model):
             self.plateWell.well_position if self.plateWell_id else "?"
         )
         return f"{name} @ {well} (Batch {self.libPrepBatch_id})"
+
+
 
 
 class QCStatus(models.TextChoices):

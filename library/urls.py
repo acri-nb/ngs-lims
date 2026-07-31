@@ -6,6 +6,7 @@ urlpatterns = [
     path('batch/<int:batch_id>/',           views.libprep_detail,       name='libprep-detail'),
     path('batch/<int:batch_id>/mastermix/save/', views.libprep_mastermix_save, name='libprep-mastermix-save'),
     path('batch/<int:batch_id>/mastermix/print/', views.libprep_mastermix_print, name='libprep-mastermix-print'),
+    path('batch/<int:batch_id>/mastermix/pdf/', views.libprep_mastermix_pdf, name='libprep-mastermix-pdf'),
     path('batch/<int:batch_id>/prepsheet/print/', views.libprep_prep_sheet_print, name='libprep-prepsheet-print'),
     path('batch/<int:batch_id>/import/', views.libprep_import_results, name='libprep-import-results'),
     
