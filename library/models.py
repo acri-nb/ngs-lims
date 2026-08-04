@@ -112,7 +112,8 @@ class WorkflowType(models.Model):
 
     protocol_file = models.FileField(
         upload_to='protocols/',
-        null=True, blank=True,
+        null=True,
+        blank=True,
         verbose_name=_("Protocol PDF"),
         help_text=_(
             "Static protocol PDF appended to the end of the Master Mix "
@@ -426,7 +427,6 @@ class LibraryPrepBatch(models.Model):
             "until a lab member changes it."
         ),
     )
-
     status = models.CharField(
         max_length=30,
         choices=LibraryBatchStatus.choices,
@@ -545,6 +545,19 @@ class PrepAction(models.TextChoices):
     SKIP    = 'skip',    _('Skip')
     REQUEUE = 'requeue', _('Requeue')
 
+class SampleLibraryStatus(models.TextChoices):
+    """
+    Per-well progress through the library workflow...
+    """
+    PENDING_PREP = 'pending_prep', _('Pending Library Prep')
+    PREPPED      = 'prepped',      _('Library Prepped')
+    PENDING_QC   = 'pending_qc',   _('Pending Library QC')
+    QC_FAIL      = 'qc_fail',      _('Library QC: Fail')
+    QC_CAUTION   = 'qc_caution',   _('Library QC: Caution')
+    QC_PASS      = 'qc_pass',      _('Library QC: Pass')
+    SKIPPED      = 'skipped',      _('Skipped')
+    CONTROL      = 'control',      _('Control')
+ 
 
 class LibraryPrepSample(models.Model):
     """
@@ -649,7 +662,35 @@ class LibraryPrepSample(models.Model):
         )
         return f"{name} @ {well} (Batch {self.libPrepBatch_id})"
 
+    @property
+    def workflow_status(self):
+        if self.sampleQC_id is None:
+            return SampleLibraryStatus.CONTROL
 
+        if self.prepAction == PrepAction.SKIP:
+            return SampleLibraryStatus.SKIPPED
+
+        qc = getattr(self, "qcResult", None)
+        if qc is not None and qc.QCstatus in (
+            QCStatus.PASS,
+            QCStatus.FAIL,
+            QCStatus.CAUTION,
+        ):
+            return {
+                QCStatus.PASS: SampleLibraryStatus.QC_PASS,
+                QCStatus.FAIL: SampleLibraryStatus.QC_FAIL,
+                QCStatus.CAUTION: SampleLibraryStatus.QC_CAUTION,
+            }[qc.QCstatus]
+
+        if self.libraryIndex_id is not None:
+            return SampleLibraryStatus.PENDING_QC
+
+        return SampleLibraryStatus.PENDING_PREP
+
+
+    @property
+    def workflow_status_label(self):
+        return SampleLibraryStatus(self.workflow_status).label
 
 
 class QCStatus(models.TextChoices):
@@ -691,13 +732,6 @@ class LibraryQC(models.Model):
     fragmentSizesAvgBP = models.FloatField(null=True, blank=True, verbose_name=_("Avg Fragment Size (bp)"))
     nmCalculated       = models.FloatField(null=True, blank=True, verbose_name=_("nM Calculated"))
     dimerPeak_pct      = models.FloatField(null=True, blank=True, verbose_name=_("Dimer Peak (%)"))
-    QCstatus = models.CharField(
-        max_length=20,
-        choices=QCStatus.choices,
-        default=QCStatus.PENDING,
-        verbose_name=_("QC Status"),
-    )
-
     region_pct = models.FloatField(
         null=True, blank=True,
         verbose_name=_("Region (%)"),
@@ -708,7 +742,12 @@ class LibraryQC(models.Model):
         verbose_name=_("Region (nM)"),
         help_text=_("TapeStation region molarity, from the 'Region nM' column. Not present on every workflow's sheet (e.g. Small RNA omits it) — left blank when unused."),
     )
-
+    QCstatus = models.CharField(
+        max_length=20,
+        choices=QCStatus.choices,
+        default=QCStatus.PENDING,
+        verbose_name=_("QC Status"),
+    )
     createdBy = models.ForeignKey(
         User, on_delete=models.SET_NULL,
         null=True, blank=True,
@@ -716,6 +755,9 @@ class LibraryQC(models.Model):
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    # Fixed nM multiplier for qubit-only workflows (no TapeStation, e.g DNA PCR-Free)
+    NM_MULTIPLIER_NO_TAPESTATION = 3.36
 
     class Meta:
         ordering            = ['libQCBatch', 'libPrepSample']
@@ -725,14 +767,22 @@ class LibraryQC(models.Model):
     def __str__(self):
         return f"LibQC #{self.pk} – {self.QCstatus}"
 
-    def calculate_nm(self):
-        """nM = (qubit_ng_ul × 10⁶) / (fragment_bp × 650)"""
+    def calculate_nm(self, workflow_type=None):
+        """
+        nM = (qubit_ng_ul × 10⁶) / (fragment_bp × 660), when a TapeStation
+        fragment size is on file. 
+        """
         if self.qubit_ng_ul and self.fragmentSizesAvgBP and self.fragmentSizesAvgBP > 0:
-            return round((self.qubit_ng_ul * 1_000_000) / (self.fragmentSizesAvgBP * 650), 4)
+            return round((self.qubit_ng_ul * 1_000_000) / (self.fragmentSizesAvgBP * 660), 2)
+
+        uses_fixed_multiplier = workflow_type and workflow_type.qc_method == QCMethod.QUBIT_ONLY
+        if self.qubit_ng_ul and uses_fixed_multiplier:
+            return round(self.qubit_ng_ul * self.NM_MULTIPLIER_NO_TAPESTATION, 2)
+
         return None
 
     def calculate_qc_status(self, workflow_type=None):
-        nm = self.nmCalculated or self.calculate_nm()
+        nm = self.nmCalculated or self.calculate_nm(workflow_type)
         if nm is None:
             return QCStatus.PENDING
 
@@ -757,5 +807,10 @@ class LibraryQC(models.Model):
 
     def save(self, *args, **kwargs):
         if self.nmCalculated is None:
-            self.nmCalculated = self.calculate_nm()
+            workflow_type = None
+            try:
+                workflow_type = self.libPrepSample.libPrepBatch.workflowType
+            except Exception:
+                pass
+            self.nmCalculated = self.calculate_nm(workflow_type)
         super().save(*args, **kwargs)

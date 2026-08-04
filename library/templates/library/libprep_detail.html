@@ -193,13 +193,15 @@
       <div class="plate-row">
         <div class="plate-row-label">{{ row.row_letter }}</div>
         {% for cell in row.cells %}
-        <button
-          class="well {% if cell.occupied %}well-occupied{% if cell.is_control %} well-control{% endif %}{% else %}well-empty{% endif %}"
+          <button
+          class="well {% if cell.occupied %}well-occupied well-status-{{ cell.sample.workflow_status }}{% if cell.is_control %} well-control{% endif %}{% else %}well-empty{% endif %}"
           data-pos="{{ cell.position }}"
           {% if cell.occupied %}
           data-sample-name="{{ cell.sample.sampleQC.sample.sample_name|default:'Control' }}"
           data-well-type="{{ cell.sample.plateWell.well_type|default:'' }}"
           data-action="{{ cell.sample.prepAction }}"
+          data-status="{{ cell.sample.workflow_status }}"
+          data-status-label="{{ cell.sample.workflow_status_label }}"
           data-conc="{{ cell.sample.concentrationInput|default:'' }}"
           data-vol-sample="{{ cell.sample.volumeSample_ul|default:'' }}"
           data-vol-diluent="{{ cell.sample.volumeDiluent_ul|default:'' }}"
@@ -220,19 +222,27 @@
           data-libqc-status="{{ cell.sample.qcResult.QCstatus|default:'' }}"
           {% endif %}
           onclick="selectWell(this)"
-          title="{{ cell.position }}{% if cell.occupied %}: {{ cell.sample.sampleQC.sample.sample_name|default:'Control' }}{% endif %}"
+          title="{{ cell.position }}{% if cell.occupied %}: {{ cell.sample.sampleQC.sample.sample_name|default:'Control' }} — {{ cell.sample.workflow_status_label }}{% endif %}"
         >
           <span class="well-pos">{{ cell.position }}</span>
           {% if cell.occupied %}
-            {% if cell.is_control %}
-              <span class="well-icon">⊕</span>
-            {% elif cell.sample.prepAction == 'prep' %}
-              <span class="well-icon">✓</span>
-            {% elif cell.sample.prepAction == 'skip' %}
-              <span class="well-icon">✕</span>
-            {% else %}
-              <span class="well-icon">·</span>
-            {% endif %}
+            {% with status=cell.sample.workflow_status %}
+              {% if status == 'control' %}
+                <span class="well-icon">⊕</span>
+              {% elif status == 'skipped' %}
+                <span class="well-icon">⊘</span>
+              {% elif status == 'qc_pass' %}
+                <span class="well-icon">✓</span>
+              {% elif status == 'qc_fail' %}
+                <span class="well-icon">✕</span>
+              {% elif status == 'qc_caution' %}
+                <span class="well-icon">!</span>
+              {% elif status == 'pending_qc' %}
+                <span class="well-icon">?</span>
+              {% else %}
+                <span class="well-icon">·</span>
+              {% endif %}
+            {% endwith %}
           {% endif %}
         </button>
         {% endfor %}
@@ -244,8 +254,11 @@
     <!-- LEGEND -->
     <div class="plate-legend">
       <span class="legend-item"><span class="legend-dot dot-empty"></span>Empty</span>
-      <span class="legend-item"><span class="legend-dot dot-prep"></span>Prepped</span>
-      <span class="legend-item"><span class="legend-dot dot-pending"></span>Pending</span>
+      <span class="legend-item"><span class="legend-dot dot-pending-prep"></span>Pending Library Prep</span>
+      <span class="legend-item"><span class="legend-dot dot-pending-qc"></span>Pending Library QC</span>
+      <span class="legend-item"><span class="legend-dot dot-qc-pass"></span>Library QC: Pass</span>
+      <span class="legend-item"><span class="legend-dot dot-qc-caution"></span>Library QC: Caution</span>
+      <span class="legend-item"><span class="legend-dot dot-qc-fail"></span>Library QC: Fail</span>
       <span class="legend-item"><span class="legend-dot dot-skip"></span>Skipped</span>
       <span class="legend-item"><span class="legend-dot dot-control"></span>Control</span>
     </div>

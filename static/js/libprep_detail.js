@@ -1,3 +1,25 @@
+
+const STATUS_LABELS = {
+  pending_prep: 'Pending Library Prep',
+  prepped:      'Library Prepped',
+  pending_qc:   'Pending Library QC',
+  qc_pass:      'Library QC: Pass',
+  qc_caution:   'Library QC: Caution',
+  qc_fail:      'Library QC: Fail',
+  skipped:      'Skipped',
+  control:      'Control',
+};
+const STATUS_BADGE_CLASS = {
+  pending_prep: 'status-pending_prep',
+  prepped:      'status-pending_qc', // unreachable in practice, see note below
+  pending_qc:   'status-pending_qc',
+  qc_pass:      'status-qc_pass',
+  qc_caution:   'status-qc_caution',
+  qc_fail:      'status-qc_fail',
+  skipped:      'status-skipped',
+  control:      'status-control',
+};
+
 let activeWell = null;
 
 function selectWell(btn) {
@@ -29,11 +51,9 @@ function selectWell(btn) {
 
   // Badge
   const badge = document.getElementById('dBadge');
-  const actionLabels = { prep: 'Prepped', skip: 'Skipped', requeue: 'Requeued' };
-  const actionClasses = { prep: 'badge-pass', skip: 'badge-fail', requeue: 'badge-caution' };
-  badge.textContent  = actionLabels[d.action] || d.wellType || '—';
-  badge.className    = 'detail-badge ' + (actionClasses[d.action] || '');
-
+  badge.textContent = d.statusLabel || STATUS_LABELS[d.status] || '—';
+  badge.className = 'detail-badge ' + (STATUS_BADGE_CLASS[d.status] || '');
+  
   // Volume
   set('dConc',       d.conc       ? d.conc + ' ng/µL' : '—');
   set('dVolSample',  d.volSample  ? d.volSample + ' µL' : '—');
@@ -88,6 +108,7 @@ function getLibprepColumns() {
 
   const cols = [
     { key: 'well',   label: 'Well',   get: d => d.pos || '' },
+    { key: 'status', label: 'Status', get: d => d.statusLabel || '' },
     { key: 'sample', label: 'Sample', get: d => d.sampleName || '' },
     { key: 'conc',   label: 'Conc. (ng/uL)', get: d => d.conc || '', unit: '' },
     { key: 'volSample',  label: `${cfg.sampleType || 'Sample'} (uL)`, get: d => d.volSample || '' },
@@ -185,6 +206,11 @@ function buildLibprepTable() {
         if (!raw) return `<td><span class="null-val">—</span></td>`;
         const qcClass = { pass: 'badge-pass', fail: 'badge-fail', caution: 'badge-caution', pending: 'badge-pending' }[raw] || 'badge-pending';
         return `<td><span class="lims-badge ${qcClass}">${raw.charAt(0).toUpperCase() + raw.slice(1)}</span></td>`;
+      }
+      if (c.key === 'status') {
+        if (!raw) return `<td><span class="null-val">—</span></td>`;
+        const cls = STATUS_BADGE_CLASS[d.status] || 'status-pending_prep';
+        return `<td><span class="lims-badge ${cls}">${raw}</span></td>`;
       }
       return `<td class="mono">${raw ? raw : '<span class="null-val">—</span>'}</td>`;
     }).join('');

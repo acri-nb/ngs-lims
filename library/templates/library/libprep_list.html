@@ -41,7 +41,7 @@
      data-type="{{ batch.workflowType.sample_type|default:'' }}"
      data-name="{{ batch.plate.plate_name|lower|default:'' }}"
      data-project="{{ batch.project.project_name|lower|default:'' }}"
-     data-pending="{{ row.pending }}">
+     data-pending="{{ row.still_pending }}">
 
     <!-- CARD HEADER -->
     <div class="bc-header">
@@ -74,17 +74,21 @@
           <span>{{ row.total }} sample{{ row.total|pluralize }}</span>
         </div>
         <div class="qc-bar">
-          {% if row.prepped  %}<div class="qc-seg-pass"    style="width:{% widthratio row.prepped  row.total 100 %}%"></div>{% endif %}
-          {% if row.skipped  %}<div class="qc-seg-fail"    style="width:{% widthratio row.skipped  row.total 100 %}%"></div>{% endif %}
-          {% if row.requeued %}<div class="qc-seg-caution" style="width:{% widthratio row.requeued row.total 100 %}%"></div>{% endif %}
-          {% if row.pending  %}<div class="qc-seg-pending" style="width:{% widthratio row.pending  row.total 100 %}%"></div>{% endif %}
+          {% if row.qc_pass      %}<div class="qc-seg-pass"      style="width:{% widthratio row.qc_pass      row.total 100 %}%"></div>{% endif %}
+          {% if row.qc_caution   %}<div class="qc-seg-caution"   style="width:{% widthratio row.qc_caution   row.total 100 %}%"></div>{% endif %}
+          {% if row.qc_fail      %}<div class="qc-seg-fail"      style="width:{% widthratio row.qc_fail      row.total 100 %}%"></div>{% endif %}
+          {% if row.pending_qc   %}<div class="qc-seg-pendingqc" style="width:{% widthratio row.pending_qc   row.total 100 %}%"></div>{% endif %}
+          {% if row.skipped      %}<div class="qc-seg-skip"      style="width:{% widthratio row.skipped      row.total 100 %}%"></div>{% endif %}
+          {% if row.pending_prep %}<div class="qc-seg-pending"   style="width:{% widthratio row.pending_prep row.total 100 %}%"></div>{% endif %}
         </div>
       </div>
       <div class="status-row">
-        {% if row.prepped  %}<span class="st-pill st-pass">    ✓ {{ row.prepped }}  Prepped</span>{% endif %}
-        {% if row.skipped  %}<span class="st-pill st-fail">    ✕ {{ row.skipped }}  Skipped</span>{% endif %}
-        {% if row.requeued %}<span class="st-pill st-caution"> ↺ {{ row.requeued }} Requeued</span>{% endif %}
-        {% if row.pending  %}<span class="st-pill st-pending"> ○ {{ row.pending }}  Pending</span>{% endif %}
+        {% if row.qc_pass      %}<span class="st-pill st-pass">      ✓ {{ row.qc_pass }} QC Pass</span>{% endif %}
+        {% if row.qc_caution   %}<span class="st-pill st-caution">   ! {{ row.qc_caution }} QC Caution</span>{% endif %}
+        {% if row.qc_fail      %}<span class="st-pill st-fail">      ✕ {{ row.qc_fail }} QC Fail</span>{% endif %}
+        {% if row.pending_qc   %}<span class="st-pill st-pending-qc">  {{ row.pending_qc }} Pending QC</span>{% endif %}
+        {% if row.skipped      %}<span class="st-pill st-skip">      ⊘ {{ row.skipped }} Skipped</span>{% endif %}
+        {% if row.pending_prep %}<span class="st-pill st-pending">   ○ {{ row.pending_prep }} Pending Prep</span>{% endif %}
       </div>
       {% else %}
         <div style="font-size:.8rem;color:var(--text-muted);font-style:italic;">No samples assigned yet</div>

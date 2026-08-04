@@ -266,24 +266,6 @@
 .well-pos  { font-size: .55rem; color: var(--text-muted); line-height: 1; }
 .well-icon { font-size: .75rem; line-height: 1; margin-top: 1px; }
 
-/* occupied states */
-.well-occupied {
-  border-color: rgba(0,180,216,.4);
-  background: rgba(0,180,216,.08);
-}
-.well-occupied .well-icon { color: var(--accent); }
-
-.well-occupied[data-action="prep"] {
-  border-color: rgba(34,197,94,.5);
-  background: rgba(34,197,94,.08);
-}
-.well-occupied[data-action="prep"] .well-icon { color: var(--success, #22c55e); }
-
-.well-occupied[data-action="skip"] {
-  border-color: rgba(239,68,68,.4);
-  background: rgba(239,68,68,.06);
-}
-.well-occupied[data-action="skip"] .well-icon { color: var(--danger, #ef4444); }
 
 .well-control {
   border-color: rgba(245,158,11,.5) !important;
@@ -419,4 +401,16 @@
   font-family: 'IBM Plex Mono', monospace;
   font-size: .7rem;
   color: var(--accent);
+}
+
+.qc-seg-pendingqc { background: var(--accent); }
+.qc-seg-skip      { background: var(--text-muted); }
+
+.st-pending-qc {
+  background: rgba(0,180,216,.12);
+  color: var(--accent);
+}
+.st-skip {
+  background: rgba(107,122,143,.15);
+  color: var(--text-muted);
 }

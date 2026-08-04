@@ -382,3 +382,87 @@
     from { opacity: 1; transform: translateX(0); }
     to   { opacity: 0; transform: translateX(12px); }
 }
+
+/* WELL STATUS COLORS (Plate View) */
+.well.well-occupied.well-status-pending_prep {
+    border: 1px dashed var(--border);
+    background: rgba(107,122,143,0.06);
+}
+.well.well-occupied.well-status-pending_qc {
+    border-color: var(--accent);
+    background: rgba(0,180,216,0.14);
+}
+.well.well-occupied.well-status-qc_pass {
+    border-color: var(--success);
+    background: rgba(45,198,83,0.18);
+}
+.well.well-occupied.well-status-qc_caution {
+    border-color: var(--caution);
+    background: rgba(233,196,106,0.28);
+}
+.well.well-occupied.well-status-qc_fail {
+    border-color: var(--danger);
+    background: rgba(230,57,70,0.18);
+}
+.well.well-occupied.well-status-skipped {
+    border-color: var(--text-muted);
+    background: rgba(107,122,143,0.15);
+    opacity: 0.75;
+}
+.well.well-occupied.well-status-qc_pass .well-icon    { color: var(--success); }
+.well.well-occupied.well-status-qc_fail .well-icon    { color: var(--danger); }
+.well.well-occupied.well-status-qc_caution .well-icon { color: #8a6a00; }
+.well.well-occupied.well-status-skipped .well-icon    { color: var(--text-muted); }
+.well.well-occupied.well-status-pending_qc .well-icon { color: var(--accent); }
+
+/* Legend dots */
+.legend-dot.dot-pending-prep {
+    background: rgba(107,122,143,0.06);
+    border: 1px dashed var(--border);
+}
+.legend-dot.dot-pending-qc   { background: var(--accent); }
+.legend-dot.dot-qc-pass      { background: var(--success); }
+.legend-dot.dot-qc-caution   { background: var(--caution); }
+.legend-dot.dot-qc-fail      { background: var(--danger); }
+.legend-dot.dot-skip         { background: var(--text-muted); }
+.legend-dot.dot-control      { background: var(--primary); }
+
+.legend-dot.dot-empty        { background: var(--surface); border: 1px solid var(--border); }
+
+
+/* ── STATUS BADGES (Well Data tab + detail panel) — same palette as the plate view legend ── */
+.lims-badge.status-pending_prep {
+    background: rgba(107,122,143,0.10);
+    color: var(--text-muted);
+    border: 1px dashed var(--border);
+}
+.lims-badge.status-pending_qc {
+    background: rgba(0,180,216,0.14);
+    color: var(--accent-dark);
+    border: 1px solid rgba(0,180,216,0.3);
+}
+.lims-badge.status-qc_pass {
+    background: rgba(45,198,83,0.15);
+    color: #1a8c3d;
+    border: 1px solid rgba(45,198,83,0.3);
+}
+.lims-badge.status-qc_caution {
+    background: rgba(233,196,106,0.2);
+    color: #8a6a00;
+    border: 1px solid rgba(233,196,106,0.4);
+}
+.lims-badge.status-qc_fail {
+    background: rgba(230,57,70,0.12);
+    color: #b52530;
+    border: 1px solid rgba(230,57,70,0.3);
+}
+.lims-badge.status-skipped {
+    background: rgba(107,122,143,0.12);
+    color: var(--text-muted);
+    border: 1px solid var(--border);
+}
+.lims-badge.status-control {
+    background: rgba(26,35,50,0.10);
+    color: var(--primary);
+    border: 1px solid rgba(26,35,50,0.25);
+}

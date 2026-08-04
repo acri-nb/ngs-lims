@@ -25,6 +25,7 @@ from .models import (
     WorkflowStepRowOrder,
     PrepAction,
     LibraryBatchStatus,
+    SampleLibraryStatus,
     IndexKit,
     LibraryIndex,
     LibraryQCBatch,
@@ -34,6 +35,7 @@ from locations.models import Rack, Plate, PlateWell, PlateFormat
 from samples.models import Project
 from qc.models import SampleQC
 
+from collections import Counter
 
 ROWS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H']
 COLS = [f'{c:02d}' for c in range(1, 13)]   
@@ -46,24 +48,36 @@ def libprep_list(request):
 
     batch_data = []
     for batch in batches:
-        samples  = batch.samples.all()
-        total    = samples.count()
-        prepped  = samples.filter(prepAction=PrepAction.PREP).count()
-        skipped  = samples.filter(prepAction=PrepAction.SKIP).count()
-        requeued = samples.filter(prepAction=PrepAction.REQUEUE).count()
-        pending  = total - prepped - skipped - requeued
+        samples = list(batch.samples.select_related('qcResult').all())
+        total   = len(samples)
+
+        # workflow_status is only meaningful for real samples; controls
+        # get their own separate count, not part of the progress bar.
+        counts = Counter(s.workflow_status for s in samples if s.sampleQC_id)
+        control_count = sum(1 for s in samples if s.sampleQC_id is None)
+
+        pending_prep = counts.get(SampleLibraryStatus.PENDING_PREP, 0)
+        pending_qc   = counts.get(SampleLibraryStatus.PENDING_QC, 0)
+        qc_pass      = counts.get(SampleLibraryStatus.QC_PASS, 0)
+        qc_caution   = counts.get(SampleLibraryStatus.QC_CAUTION, 0)
+        qc_fail      = counts.get(SampleLibraryStatus.QC_FAIL, 0)
+        skipped      = counts.get(SampleLibraryStatus.SKIPPED, 0)
 
         batch_data.append({
-            'batch':    batch,
-            'total':    total,
-            'prepped':  prepped,
-            'skipped':  skipped,
-            'requeued': requeued,
-            'pending':  pending,
+            'batch':         batch,
+            'total':         total,
+            'pending_prep':  pending_prep,
+            'pending_qc':    pending_qc,
+            'qc_pass':       qc_pass,
+            'qc_caution':    qc_caution,
+            'qc_fail':       qc_fail,
+            'skipped':       skipped,
+            'control_count': control_count,
+            # used by the "Has Pending" filter button
+            'still_pending': pending_prep + pending_qc,
         })
 
     return render(request, 'library/libprep_list.html', {'batch_data': batch_data})
-
 
 def _get_mastermix_steps(batch, reaction_count):
     """
@@ -694,7 +708,9 @@ def libprep_import_results(request, batch_id):
             if region_nm is not None:
                 libqc.region_nm = region_nm
 
-            libqc.nmCalculated = None  # force recalculation from the new values
+            # Recompute nM from the freshly-imported values. Passing the
+            # workflow through matters for workflows without TapeStation
+            libqc.nmCalculated = libqc.calculate_nm(workflow_type=workflow)
             libqc.createdBy = request.user
             libqc.QCstatus = libqc.calculate_qc_status(workflow_type=workflow)
             libqc.save()
