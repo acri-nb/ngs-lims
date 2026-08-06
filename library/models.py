@@ -79,6 +79,29 @@ class WorkflowType(models.Model):
         null=True, blank=True, default=None,
         verbose_name=_("Dimer Threshold (%)"),
     )
+    gate_region_min_pct = models.FloatField(
+        null=True, blank=True,
+        verbose_name=_("Region % Minimum (Pass)"),
+        help_text=_("Default Library QC pass gate: TapeStation Region % must be at least this. Blank = not checked."),
+    )
+    caution_dimer_threshold_pct = models.FloatField(
+        null=True, blank=True,
+        verbose_name=_("Dimer Peak % Maximum (Caution)"),
+        help_text=_("Default caution-tier gate. Blank = caution tier not offered for this workflow."),
+    )
+    caution_region_min_pct = models.FloatField(
+        null=True, blank=True,
+        verbose_name=_("Region % Minimum (Caution)"),
+    )
+    caution_dimer_min_pct = models.FloatField(
+        null=True,
+        blank=True,
+        verbose_name=_("Dimer Peak % Minimum (Caution floor)"),
+        help_text=_(
+            "Optional lower bound for the caution tier. "
+            "Leave blank for workflows without a lower dimer limit."
+        ),
+    )
     min_nm_threshold = models.FloatField(
         default=2.0,
         verbose_name=_("Minimum nM Threshold"),
@@ -709,6 +732,52 @@ class LibraryQCBatch(models.Model):
     )
     batchName = models.CharField(max_length=200, blank=True, verbose_name=_("Batch Name"))
     dateQCed  = models.DateField(null=True, blank=True, verbose_name=_("Date QC'd"))
+
+    # Per-batch QC gate overrides. 
+    gate_min_nm = models.FloatField(null=True, blank=True, verbose_name=_("Minimum nM (Pass)"))
+    gate_frag_min_bp = models.IntegerField(null=True, blank=True, verbose_name=_("Min Fragment Size (bp)"))
+    gate_frag_max_bp = models.IntegerField(null=True, blank=True, verbose_name=_("Max Fragment Size (bp)"))
+    gate_dimer_max_pct = models.FloatField(null=True, blank=True, verbose_name=_("Dimer Peak % Maximum (Pass)"))
+    gate_region_min_pct = models.FloatField(null=True, blank=True, verbose_name=_("Region % Minimum (Pass)"))
+    gate_caution_dimer_max_pct = models.FloatField(null=True, blank=True, verbose_name=_("Dimer Peak % Maximum (Caution)"))
+    gate_caution_region_min_pct = models.FloatField(null=True, blank=True, verbose_name=_("Region % Minimum (Caution)"))
+
+    gate_caution_dimer_min_pct = models.FloatField(
+        null=True, blank=True,
+        verbose_name=_("Dimer Peak % Minimum (Caution floor)"),
+        help_text=_(
+            "Optional. Only some workflows (e.g. Total RNA) require dimer% "
+            "to ALSO exceed the pass threshold before caution applies "
+            "(excel's 'F3>10.01'). Leave blank for workflows where caution "
+            "has no lower dimer bound (KAPA, Small RNA)."
+        ),
+    )
+
+    def seed_gates_from_workflow(self, workflow_type):
+        """
+        One-time copy of WorkflowType defaults into this batch's gate
+        fields, only for fields that are still unset. 
+        """
+        if not workflow_type:
+            return
+        defaults = {
+            'gate_min_nm': workflow_type.min_nm_threshold,
+            'gate_frag_min_bp': workflow_type.fragment_min_bp,
+            'gate_frag_max_bp': workflow_type.fragment_max_bp,
+            'gate_dimer_max_pct': workflow_type.dimer_threshold_pct,
+            'gate_region_min_pct': workflow_type.gate_region_min_pct,
+            'gate_caution_dimer_max_pct': workflow_type.caution_dimer_threshold_pct,
+            'gate_caution_region_min_pct': workflow_type.caution_region_min_pct,
+            'gate_caution_dimer_min_pct': workflow_type.caution_dimer_min_pct,
+        }
+        changed = []
+        for field, value in defaults.items():
+            if getattr(self, field) is None and value is not None:
+                setattr(self, field, value)
+                changed.append(field)
+        if changed:
+            self.save(update_fields=changed)
+
     createdBy = models.ForeignKey(
         User, on_delete=models.SET_NULL,
         null=True, blank=True,
@@ -782,28 +851,69 @@ class LibraryQC(models.Model):
         return None
 
     def calculate_qc_status(self, workflow_type=None):
-        nm = self.nmCalculated or self.calculate_nm(workflow_type)
-        if nm is None:
+        """
+        Gating is done off the raw Qubit reading (qubit_ng_ul), matching the
+        source protocol sheets exactly, NOT off nmCalculated.
+        """
+        if self.qubit_ng_ul is None:
             return QCStatus.PENDING
 
-        # nM threshold is now workflow-configurable instead of hardcoded.
-        min_nm = workflow_type.min_nm_threshold if workflow_type else 2.0
-        if nm < min_nm:
-            return QCStatus.FAIL
+        gates = self.libQCBatch
+        min_nm = gates.gate_min_nm if gates and gates.gate_min_nm is not None else (
+            workflow_type.min_nm_threshold if workflow_type else 2.0
+        )
+        qubit = self.qubit_ng_ul
 
-        if workflow_type and self.fragmentSizesAvgBP:
-            fmin = workflow_type.fragment_min_bp
-            fmax = workflow_type.fragment_max_bp
-            if fmin and fmax and not (fmin <= self.fragmentSizesAvgBP <= fmax):
-                return QCStatus.FAIL
+        if workflow_type and workflow_type.qc_method == QCMethod.QUBIT_ONLY:
+            return QCStatus.PASS if qubit > min_nm else QCStatus.FAIL
 
-        # Dimer peak check was previously defined on WorkflowType but never
-        # enforced here the docs call it out as a real fail/pooling gate.
-        if workflow_type and workflow_type.dimer_threshold_pct is not None and self.dimerPeak_pct is not None:
-            if self.dimerPeak_pct > workflow_type.dimer_threshold_pct:
-                return QCStatus.FAIL
+        if qubit <= min_nm:
+            return self._check_caution_tier(gates) or QCStatus.FAIL
 
-        return QCStatus.PASS
+        frag_min = gates.gate_frag_min_bp if gates else None
+        frag_max = gates.gate_frag_max_bp if gates else None
+        dimer_max = gates.gate_dimer_max_pct if gates else None
+        region_min = gates.gate_region_min_pct if gates else None
+
+        frag_ok = True
+        if frag_min is not None and frag_max is not None and self.fragmentSizesAvgBP is not None:
+            frag_ok = frag_min <= self.fragmentSizesAvgBP <= frag_max
+
+        dimer_ok = True
+        if dimer_max is not None and self.dimerPeak_pct is not None:
+            dimer_ok = self.dimerPeak_pct <= dimer_max
+
+        region_ok = True
+        if region_min is not None and self.region_pct is not None:
+            region_ok = self.region_pct >= region_min
+
+        if frag_ok and dimer_ok and region_ok:
+            return QCStatus.PASS
+
+        return self._check_caution_tier(gates) or QCStatus.FAIL
+
+
+    def _check_caution_tier(self, gates):
+        """Returns QCStatus.CAUTION if the looser dimer/region gates are met, else None."""
+        if not gates:
+            return None
+        caution_dimer = gates.gate_caution_dimer_max_pct
+        caution_region = gates.gate_caution_region_min_pct
+        if caution_dimer is None or caution_region is None:
+            return None
+        if self.dimerPeak_pct is None or self.region_pct is None:
+            return None
+
+        # Some workflows (Total RNA) only offer caution when dimer is ALSO
+        # worse than the pass threshold (excel's "F3>10.01"). Leave the gate
+        # blank for workflows with no lower bound (KAPA, Small RNA).
+        dimer_floor = gates.gate_caution_dimer_min_pct
+        if dimer_floor is not None and self.dimerPeak_pct <= dimer_floor:
+            return None
+
+        if self.dimerPeak_pct <= caution_dimer and self.region_pct >= caution_region:
+            return QCStatus.CAUTION
+        return None
 
     def save(self, *args, **kwargs):
         if self.nmCalculated is None:

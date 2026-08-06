@@ -536,3 +536,67 @@ document.addEventListener('DOMContentLoaded', () => {
     mmRecomputeAll();
   }
 });
+
+function filterLibraryQcTable() {
+  const q = document.getElementById('libraryQcSearch').value.toLowerCase().trim();
+  document.querySelectorAll('#libraryQcTable tbody tr.libraryqc-row').forEach(row => {
+    row.style.display = row.dataset.search.includes(q) ? '' : 'none';
+  });
+}
+
+function exportLibraryQcCSV() {
+  const headers = ['Well','Status','Sample','Qubit','In nM','Avg Lib Size','Dimer Peak %','Region %','Region nM','QC'];
+  const rows = [headers];
+  document.querySelectorAll('#libraryQcTable tbody tr.libraryqc-row').forEach(tr => {
+    rows.push(Array.from(tr.children).map(td => td.textContent.trim()));
+  });
+  const csv = rows.map(r => r.map(v => `"${v.replace(/"/g,'""')}"`).join(',')).join('\r\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `${LIBPREP_PLATE_NAME || 'libprep_batch'}_library_qc.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function openQcGatesModal()  { document.getElementById('lqGatesModal').classList.add('open'); }
+function closeQcGatesModal() { document.getElementById('lqGatesModal').classList.remove('open'); }
+
+async function saveQcGates() {
+  const btn = document.getElementById('btnSaveLqGates');
+  const msg = document.getElementById('lqGatesSaveMsg');
+  const inputs = document.querySelectorAll('#lqGatesModal input[type="number"]');
+
+  const body = new URLSearchParams();
+  inputs.forEach(inp => body.append(inp.id, inp.value));
+
+  btn.disabled = true;
+  msg.textContent = 'Saving…';
+  msg.style.color = 'var(--text-muted)';
+
+  try {
+    const resp = await fetch(GATES_SAVE_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-CSRFToken': CSRF_TOKEN },
+      body: body.toString(),
+    });
+    const data = await resp.json();
+    if (resp.ok && data.ok) {
+      msg.style.color = 'var(--success)';
+      msg.textContent = `Saved, ${data.recalculated} sample(s) recalculated. Reloading…`;
+      setTimeout(() => location.reload(), 700);
+    } else {
+      msg.style.color = 'var(--danger)';
+      msg.textContent = data.error || 'Could not save gates.';
+      btn.disabled = false;
+    }
+  } catch (err) {
+    msg.style.color = 'var(--danger)';
+    msg.textContent = 'Network error, could not save.';
+    btn.disabled = false;
+  }
+}
+
+
+

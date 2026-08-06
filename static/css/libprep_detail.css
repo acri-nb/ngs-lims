@@ -466,3 +466,46 @@
     color: var(--primary);
     border: 1px solid rgba(26,35,50,0.25);
 }
+
+
+/* LIBRARY QC GATES MODAL */
+.lq-modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 1060;
+    background: rgba(15,18,22,0.55);
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+}
+.lq-modal-overlay.open { display: flex; }
+.lq-modal-box {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    width: 100%;
+    max-width: 480px;
+    max-height: calc(100vh - 3rem);
+    overflow-y: auto;
+    padding: 1.25rem;
+    box-shadow: 0 12px 40px rgba(0,0,0,0.25);
+}
+.lq-modal-title { font-weight: 600; font-size: 0.95rem; margin-bottom: .5rem; }
+.lq-modal-desc  { font-size: 0.82rem; color: var(--text-muted); margin-bottom: 1rem; }
+.lq-gates-table { width: 100%; font-size: 0.85rem; }
+.lq-gates-table td:first-child { color: var(--text-muted); padding: 0.35rem 0; }
+.lq-gates-table input {
+    width: 100px;
+    padding: 0.3rem 0.5rem;
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    font-size: 0.85rem;
+}
+.lq-modal-footer { display: flex; justify-content: flex-end; gap: 0.6rem; margin-top: 1rem; }
+
+/* QC status badges */
+.lims-badge.badge-pass    { background: rgba(45,198,83,0.15);  color: #1a8c3d; }
+.lims-badge.badge-fail    { background: rgba(230,57,70,0.12);  color: #b52530; }
+.lims-badge.badge-caution { background: rgba(233,196,106,0.2); color: #8a6a00; }
+.lims-badge.badge-pending { background: rgba(107,122,143,0.12);color: var(--text-muted); }

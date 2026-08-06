@@ -62,116 +62,25 @@
 
 <!-- TABS -->
 <div class="libprep-tabs">
-    <button class="libprep-tab active" onclick="showLibprepTab('prepsheet', this)">
-        <i class="fas fa-vial me-1"></i> Prep Sheet
-    </button>
-    <button class="libprep-tab" onclick="showLibprepTab('plate', this)">
+    <button class="libprep-tab active" onclick="showLibprepTab('plate', this)">
         <i class="fas fa-th me-1"></i> Plate View
     </button>
     <button class="libprep-tab" onclick="showLibprepTab('table', this)">
         <i class="fas fa-table me-1"></i> Well Data
     </button>
+    <button class="libprep-tab" onclick="showLibprepTab('prepsheet', this)">
+        <i class="fas fa-vial me-1"></i> Prep Sheet
+    </button>
     <button class="libprep-tab" onclick="showLibprepTab('mastermix', this)">
         <i class="fas fa-flask me-1"></i> Master Mix
     </button>
-</div>
-
-<!-- TAB: PREP SHEET -->
-<div id="libprep-tab-prepsheet" class="libprep-pane">
-
-  <div class="mm-toolbar">
-    <div>
-      <span class="detail-section-label" style="margin:0;">
-        Target: {{ workflow.target_input_ng|floatformat:0 }} ng
-        in {{ workflow.target_volume_ul|floatformat:0 }} uL
-        {% if workflow.uses_qia_spike %}+ {{ workflow.qia_spike_volume_ul|floatformat:1 }} uL QIA Spike{% endif %}
-        &nbsp;·&nbsp; Diluent: {{ workflow.diluent_name }}
-      </span>
-    </div>
-    <div style="margin-left:auto;">
-      <a class="btn-accent" href="{% url 'libprep-prepsheet-print' batch.pk %}" target="_blank">
-        <i class="fas fa-print me-1"></i> Print / Export PDF
-      </a>
-    </div>
-  </div>
-
-  <div class="card">
-    <div class="table-responsive">
-      <table class="table table-lims" id="prepSheetTable">
-        <thead>
-          <tr>
-            <th>Well</th>
-            <th>Sample</th>
-            <th>Conc. (ng/uL)</th>
-            <th>{{ workflow.sample_type }} (uL)</th>
-            <th>{{ workflow.diluent_name }} (uL)</th>
-            {% if workflow.uses_qia_spike %}<th>QIA Spike (uL)</th>{% endif %}
-            <th>Actual Input (ng)</th>
-            <th>Flags</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for row in prep_rows %}
-          <tr class="{% if row.calc.insufficient %}prep-row-insufficient{% elif row.calc.speedvac_required %}prep-row-speedvac{% elif row.calc.dilution %}prep-row-dilute-{{ row.calc.dilution.factor }}{% endif %}">
-            <td class="mono">{{ row.well_pos|default:"—" }}</td>
-            <td>
-              {% if row.is_control %}<span class="mm-fixed-tag">Control</span>{% else %}{{ row.sample_name }}{% endif %}
-            </td>
-            {% if row.is_control %}
-              <td colspan="{% if workflow.uses_qia_spike %}5{% else %}4{% endif %}" class="text-muted">
-                No prep calculation, control well.
-              </td>
-            {% else %}
-              <td class="mono">{{ row.conc|default_if_none:"—"|floatformat:2 }}
-                {% if row.calc.dilution %}<div class="mm-fixed-tag"> 1:{{ row.calc.dilution.factor }} dilution ({{ row.calc.dilution.diluted_conc|floatformat:2 }} ng/µL)</div>{% endif %}
-              </td>
-              <td class="mono">
-                {{ row.calc.vol_sample_ul|default_if_none:"—"|floatformat:2 }}
-              
-              </td>
-              <td class="mono">{{ row.calc.vol_diluent_ul|default_if_none:"—"|floatformat:2 }}</td>
-              {% if workflow.uses_qia_spike %}<td class="mono">{{ workflow.qia_spike_volume_ul|default_if_none:"—"|floatformat:2 }}</td>{% endif %}
-              <td class="mono">{{ row.calc.actual_input_ng|default_if_none:"—"|floatformat:2 }}</td>
-              <td>
-                {% if row.calc.insufficient %}
-                  <span class="badge-flag badge-flag-danger" title="Whole tube isn't enough to reach target input.">
-                    <i class="fas fa-triangle-exclamation"></i> Insufficient
-                  </span>
-                {% elif row.calc.speedvac_required %}
-                  <span class="badge-flag badge-flag-warning" title="Pipette the listed volume, then SpeedVac down to the target volume.">
-                    <i class="fas fa-wind"></i> SpeedVac
-                  </span>
-                {% elif row.calc.dilution %}
-                  <span class="badge-flag badge-dilution-{{ row.calc.dilution.factor }}" title="Stock is too concentrated to pipette accurately, pre-dilute before adding to the well.">
-                    <i class="fas fa-droplet"></i> 1:{{ row.calc.dilution.factor }} dilution
-                  </span>
-                {% elif row.calc.status == 'no_conc' %}
-                  <span class="badge-flag badge-flag-muted">No concentration on file</span>
-                {% else %}
-                  <span class="badge-flag badge-flag-ok"><i class="fas fa-check"></i> OK</span>
-                {% endif %}
-              </td>
-            {% endif %}
-          </tr>
-          {% empty %}
-          <tr><td colspan="8" class="text-center text-muted py-4">No wells placed yet.</td></tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
-  </div>
-
-  <p class="text-muted" style="font-size:.8rem;margin-top:.5rem;">
-    <i class="fas fa-circle-info me-1"></i>
-    Dilution suggestions are a rough bench guide, not a precision instruction, adjust as needed at the bench.
-    Plate Set / Well{% if not workflow.logs_plate_and_well %} (UDI){% endif %}, PCR cycles, Qubit, and TapeStation
-    columns are filled in on the printed sheet and entered back into the LIMS after the bench work is done.
-  </p>
-
+    <button class="libprep-tab" onclick="showLibprepTab('libraryqc', this)">
+        <i class="fas fa-dna me-1"></i> Library QC
+    </button>
 </div>
 
 <!--  TAB: PLATE VIEW -->
-<div id="libprep-tab-plate" class="libprep-pane" style="display:none;">
+<div id="libprep-tab-plate" class="libprep-pane">
 
 <!-- MAIN LAYOUT-->
 <div class="plate-layout">
@@ -385,6 +294,100 @@
 </div>
 
 
+<!-- TAB: PREP SHEET -->
+<div id="libprep-tab-prepsheet" class="libprep-pane" style="display:none;">
+
+  <div class="mm-toolbar">
+    <div>
+      <span class="detail-section-label" style="margin:0;">
+        Target: {{ workflow.target_input_ng|floatformat:0 }} ng
+        in {{ workflow.target_volume_ul|floatformat:0 }} uL
+        {% if workflow.uses_qia_spike %}+ {{ workflow.qia_spike_volume_ul|floatformat:1 }} uL QIA Spike{% endif %}
+        &nbsp;·&nbsp; Diluent: {{ workflow.diluent_name }}
+      </span>
+    </div>
+    <div style="margin-left:auto;">
+      <a class="btn-accent" href="{% url 'libprep-prepsheet-print' batch.pk %}" target="_blank">
+        <i class="fas fa-print me-1"></i> Print / Export PDF
+      </a>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="table-responsive">
+      <table class="table table-lims" id="prepSheetTable">
+        <thead>
+          <tr>
+            <th>Well</th>
+            <th>Sample</th>
+            <th>Conc. (ng/uL)</th>
+            <th>{{ workflow.sample_type }} (uL)</th>
+            <th>{{ workflow.diluent_name }} (uL)</th>
+            {% if workflow.uses_qia_spike %}<th>QIA Spike (uL)</th>{% endif %}
+            <th>Actual Input (ng)</th>
+            <th>Flags</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in prep_rows %}
+          <tr class="{% if row.calc.insufficient %}prep-row-insufficient{% elif row.calc.speedvac_required %}prep-row-speedvac{% elif row.calc.dilution %}prep-row-dilute-{{ row.calc.dilution.factor }}{% endif %}">
+            <td class="mono">{{ row.well_pos|default:"—" }}</td>
+            <td>
+              {% if row.is_control %}<span class="mm-fixed-tag">Control</span>{% else %}{{ row.sample_name }}{% endif %}
+            </td>
+            {% if row.is_control %}
+              <td colspan="{% if workflow.uses_qia_spike %}5{% else %}4{% endif %}" class="text-muted">
+                No prep calculation, control well.
+              </td>
+            {% else %}
+              <td class="mono">{{ row.conc|default_if_none:"—"|floatformat:2 }}
+                {% if row.calc.dilution %}<div class="mm-fixed-tag"> 1:{{ row.calc.dilution.factor }} dilution ({{ row.calc.dilution.diluted_conc|floatformat:2 }} ng/µL)</div>{% endif %}
+              </td>
+              <td class="mono">
+                {{ row.calc.vol_sample_ul|default_if_none:"—"|floatformat:2 }}
+              
+              </td>
+              <td class="mono">{{ row.calc.vol_diluent_ul|default_if_none:"—"|floatformat:2 }}</td>
+              {% if workflow.uses_qia_spike %}<td class="mono">{{ workflow.qia_spike_volume_ul|default_if_none:"—"|floatformat:2 }}</td>{% endif %}
+              <td class="mono">{{ row.calc.actual_input_ng|default_if_none:"—"|floatformat:2 }}</td>
+              <td>
+                {% if row.calc.insufficient %}
+                  <span class="badge-flag badge-flag-danger" title="Whole tube isn't enough to reach target input.">
+                    <i class="fas fa-triangle-exclamation"></i> Insufficient
+                  </span>
+                {% elif row.calc.speedvac_required %}
+                  <span class="badge-flag badge-flag-warning" title="Pipette the listed volume, then SpeedVac down to the target volume.">
+                    <i class="fas fa-wind"></i> SpeedVac
+                  </span>
+                {% elif row.calc.dilution %}
+                  <span class="badge-flag badge-dilution-{{ row.calc.dilution.factor }}" title="Stock is too concentrated to pipette accurately, pre-dilute before adding to the well.">
+                    <i class="fas fa-droplet"></i> 1:{{ row.calc.dilution.factor }} dilution
+                  </span>
+                {% elif row.calc.status == 'no_conc' %}
+                  <span class="badge-flag badge-flag-muted">No concentration on file</span>
+                {% else %}
+                  <span class="badge-flag badge-flag-ok"><i class="fas fa-check"></i> OK</span>
+                {% endif %}
+              </td>
+            {% endif %}
+          </tr>
+          {% empty %}
+          <tr><td colspan="8" class="text-center text-muted py-4">No wells placed yet.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <p class="text-muted" style="font-size:.8rem;margin-top:.5rem;">
+    <i class="fas fa-circle-info me-1"></i>
+    Dilution suggestions are a rough bench guide, not a precision instruction, adjust as needed at the bench.
+    Plate Set / Well{% if not workflow.logs_plate_and_well %} (UDI){% endif %}, PCR cycles, Qubit, and TapeStation
+    columns are filled in on the printed sheet and entered back into the LIMS after the bench work is done.
+  </p>
+
+</div>
+
 <!-- TAB: MASTER MIX -->
 <div id="libprep-tab-mastermix" class="libprep-pane" style="display:none;">
 
@@ -480,6 +483,68 @@
 
 </div>
 
+<!-- TAB: LIBRARY QC -->
+  <div id="libprep-tab-libraryqc" class="libprep-pane" style="display:none;">
+
+    <div class="filter-bar">
+      <div class="row g-2 align-items-end">
+        <div class="col-md-6">
+          <label class="form-label">Search</label>
+          <input type="text" id="libraryQcSearch" class="form-control"
+                 placeholder="Well position or sample name…"
+                 oninput="filterLibraryQcTable()">
+        </div>
+        <div class="col-md-6 text-md-end">
+          <button class="btn-export" onclick="exportLibraryQcCSV()">
+            <i class="fas fa-file-download"></i> Export CSV
+          </button>
+          <button class="btn-import" onclick="openImportModal()">
+            <i class="fas fa-file-upload"></i> Import Results
+          </button>
+          <button class="btn-export" onclick="openQcGatesModal()">
+            <i class="fas fa-sliders-h"></i> Edit QC Gates
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="table-responsive">
+        <table class="table table-lims" id="libraryQcTable">
+          <thead>
+            <tr>
+              <th>Well</th><th>Status</th><th>Sample</th><th>Qubit</th><th>In nM</th>
+              <th>Avg Lib Size</th><th>Dimer Peak %</th><th>Region %</th><th>Region nM</th><th>QC</th>
+            </tr>
+          </thead>
+          <tbody id="libraryQcTableBody">
+            {% for row in libraryqc_rows %}
+            <tr class="libraryqc-row" data-search="{{ row.well_pos|lower }} {{ row.sample_name|lower }}">
+              <td><span class="sample-id">{{ row.well_pos|default:"—" }}</span></td>
+              <td><span class="lims-badge status-{{ row.status }}">{{ row.status_label }}</span></td>
+              <td style="font-weight:600;font-size:0.875rem;">{{ row.sample_name }}</td>
+              <td class="mono">{{ row.qc.qubit_ng_ul|default_if_none:"—" }}</td>
+              <td class="mono">{{ row.qc.nmCalculated|default_if_none:"—" }}</td>
+              <td class="mono">{{ row.qc.fragmentSizesAvgBP|default_if_none:"—" }}</td>
+              <td class="mono">{{ row.qc.dimerPeak_pct|default_if_none:"—" }}</td>
+              <td class="mono">{{ row.qc.region_pct|default_if_none:"—" }}</td>
+              <td class="mono">{{ row.qc.region_nm|default_if_none:"—" }}</td>
+              <td>
+                {% if row.qc %}
+                  <span class="lims-badge badge-{{ row.qc.QCstatus }}">{{ row.qc.get_QCstatus_display }}</span>
+                {% else %}
+                  <span class="null-val">—</span>
+                {% endif %}
+              </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="10" class="text-center py-5 text-muted">No samples yet.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
 
 <!-- IMPORT RESULTS MODAL -->
 <div class="import-modal-backdrop" id="importModal">
@@ -514,7 +579,47 @@
 
 <div id="toastWrap" class="toast-wrap"></div>
 
+<!-- QC GATES MODAL -->
+<div class="lq-modal-overlay" id="lqGatesModal">
+  <div class="lq-modal-box">
+    <div class="lq-modal-title"><i class="fas fa-sliders-h" style="color:var(--accent);margin-right:.4rem;"></i>Edit Library QC Gates</div>
+    <div class="lq-modal-desc">
+      Adjust pass/caution thresholds for <strong>{{ batch.batch_name }}</strong>.
+      Saving recalculates every sample's QC status; measured values are untouched.
+    </div>
 
+    {% if workflow.qc_method == 'qubit' %}
+    <table class="lq-gates-table">
+      <tr><td>Minimum nM (Pass)</td><td><input type="number" step="0.01" id="gate_min_nm" value="{{ libqc_batch.gate_min_nm|default_if_none:'' }}"></td></tr>
+    </table>
+    <p class="text-muted" style="font-size:.8rem;margin-top:.5rem;">DNA PCR-Free uses a single Pass/Fail gate on nM only — no caution tier.</p>
+    {% else %}
+    <div class="result-section-title">Pass Gate</div>
+    <table class="lq-gates-table">
+      <tr><td>Minimum nM</td><td><input type="number" step="0.01" id="gate_min_nm" value="{{ libqc_batch.gate_min_nm|default_if_none:'' }}"></td></tr>
+      <tr><td>Min Fragment Size (bp)</td><td><input type="number" step="1" id="gate_frag_min_bp" value="{{ libqc_batch.gate_frag_min_bp|default_if_none:'' }}"></td></tr>
+      <tr><td>Max Fragment Size (bp)</td><td><input type="number" step="1" id="gate_frag_max_bp" value="{{ libqc_batch.gate_frag_max_bp|default_if_none:'' }}"></td></tr>
+      <tr><td>Dimer Peak % Maximum</td><td><input type="number" step="0.01" id="gate_dimer_max_pct" value="{{ libqc_batch.gate_dimer_max_pct|default_if_none:'' }}"></td></tr>
+      <tr><td>Region % Minimum</td><td><input type="number" step="0.01" id="gate_region_min_pct" value="{{ libqc_batch.gate_region_min_pct|default_if_none:'' }}"></td></tr>
+      <tr>
+        <td>Dimer Peak % Minimum (only if this workflow requires it)</td>
+        <td><input type="number" step="0.01" id="gate_caution_dimer_min_pct" value="{{ libqc_batch.gate_caution_dimer_min_pct|default_if_none:'' }}"></td>
+      </tr>
+    </table>
+    <div class="result-section-title" style="margin-top:1rem;">Caution Gate</div>
+    <table class="lq-gates-table">
+      <tr><td>Dimer Peak % Maximum</td><td><input type="number" step="0.01" id="gate_caution_dimer_max_pct" value="{{ libqc_batch.gate_caution_dimer_max_pct|default_if_none:'' }}"></td></tr>
+      <tr><td>Region % Minimum</td><td><input type="number" step="0.01" id="gate_caution_region_min_pct" value="{{ libqc_batch.gate_caution_region_min_pct|default_if_none:'' }}"></td></tr>
+    </table>
+    {% endif %}
+
+    <div id="lqGatesSaveMsg" style="font-size:.8rem;margin-top:.75rem;"></div>
+    <div class="lq-modal-footer">
+      <button class="btn-outline-lims" onclick="closeQcGatesModal()">Cancel</button>
+      <button class="btn-accent" id="btnSaveLqGates" onclick="saveQcGates()"><i class="fas fa-save"></i> Save &amp; Recalculate</button>
+    </div>
+  </div>
+</div>
 {% endblock %}
 
 {% block extra_js %}
@@ -525,7 +630,7 @@
     const MASTERMIX_PRINT_URL   = "{% url 'libprep-mastermix-print' batch.pk %}";
     const IMPORT_URL             = "{% url 'libprep-import-results' batch.pk %}";
     const CSRF_TOKEN            = "{{ csrf_token }}";
-
+    const GATES_SAVE_URL = "{% url 'libprep-qc-gates-save' batch.pk %}";
   
     const WORKFLOW_CONFIG = {
         sampleType:        "{{ workflow.sample_type|escapejs }}",

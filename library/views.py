@@ -79,6 +79,15 @@ def libprep_list(request):
 
     return render(request, 'library/libprep_list.html', {'batch_data': batch_data})
 
+def _get_or_create_libqc_batch(batch, user=None):
+    libqc_batch, created = LibraryQCBatch.objects.get_or_create(
+        libPrepBatch=batch,
+        defaults={'batchName': f'{batch.batch_name} Library QC', 'createdBy': user},
+    )
+    if created:
+        libqc_batch.seed_gates_from_workflow(batch.workflowType)
+    return libqc_batch
+
 def _get_mastermix_steps(batch, reaction_count):
     """
     Fetch this batch's workflow steps + reagent rows (ordered exactly like
@@ -125,6 +134,8 @@ def libprep_detail(request, batch_id):
         pk=batch_id,
     )
 
+    libqc_batch = _get_or_create_libqc_batch(batch, request.user)
+
     samples_qs = batch.samples.select_related(
         'plateWell', 'sampleQC', 'sampleQC__sample', 'libraryIndex', 'qcResult',
     )
@@ -168,6 +179,8 @@ def libprep_detail(request, batch_id):
     # paper sheet's column-major fill order (8 rows = column A on the sheet)
     prep_rows = _get_prep_sheet_rows(batch)
 
+    libraryqc_rows = _get_libraryqc_rows(batch)
+
     return render(request, 'library/libprep_detail.html', {
         'batch':           batch,
         'grid':            grid,
@@ -180,6 +193,8 @@ def libprep_detail(request, batch_id):
         'reaction_count':  reaction_count,
         'prep_rows':       prep_rows,
         'workflow':        batch.workflowType,
+        'libqc_batch':     libqc_batch,
+        'libraryqc_rows':  libraryqc_rows,
     })
 
 
@@ -489,6 +504,70 @@ def _get_prep_sheet_rows(batch):
 
     return rows
 
+def libprep_qc_gates_save(request, batch_id):
+    if request.method != 'POST':
+        return JsonResponse({'ok': False, 'error': 'Invalid request method.'}, status=405)
+
+    batch = get_object_or_404(LibraryPrepBatch.objects.select_related('workflowType'), pk=batch_id)
+    libqc_batch = _get_or_create_libqc_batch(batch, request.user)
+
+    def parse_float(name, current):
+        raw = request.POST.get(name, '').strip()
+        if raw == '':
+            return None
+        try:
+            return float(raw)
+        except ValueError:
+            return current
+
+    fields = [
+        'gate_min_nm', 'gate_frag_min_bp', 'gate_frag_max_bp',
+        'gate_dimer_max_pct', 'gate_region_min_pct',
+        'gate_caution_dimer_max_pct', 'gate_caution_region_min_pct',
+        'gate_caution_dimer_min_pct',
+    ]
+    for f in fields:
+        setattr(libqc_batch, f, parse_float(f, getattr(libqc_batch, f)))
+    libqc_batch.save(update_fields=fields)
+
+    recalculated = 0
+    for qc in libqc_batch.qcResults.select_related('libPrepSample__libPrepBatch__workflowType'):
+        qc.nmCalculated = None
+        qc.nmCalculated = qc.calculate_nm(workflow_type=batch.workflowType)
+        qc.QCstatus = qc.calculate_qc_status(workflow_type=batch.workflowType)
+        qc.save(update_fields=['nmCalculated', 'QCstatus'])
+        recalculated += 1
+
+    return JsonResponse({'ok': True, 'recalculated': recalculated})
+
+def _get_libraryqc_rows(batch):
+    samples = (
+        batch.samples
+        .select_related('sampleQC__sample', 'plateWell', 'qcResult')
+        .filter(sampleQC__isnull=False)  # controls skip Library QC
+    )
+    rows = []
+    for s in samples:
+        well_pos = s.plateWell.well_position if s.plateWell_id else s.planned_well_position
+        qc = getattr(s, 'qcResult', None)
+        rows.append({
+            'well_pos':    well_pos,
+            'sample_name': s.sampleQC.sample.sample_name,
+            'status':      s.workflow_status,
+            'status_label': s.workflow_status_label,
+            'qc':          qc,
+        })
+    rows.sort(key=lambda r: _wellpos_sort_key(r['well_pos']))
+    return rows
+
+def _wellpos_sort_key(well_pos):
+    pos = well_pos or 'Z99'
+    row_letter, col_num = pos[0], pos[1:]
+    try:
+        col_num = int(col_num)
+    except ValueError:
+        col_num = 99
+    return (col_num, row_letter)
 
 def libprep_prep_sheet_print(request, batch_id):
     """
@@ -688,10 +767,7 @@ def libprep_import_results(request, batch_id):
                 continue
 
             if libqc_batch is None:
-                libqc_batch, _ = LibraryQCBatch.objects.get_or_create(
-                    libPrepBatch=batch,
-                    defaults={'batchName': f'{batch.batch_name} Library QC', 'createdBy': request.user},
-                )
+                libqc_batch = _get_or_create_libqc_batch(batch, request.user)
 
             libqc, _ = LibraryQC.objects.get_or_create(
                 libPrepSample=sample,
