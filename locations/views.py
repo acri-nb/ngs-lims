@@ -274,7 +274,6 @@ def plate_detail(request, plate_pk):
 def well_detail(request, well_pk):
     """
     Single well: shows sample info + full pipeline summary.
-    more detail will be added later.
     """
     well = get_object_or_404(
         PlateWell.objects.select_related(
@@ -299,13 +298,19 @@ def well_detail(request, well_pk):
 
     sample      = well.sample
     qc_results  = sample.qc_results.all().order_by('-created_at') if sample else []
-    lib_samples = well.libraryPrepSamples.all() if sample else []
+
+    lib_samples = (
+        sorted(well.libraryPrepSamples.all(), key=lambda ls: ls.created_at, reverse=True)
+        if sample else []
+    )
+    latest_lib_sample = lib_samples[0] if lib_samples else None
 
     return render(request, 'locations/well_detail.html', {
-        'well':        well,
-        'sample':      sample,
-        'qc_results':  qc_results,
-        'lib_samples': lib_samples,
+        'well':              well,
+        'sample':            sample,
+        'qc_results':        qc_results,
+        'lib_samples':       lib_samples,
+        'latest_lib_sample': latest_lib_sample,
     })
 
 @lab_staff_required

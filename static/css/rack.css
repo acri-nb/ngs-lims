@@ -613,7 +613,12 @@
 .pm-step.active  .pm-label { color: var(--accent); }
 .pm-step.pending .pm-dot { opacity: .4; }
 .pm-line.done { background: var(--success, #22c55e); }
-
+.pm-step.fail    .pm-dot   { background: var(--danger, #ef4444); border-color: var(--danger, #ef4444); }
+.pm-step.fail    .pm-label { color: var(--danger, #ef4444); }
+.pm-step.caution .pm-dot   { background: var(--warning, #f59e0b); border-color: var(--warning, #f59e0b); }
+.pm-step.caution .pm-label { color: var(--warning, #f59e0b); }
+.pm-line.caution { background: var(--warning, #f59e0b); }
+.pm-line.fail    { background: var(--danger, #ef4444); }
 
 .table-lims {
   font-size: .85rem;
@@ -883,4 +888,41 @@
 .move-modal-footer .btn-primary:disabled {
   opacity: .4;
   cursor: not-allowed;
+}
+
+/* Library workflow status badges */
+.lims-badge.status-pending_prep {
+    background: rgba(107,122,143,0.10);
+    color: var(--text-muted);
+    border: 1px dashed var(--border);
+}
+.lims-badge.status-pending_qc {
+    background: rgba(0,180,216,0.14);
+    color: var(--accent-dark);
+    border: 1px solid rgba(0,180,216,0.3);
+}
+.lims-badge.status-qc_pass {
+    background: rgba(45,198,83,0.15);
+    color: #1a8c3d;
+    border: 1px solid rgba(45,198,83,0.3);
+}
+.lims-badge.status-qc_caution {
+    background: rgba(233,196,106,0.2);
+    color: #8a6a00;
+    border: 1px solid rgba(233,196,106,0.4);
+}
+.lims-badge.status-qc_fail {
+    background: rgba(230,57,70,0.12);
+    color: #b52530;
+    border: 1px solid rgba(230,57,70,0.3);
+}
+.lims-badge.status-skipped {
+    background: rgba(107,122,143,0.12);
+    color: var(--text-muted);
+    border: 1px solid var(--border);
+}
+.lims-badge.status-control {
+    background: rgba(26,35,50,0.10);
+    color: var(--primary);
+    border: 1px solid rgba(26,35,50,0.25);
 }
