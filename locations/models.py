@@ -301,6 +301,13 @@ class Plate(models.Model):
         ordering = ["rack", "rack_location", "plate_name"]
         verbose_name = "Plate"
         verbose_name_plural = "Plates"
+        constraints = [
+        models.UniqueConstraint(
+                fields=['rack', 'rack_location'],
+                condition=~models.Q(rack_location=''),
+                name='unique_occupied_rack_slot',
+            ),
+        ]
 
     def __str__(self):
         slot = f" [{self.rack_location}]" if self.rack_location else ""

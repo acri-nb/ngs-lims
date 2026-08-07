@@ -4,6 +4,8 @@ from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 from django.utils.translation import gettext_lazy as _
 
+from django.core.validators import FileExtensionValidator
+
 User = get_user_model()
 
 
@@ -137,6 +139,7 @@ class WorkflowType(models.Model):
         upload_to='protocols/',
         null=True,
         blank=True,
+        validators=[FileExtensionValidator(allowed_extensions=['pdf'])],
         verbose_name=_("Protocol PDF"),
         help_text=_(
             "Static protocol PDF appended to the end of the Master Mix "

@@ -37,10 +37,12 @@ from qc.models import SampleQC
 
 from collections import Counter
 
+from samples.views_auth import lab_staff_required
+
 ROWS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H']
 COLS = [f'{c:02d}' for c in range(1, 13)]   
 
-
+@lab_staff_required
 def libprep_list(request):
     batches = LibraryPrepBatch.objects.select_related(
         'project', 'project__client', 'workflowType', 'plate'
@@ -124,7 +126,7 @@ def _get_mastermix_steps(batch, reaction_count):
 
     return steps
 
-
+@lab_staff_required
 def libprep_detail(request, batch_id):
     batch = get_object_or_404(
         LibraryPrepBatch.objects.select_related(
@@ -197,7 +199,7 @@ def libprep_detail(request, batch_id):
         'libraryqc_rows':  libraryqc_rows,
     })
 
-
+@lab_staff_required
 def libprep_mastermix_save(request, batch_id):
     """
     AJAX endpoint persists the reaction count a lab member enters on the
@@ -233,7 +235,7 @@ def libprep_mastermix_save(request, batch_id):
 
     return JsonResponse({'ok': True, 'reaction_count': reaction_count})
 
-
+@lab_staff_required
 def libprep_mastermix_print(request, batch_id):
     """
     Standalone, print-friendly Master Mix sheet no sidebar/topnav, The page has a Print button that
@@ -257,6 +259,7 @@ def libprep_mastermix_print(request, batch_id):
         'printed_at':      timezone.now(),
     })
 
+@lab_staff_required
 def libprep_mastermix_pdf(request, batch_id):
     """
     Server-rendered Master Mix PDF: same content as libprep_mastermix_print,
@@ -504,6 +507,7 @@ def _get_prep_sheet_rows(batch):
 
     return rows
 
+@lab_staff_required
 def libprep_qc_gates_save(request, batch_id):
     if request.method != 'POST':
         return JsonResponse({'ok': False, 'error': 'Invalid request method.'}, status=405)
@@ -569,6 +573,7 @@ def _wellpos_sort_key(well_pos):
         col_num = 99
     return (col_num, row_letter)
 
+@lab_staff_required
 def libprep_prep_sheet_print(request, batch_id):
     """
     Standalone, print-friendly Prep Sheet: the working sheet a lab member
@@ -624,7 +629,7 @@ def _lookup_library_index(workflow, plate_set, index_well, udi):
         return None, f'No index found for UDI "{udi}".'
     return match, None
 
-
+@lab_staff_required
 def libprep_import_results(request, batch_id):
     """
     Accepts a CSV upload, the same shape as the Well Data export / printed
@@ -795,7 +800,7 @@ def libprep_import_results(request, batch_id):
 
     return JsonResponse({'ok': True, 'updated': updated, 'skipped': skipped, 'errors': errors})
 
-
+@lab_staff_required
 def libprep_project_list(request):
     """
     Project selection page for new batch creation.
@@ -842,7 +847,7 @@ def libprep_project_list(request):
         'project_data': project_data,
     })
 
-
+@lab_staff_required
 def libprep_new_batch(request, project_id):
     """
     GET: render the drag-and-drop plate builder.
@@ -1260,6 +1265,7 @@ def _save_new_batch(request, project):
     )
     return redirect('libprep-detail', batch_id=batch.pk)
 
+@lab_staff_required
 def libprep_check_batch(request, project_id):
     """AJAX pre-flight check, called before the confirm modal opens."""
     if request.method != 'POST':
