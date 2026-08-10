@@ -307,7 +307,7 @@
       </span>
     </div>
     <div style="margin-left:auto;">
-      <a class="btn-accent" href="{% url 'libprep-prepsheet-print' batch.pk %}" target="_blank">
+      <a class="btn btn-accent" href="{% url 'libprep-prepsheet-print' batch.pk %}" target="_blank">
         <i class="fas fa-print me-1"></i> Print / Export PDF
       </a>
     </div>
@@ -401,10 +401,10 @@
     <div class="mm-save-status" id="mmSaveStatus"></div>
 
     <div style="margin-left:auto;display:flex;gap:.6rem;">
-      <button class="btn-outline-lims" onclick="saveMastermixReactionCount()">
+      <button class="btn btn-outline-lims" onclick="saveMastermixReactionCount()">
         <i class="fas fa-save me-1"></i> Save
       </button>
-      <button class="btn-accent" onclick="printMastermixSheet()">
+      <button class="btn btn-accent" onclick="printMastermixSheet()">
         <i class="fas fa-print me-1"></i> Print / Export PDF
       </button>
     </div>
@@ -569,8 +569,8 @@
       <div id="importResult" style="display:none;"></div>
     </div>
     <div class="import-modal-actions">
-      <button class="btn-outline-lims" onclick="closeImportModal()">Cancel</button>
-      <button class="btn-accent" id="btnDoImport" disabled onclick="doImport()">
+      <button class="btn btn-outline-lims" onclick="closeImportModal()">Cancel</button>
+      <button class="btn btn-accent" id="btnDoImport" disabled onclick="doImport()">
         <i class="fas fa-upload"></i> Upload &amp; Import
       </button>
     </div>
@@ -615,8 +615,8 @@
 
     <div id="lqGatesSaveMsg" style="font-size:.8rem;margin-top:.75rem;"></div>
     <div class="lq-modal-footer">
-      <button class="btn-outline-lims" onclick="closeQcGatesModal()">Cancel</button>
-      <button class="btn-accent" id="btnSaveLqGates" onclick="saveQcGates()"><i class="fas fa-save"></i> Save &amp; Recalculate</button>
+      <button class="btn btn-outline-lims" onclick="closeQcGatesModal()">Cancel</button>
+      <button class="btn btn-accent" id="btnSaveLqGates" onclick="saveQcGates()"><i class="fas fa-save"></i> Save &amp; Recalculate</button>
     </div>
   </div>
 </div>

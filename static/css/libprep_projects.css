@@ -86,8 +86,8 @@
   border-radius: 4px;
   font-weight: 500;
 }
-.lp-pill-dna { background: rgba(0,180,216,.12); color: #0096b4; }
-.lp-pill-rna { background: rgba(244,162,97,.15); color: #c77b39; }
+.lp-pill-dna { background: rgba(0,180,216,.12); color: var(--dna); }
+.lp-pill-rna { background: rgba(244,162,97,.15); color: var(--rna) }
 
 /* QC BAR */
 .lp-bar-wrap {

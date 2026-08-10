@@ -53,8 +53,8 @@
 .pool-filter-row { padding:.5rem 1rem; border-bottom:1px solid var(--border); display:flex; gap:.4rem; flex-shrink:0; }
 .filter-btn { font-size:.72rem; font-family:'IBM Plex Mono',monospace; padding:.2rem .65rem; border-radius:20px; border:1px solid var(--border); cursor:pointer; background:transparent; color:var(--text-muted); font-weight:500; transition:all .12s; }
 .filter-btn.active { background:var(--primary); color:#fff; border-color:var(--primary); }
-.filter-btn.dna.active { background:#0096b4; border-color:#0096b4; }
-.filter-btn.rna.active { background:#c77b39; border-color:#c77b39; }
+.filter-btn.dna.active { background:var(--dna); border-color:var(--dna); }
+.filter-btn.rna.active { background:var(--rna); border-color: var(--rna); }
 
 .pool-list { overflow-y:auto; flex:1; padding:.5rem; min-height:120px; }
 
@@ -71,8 +71,8 @@
 .sample-chip.hidden { display:none; }
 .chip-handle { color:var(--border); font-size:.75rem; flex-shrink:0; }
 .chip-type { font-family:'IBM Plex Mono',monospace; font-size:.68rem; font-weight:600; padding:.1rem .4rem; border-radius:3px; flex-shrink:0; }
-.chip-type-dna { background:rgba(0,180,216,.12); color:#0096b4; }
-.chip-type-rna { background:rgba(244,162,97,.15); color:#c77b39; }
+.chip-type-dna { background:rgba(0,180,216,.12); color:var(--dna); }
+.chip-type-rna { background:rgba(244,162,97,.15); color:var(--rna); }
 .chip-info { flex:1; min-width:0; }
 .chip-name { font-weight:500; color:var(--primary); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .chip-case { font-size:.72rem; color:var(--text-muted); }
@@ -99,10 +99,10 @@
 
 .batch-meta { display:flex; gap:.6rem; padding:.5rem 1rem; border-bottom:1px solid var(--border); flex-wrap:wrap; }
 .batch-pill { font-size:.7rem; font-family:'IBM Plex Mono',monospace; padding:.12rem .5rem; border-radius:3px; font-weight:500; }
-.batch-pill-dna { background:rgba(0,180,216,.1); color:#0096b4; }
-.batch-pill-rna { background:rgba(244,162,97,.12); color:#c77b39; }
+.batch-pill-dna { background:rgba(0,180,216,.1); color:var(--dna); }
+.batch-pill-rna { background:rgba(244,162,97,.12); color:var(--rna); }
 .batch-pill-total { background:var(--surface-alt); color:var(--text-muted); border:1px solid var(--border); }
-.batch-pill-warn { background:rgba(244,162,97,.18); color:#c77b39; }
+.batch-pill-warn { background:rgba(244,162,97,.18); color:var(--rna); }
 .batch-pill-qc { background:rgba(45,198,83,.1); color:#25b04a; }
 .batch-pill-new { background:rgba(0,180,216,.08); color:var(--accent); border:1px dashed var(--accent); }
 

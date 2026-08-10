@@ -71,7 +71,7 @@
       <div class="status-row">
         {% if row.passed  %}<span class="st-pill st-pass">    ✓ {{ row.passed }}  Pass</span>{% endif %}
         {% if row.failed  %}<span class="st-pill st-fail">    ✕ {{ row.failed }}  Fail</span>{% endif %}
-        {% if row.caution %}<span class="st-pill st-caution"> ⚠ {{ row.caution }} Caution</span>{% endif %}
+        {% if row.caution %}<span class="st-pill st-caution"> ! {{ row.caution }} Caution</span>{% endif %}
         {% if row.pending %}<span class="st-pill st-pending"> ○ {{ row.pending }} Pending</span>{% endif %}
       </div>
       {% else %}

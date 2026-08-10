@@ -21,7 +21,7 @@ th.sortable.sorted-desc .sort-icon { opacity: 1; color: var(--accent); }
 .sample-row:hover td { background: rgba(0,180,216,0.04); }
 
 .bulk-bar {
-    background: var(--bs-border-color);
+    background: var(--surface-alt);
     border-radius: 8px;
     padding: 0.65rem 1.1rem;
     margin-bottom: 0.75rem;
@@ -45,9 +45,9 @@ th.sortable.sorted-desc .sort-icon { opacity: 1; color: var(--accent); }
     font-size: 0.78rem;
 }
 .bulk-bar .btn-outline-lims:hover {
-    background: ar(--accent);
+    background: var(--accent);
     color: #fff;
-    border-color: rgba(73, 60, 60, 0.4);
+    border-color: var(--accent-dark);
 }
 
 /*  PAGINATION  */

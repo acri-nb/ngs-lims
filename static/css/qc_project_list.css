@@ -108,8 +108,8 @@
     border-radius: 4px;
     font-weight: 500;
   }
-  .pill-dna { background: rgba(0, 180, 216, 0.12); color: #0096b4; }
-  .pill-rna { background: rgba(244, 162, 97, 0.15); color: #c77b39; }
+  .pill-dna { background: rgba(0, 180, 216, 0.12); color: var(--dna); }
+  .pill-rna { background: rgba(244, 162, 97, 0.15); color: var(--rna); }
 
   .unbatched-warning {
     position: absolute;

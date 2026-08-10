@@ -175,7 +175,7 @@
           <span class="status-badge status-{{ qc.qc_status }}">
             {% if qc.qc_status == 'Pass' %}✓
             {% elif qc.qc_status == 'Fail' %}✕
-            {% elif qc.qc_status == 'Caution' %}⚠
+            {% elif qc.qc_status == 'Caution' %}!
             {% else %}○{% endif %}
             {{ qc.qc_status }}
           </span>

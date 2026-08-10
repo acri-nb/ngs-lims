@@ -101,8 +101,8 @@
 
 /* type badges */
 .type-badge { font-family:'IBM Plex Mono',monospace; font-size:.72rem; font-weight:700; padding:.2rem .6rem; border-radius:4px; flex-shrink:0; }
-.type-dna { background:rgba(0,180,216,.12); color:#0096b4; }
-.type-rna { background:rgba(244,162,97,.15); color:#c77b39; }
+.type-dna { background:rgba(0,180,216,.12); color:var(--dna); }
+.type-rna { background:rgba(244,162,97,.15); color:var(--rna); }
 .type-unknown { background: var(--surface-alt); color: var(--text-muted); }
 
 .bc-body { flex: 1; }

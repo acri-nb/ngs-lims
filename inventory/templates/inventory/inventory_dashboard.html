@@ -4,6 +4,12 @@
 {% block title %}Inventory | NGS-LIMS{% endblock %}
 
 {% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item active">Inventory</li>
+    </ol>
+</nav>
+
 <div class="page-header">
     <h1 class="page-title"><i class="fas fa-boxes"></i> Inventory</h1>
     <a href="{% url 'inventory-receipt-add' %}" class="btn btn-accent">
@@ -11,11 +17,6 @@
     </a>
 </div>
 
-<nav aria-label="breadcrumb">
-    <ol class="breadcrumb">
-        <li class="breadcrumb-item active">Inventory</li>
-    </ol>
-</nav>
 
 <!-- STAT CARDS -->
 <div class="row g-3 mb-4">

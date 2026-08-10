@@ -8,8 +8,8 @@
 .detail-meta span { display:flex; align-items:center; gap:.3rem; }
 
 .type-badge { font-family:'IBM Plex Mono',monospace; font-size:.78rem; font-weight:700; padding:.25rem .75rem; border-radius:5px; }
-.type-dna { background:rgba(0,180,216,.12); color:#0096b4; }
-.type-rna { background:rgba(244,162,97,.15); color:#c77b39; }
+.type-dna { background:rgba(0,180,216,.12); color:var(--dna); }
+.type-rna { background:rgba(244,162,97,.15); color:var(--rna); }
 
 .btn-back {
   background:transparent; border:1px solid var(--border); color:var(--text);
