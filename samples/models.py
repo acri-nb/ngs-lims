@@ -219,3 +219,27 @@ class Sample(models.Model):
  
     def __str__(self):
         return self.sample_name
+
+    @property
+    def current_well(self):
+        """
+        The PlateWell this sample currently occupies, if any.
+        A sample can be linked to a well either as a raw aliquot ('sample'
+        well) or because it's the source material sitting in a library-prep
+        well ('library' well). Either way, that well's plate is where the
+        sample physically lives right now, so its location should always
+        mirror the plate's — see PlateWell/Plate location cascading in
+        locations.views.move_plate.
+        """
+        return (
+            self.plate_wells
+            .exclude(well_type='empty')
+            .select_related('plate', 'plate__rack', 'plate__location')
+            .order_by('-updated_at')
+            .first()
+        )
+
+    @property
+    def is_plated(self):
+        """True if this sample currently sits in a well on a plate."""
+        return self.plate_wells.exclude(well_type='empty').exists()

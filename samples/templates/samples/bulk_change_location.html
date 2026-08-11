@@ -15,6 +15,29 @@
 
 <div class="row justify-content-center">
 <div class="col-md-6">
+
+{% if plated_samples %}
+<div class="alert alert-warning mb-3">
+    <i class="fas fa-triangle-exclamation me-1"></i>
+    <strong>{{ plated_samples|length }} sample{{ plated_samples|length|pluralize }} skipped</strong>:
+    currently on a plate, so location is controlled by the plate's position.
+    Move the plate itself from the <a href="{% url 'rack-home' %}" style="color:inherit;text-decoration:underline;">Plates</a> page instead.
+    <ul class="mb-0 mt-2" style="font-size:0.8rem;">
+        {% for s in plated_samples %}
+        <li>
+            <span class="sample-id" style="font-size:0.72rem;">{{ s.sample_name }}</span>
+            {% with w=s.current_well %}
+            {% if w %}
+            — <a href="{% url 'well-detail' w.pk %}" style="color:inherit;">{{ w.plate.plate_name }} [{{ w.well_position }}]</a>
+            {% endif %}
+            {% endwith %}
+        </li>
+        {% endfor %}
+    </ul>
+</div>
+{% endif %}
+
+{% if samples %}
 <div class="card mb-3">
     <div class="card-header"><i class="fas fa-map-marker-alt"></i> New Location</div>
     <div class="card-body p-4">
@@ -54,6 +77,18 @@
         </form>
     </div>
 </div>
+{% else %}
+<div class="card mb-3">
+    <div class="card-body p-4 text-center" style="color:var(--text-muted);font-size:0.85rem;">
+        <i class="fas fa-circle-info mb-2 d-block" style="font-size:1.4rem;"></i>
+        Every selected sample is currently on a plate, there's nothing left to edit here.
+        <div class="mt-3">
+            <a href="{% url 'sample-list' %}" class="btn btn-outline-lims">Back to Samples</a>
+        </div>
+    </div>
+</div>
+{% endif %}
+
 </div>
 </div>
 {% endblock %}

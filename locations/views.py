@@ -514,6 +514,8 @@ def move_plate(request, plate_pk):
             'error': f"Slot {slot} is outside {target_rack.rack_name}'s {target_rack.rows}×{target_rack.cols} grid."
         }, status=400)
 
+    from samples.models import Sample
+
     with transaction.atomic():
         clash = Plate.objects.filter(
             rack=target_rack, rack_location__iexact=slot
@@ -537,6 +539,12 @@ def move_plate(request, plate_pk):
 
         plate.save()
 
+        # Keep every sample that physically lives in this plate's wells in
+        # sync with the plate's new location.
+        samples_updated = Sample.objects.filter(
+            plate_wells__plate=plate
+        ).exclude(location=target_rack.location).update(location=target_rack.location)
+
     return JsonResponse({
         'ok': True,
         'plate_pk': plate.pk,
@@ -545,4 +553,5 @@ def move_plate(request, plate_pk):
         'rack_name': target_rack.rack_name,
         'location_name': target_rack.location.locationName,
         'slot': slot,
+        'samples_updated': samples_updated,
     })

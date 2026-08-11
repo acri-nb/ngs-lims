@@ -458,14 +458,32 @@ def sample_detail(request, sample_id):
         Sample.objects
         .filter(specimen__case=sample.specimen.case)
         .exclude(pk=sample_id)
+        .select_related('specimen__specimen_type')
         .prefetch_related('qc_results')
         .order_by('sample_name')[:10]
     )
 
+    # Where the sample physically lives right now, if it's been plated.
+    current_well = sample.current_well
+
+    lib_samples = []
+    if current_well is not None:
+        from library.models import LibraryPrepSample
+        lib_samples = list(
+            LibraryPrepSample.objects
+            .filter(sampleQC__sample=sample)
+            .select_related('libPrepBatch__workflowType', 'libraryIndex', 'qcResult')
+            .order_by('-created_at')
+        )
+    latest_lib_sample = lib_samples[0] if lib_samples else None
+
     return render(request, 'samples/sample_detail.html', {
-        'sample':          sample,
-        'qc_results':      qc_results,
-        'related_samples': related_samples,
+        'sample':            sample,
+        'qc_results':        qc_results,
+        'related_samples':   related_samples,
+        'current_well':      current_well,
+        'lib_samples':       lib_samples,
+        'latest_lib_sample': latest_lib_sample,
     })
 
 
@@ -482,9 +500,19 @@ def sample_bulk_action(request):
     if action == 'change_location':
         from locations.models import Location
         locations = Location.objects.all()
+
+        # A sample's location is derived from the plate/well it sits in
+        # (see locations.views.move_plate). Editing it directly here would
+        # silently desync it from the plate the next time that plate moves,
+        # so plated samples are locked out of the bulk editor — move the
+        # plate on the Plates page instead.
+        plated_samples   = [s for s in samples if s.is_plated]
+        editable_samples = [s for s in samples if not s.is_plated]
+
         return render(request, 'samples/bulk_change_location.html', {
-            'samples':   samples,
-            'locations': locations,
+            'samples':          editable_samples,
+            'plated_samples':   plated_samples,
+            'locations':        locations,
         })
 
     elif action == 'change_condition':
@@ -498,8 +526,22 @@ def sample_bulk_action(request):
         location_id = request.POST.get('location')
         from locations.models import Location
         location = get_object_or_404(Location, pk=location_id)
-        updated  = samples.update(location=location)
-        messages.success(request, f"Location updated for {updated} sample(s).")
+
+        # Re-check at apply time too — a sample could've been plated in the
+        # time between opening this form and submitting it.
+        plated_ids = {s.pk for s in samples if s.is_plated}
+        updatable  = samples.exclude(pk__in=plated_ids) if plated_ids else samples
+        updated    = updatable.update(location=location)
+
+        if updated:
+            messages.success(request, f"Location updated for {updated} sample(s).")
+        if plated_ids:
+            messages.warning(
+                request,
+                f"Skipped {len(plated_ids)} sample(s) that are currently on a plate — "
+                "move the plate itself from the Plates page and its samples' "
+                "locations will update automatically."
+            )
 
     elif action == 'apply_condition':
         condition = request.POST.get('receiving_condition')

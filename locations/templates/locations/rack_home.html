@@ -20,6 +20,11 @@
   </div>
 </div>
 
+<div id="plateMoveNotice" class="alert alert-success alert-dismissible fade show" style="display:none;" role="alert">
+  <span id="plateMoveNoticeText"></span>
+  <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+</div>
+
 <!-- GLOBAL SEARCH -->
 <div class="inv-search-wrap">
   <div class="inv-search-box">
@@ -181,6 +186,15 @@
 </div>
 
 <script>
+(function () {
+  const notice = sessionStorage.getItem('plateMoveNotice');
+  if (notice) {
+    sessionStorage.removeItem('plateMoveNotice');
+    const box = document.getElementById('plateMoveNotice');
+    document.getElementById('plateMoveNoticeText').textContent = notice;
+    box.style.display = '';
+  }
+})();
 const SEARCH_URL = "{% url 'rack-search' %}";
 const input      = document.getElementById('globalSearch');
 const results    = document.getElementById('searchResults');
@@ -338,6 +352,12 @@ moveConfirmBtn.addEventListener('click', async () => {
       moveErrorBox.style.display = '';
       moveConfirmBtn.disabled = false;
       return;
+    }
+    if (data.samples_updated) {
+      sessionStorage.setItem(
+        'plateMoveNotice',
+        `Moved "${data.plate_name}" to ${data.rack_name} [${data.slot}]:  updated the storage location on ${data.samples_updated} sample${data.samples_updated === 1 ? '' : 's'}.`
+      );
     }
     window.location.reload();
   } catch (err) {
