@@ -19,15 +19,20 @@ from dotenv import load_dotenv
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-
-# Quick-start development settings - unsuitable for production
-# See https://docs.djangoproject.com/en/4.2/howto/deployment/checklist/
+load_dotenv()   # loads your .env file
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-dg+$qa&!y=maaj1@f#ayc3&g2&#7w)#5#35d5*+^l_q4@drj&w'
+# No hardcoded fallback on purpose — if .env is missing SECRET_KEY, fail
+# loudly at startup rather than silently running with a known, public key.
+SECRET_KEY = os.getenv('SECRET_KEY')
+if not SECRET_KEY:
+    raise RuntimeError(
+        "SECRET_KEY is not set. Copy .env.example to .env and fill it in "
+        "(see documentation/DEVELOPMENT.md / PRODUCTION.md)."
+    )
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.getenv('DEBUG', 'False') == 'True'
 
 ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
 
@@ -47,8 +52,6 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles', 
 
-    'debug_toolbar',
-
     # Apps
     'rest_framework',
     'corsheaders',
@@ -67,9 +70,17 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-
-    'debug_toolbar.middleware.DebugToolbarMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
 ]
+
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+
+# debug_toolbar is only ever added when DEBUG is on, so a production deploy
+# (DEBUG=False in .env) can never accidentally ship it — no manual removal
+# step required at deploy time.
+if DEBUG:
+    INSTALLED_APPS += ['debug_toolbar']
+    MIDDLEWARE += ['debug_toolbar.middleware.DebugToolbarMiddleware']
 
 ROOT_URLCONF = 'ngs_lims.urls'
 
@@ -105,24 +116,9 @@ WSGI_APPLICATION = 'ngs_lims.wsgi.application'
 
 # Database
 # https://docs.djangoproject.com/en/4.2/ref/settings/#databases
- 
-'''
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
-    }
-}
-
-'''
-
-
-load_dotenv()   # ← loads your .env file
-
-BASE_DIR = Path(__file__).resolve().parent.parent
-
-SECRET_KEY = os.getenv('SECRET_KEY')
-DEBUG = os.getenv('DEBUG', 'False') == 'True'
+# SECRET_KEY / DEBUG / BASE_DIR / load_dotenv() all happen near the top of
+# this file now, before INSTALLED_APPS, so debug_toolbar can be gated on
+# the real DEBUG value. See there if you're looking for them.
 
 DATABASES = {
     'default': {
@@ -159,7 +155,7 @@ AUTH_PASSWORD_VALIDATORS = [
 
 LANGUAGE_CODE = 'en-us'
 
-TIME_ZONE = 'UTC'
+TIME_ZONE = "America/Halifax"
 
 USE_I18N = True
 
@@ -175,6 +171,9 @@ STATICFILES_DIRS = [
     BASE_DIR / "static",
 ]
 
+# Target directory for `collectstatic`. Nginx (see documentation/PRODUCTION.md)
+# serves this directory directly in production. Not committed to git — it's
+# a generated build artifact, regenerated on every deploy.
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 
 LOGIN_REDIRECT_URL = '/'

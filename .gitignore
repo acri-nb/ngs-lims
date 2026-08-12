@@ -12,4 +12,6 @@ NOCOMMIT/
 venv/
 env/
 scripts/ngs-lims-backups
+
 staticfiles/
+deploy/generated/
