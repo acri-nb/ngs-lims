@@ -20,6 +20,11 @@ const STATUS_BADGE_CLASS = {
   control:      'status-control',
 };
 
+function sampleEditUrl(sampleId) {
+  if (typeof SAMPLE_EDIT_URL_TEMPLATE === 'undefined' || !sampleId) return null;
+  return SAMPLE_EDIT_URL_TEMPLATE.replace(/\/0\/edit\/$/, '/' + sampleId + '/edit/');
+}
+
 let activeWell = null;
 
 function selectWell(btn) {
@@ -53,6 +58,18 @@ function selectWell(btn) {
   const badge = document.getElementById('dBadge');
   badge.textContent = d.statusLabel || STATUS_LABELS[d.status] || '—';
   badge.className = 'detail-badge ' + (STATUS_BADGE_CLASS[d.status] || '');
+
+  // Edit link per-sample edit page
+  const editLink = document.getElementById('dEditLink');
+  const editUrl = sampleEditUrl(d.sampleId);
+  if (editLink) {
+    if (editUrl) {
+      editLink.href = editUrl;
+      editLink.style.display = '';
+    } else {
+      editLink.style.display = 'none';
+    }
+  }
   
   // Volume
   set('dConc',       d.conc       ? d.conc + ' ng/µL' : '—');
@@ -188,10 +205,15 @@ function buildLibprepTable() {
     tr.className = 'libprep-row';
     tr.dataset.search = (d.pos + ' ' + sampleName).toLowerCase();
 
+    const editUrl = sampleEditUrl(d.sampleId);
+    const sampleCell = editUrl
+      ? `<a href="${editUrl}" class="sample-link" style="font-weight:600;font-size:0.875rem;">${sampleName}</a>`
+      : sampleName;
+
     if (isControl) {
       tr.innerHTML = `
         <td><span class="sample-id">${d.pos}</span></td>
-        <td style="font-weight:600;font-size:0.875rem;">${sampleName}</td>
+        <td style="font-weight:600;font-size:0.875rem;">${sampleCell}</td>
         <td colspan="${columns.length - 2}" class="text-muted">No prep calculation, control well.</td>
       `;
       tbody.appendChild(tr);
@@ -201,7 +223,7 @@ function buildLibprepTable() {
     tr.innerHTML = columns.map(c => {
       const raw = c.get(d);
       if (c.key === 'well') return `<td><span class="sample-id">${raw}</span></td>`;
-      if (c.key === 'sample') return `<td style="font-weight:600;font-size:0.875rem;">${raw}</td>`;
+      if (c.key === 'sample') return `<td style="font-weight:600;font-size:0.875rem;">${sampleCell}</td>`;
       if (c.key === 'qc') {
         if (!raw) return `<td><span class="null-val">—</span></td>`;
         const qcClass = { pass: 'badge-pass', fail: 'badge-fail', caution: 'badge-caution', pending: 'badge-pending' }[raw] || 'badge-pending';
@@ -597,6 +619,5 @@ async function saveQcGates() {
     btn.disabled = false;
   }
 }
-
 
 

@@ -199,6 +199,105 @@ def libprep_detail(request, batch_id):
         'libraryqc_rows':  libraryqc_rows,
     })
 
+def _parse_float(val):
+    
+    if val in (None, ''):
+        return None
+    try:
+        return float(val)
+    except (TypeError, ValueError):
+        return None
+
+
+def _parse_int(val):
+    if val in (None, ''):
+        return None
+    try:
+        return int(float(val))
+    except (TypeError, ValueError):
+        return None
+
+
+@lab_staff_required
+def library_sample_edit(request, sample_id):
+    """
+    Detail / edit page for a single LibraryPrepSample (one well).
+    """
+    sample = get_object_or_404(
+        LibraryPrepSample.objects.select_related(
+            'libPrepBatch__workflowType',
+            'libPrepBatch__project',
+            'sampleQC__sample__specimen__case',
+            'sampleQC__sample__specimen__specimen_type',
+            'plateWell',
+            'libraryIndex',
+            'qcResult',
+        ),
+        pk=sample_id,
+    )
+    batch = sample.libPrepBatch
+    workflow = batch.workflowType
+    is_control = sample.sampleQC_id is None
+    well_pos = (
+        sample.plateWell.well_position if sample.plateWell_id
+        else sample.planned_well_position
+    )
+
+    if request.method == 'POST':
+        sample.concentrationInput = _parse_float(request.POST.get('concentrationInput'))
+        sample.volumeSample_ul = _parse_float(request.POST.get('volumeSample_ul'))
+        sample.volumeDiluent_ul = _parse_float(request.POST.get('volumeDiluent_ul'))
+        sample.actual_Input_ng = _parse_float(request.POST.get('actual_Input_ng'))
+        sample.speedVacRequired = request.POST.get('speedVacRequired') == 'on'
+        sample.notes = request.POST.get('notes', '').strip()
+
+        update_fields = [
+            'concentrationInput', 'volumeSample_ul', 'volumeDiluent_ul',
+            'actual_Input_ng', 'speedVacRequired', 'notes',
+        ]
+        if workflow.requires_pcr:
+            sample.PCRCycles = _parse_int(request.POST.get('PCRCycles'))
+            update_fields.append('PCRCycles')
+
+        sample.save(update_fields=update_fields)
+
+        if not is_control:
+            libqc_batch = _get_or_create_libqc_batch(batch, request.user)
+            libqc, _created = LibraryQC.objects.get_or_create(
+                libPrepSample=sample,
+                defaults={'libQCBatch': libqc_batch},
+            )
+            libqc.qubit_ng_ul = _parse_float(request.POST.get('qubit_ng_ul'))
+            if workflow.qc_method == 'qubit_tapestation':
+                libqc.fragmentSizesAvgBP = _parse_float(request.POST.get('fragmentSizesAvgBP'))
+                libqc.dimerPeak_pct = _parse_float(request.POST.get('dimerPeak_pct'))
+                libqc.region_pct = _parse_float(request.POST.get('region_pct'))
+                libqc.region_nm = _parse_float(request.POST.get('region_nm'))
+            libqc.nmCalculated = libqc.calculate_nm(workflow_type=workflow)
+            libqc.QCstatus = libqc.calculate_qc_status(workflow_type=workflow)
+            libqc.createdBy = request.user
+            libqc.save()
+
+        LibraryPrepBatchAuditLog.objects.create(
+            batch=batch,
+            changed_by=request.user if request.user.is_authenticated else None,
+            action=LibraryPrepBatchAuditLog.ACTION_SAMPLES,
+            detail=f'Well {well_pos or "?"} edited by hand.',
+        )
+
+        messages.success(request, f'{well_pos or "Well"} saved.')
+        return redirect('libprep-detail', batch_id=batch.pk)
+
+    return render(request, 'library/library_sample_edit.html', {
+        'sample': sample,
+        'batch': batch,
+        'workflow': workflow,
+        'is_control': is_control,
+        'well_pos': well_pos,
+        'qc': getattr(sample, 'qcResult', None),
+    })
+
+
 @lab_staff_required
 def libprep_mastermix_save(request, batch_id):
     """

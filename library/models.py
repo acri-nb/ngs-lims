@@ -667,6 +667,8 @@ class LibraryPrepSample(models.Model):
         default=PrepAction.PREP,
         verbose_name=_("Prep Action"),
     )
+    notes = models.TextField(blank=True, verbose_name=_("Notes"))
+
     createdBy = models.ForeignKey(
         User, on_delete=models.SET_NULL,
         null=True, blank=True,

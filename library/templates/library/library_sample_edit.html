@@ -1,0 +1,240 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}{{ well_pos|default:"Well" }} — {{ batch.batch_name }} | NGS-LIMS{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'libprep-list' %}">Library Prep</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'libprep-detail' batch.pk %}">{{ batch.batch_name }}</a></li>
+        <li class="breadcrumb-item active">{{ well_pos|default:"Well" }}</li>
+    </ol>
+</nav>
+
+<div class="page-header">
+    <div>
+        <h1 class="page-title mb-0">
+            <i class="fas fa-vial"></i>
+            {% if is_control %}Control Well{% else %}{{ sample.sampleQC.sample.sample_name }}{% endif %}
+        </h1>
+        <div class="mt-1 d-flex gap-2 align-items-center">
+            <span class="sample-id">{{ well_pos|default:"—" }}</span>
+            {% if is_control %}
+                <span class="lims-badge status-control">Control</span>
+            {% else %}
+                <span class="lims-badge status-{{ sample.workflow_status }}">{{ sample.workflow_status_label }}</span>
+            {% endif %}
+        </div>
+    </div>
+    <a href="{% url 'libprep-detail' batch.pk %}" class="btn btn-outline-lims">
+        <i class="fas fa-arrow-left me-1"></i> Back to Batch
+    </a>
+</div>
+
+<form method="post" id="libSampleForm">
+{% csrf_token %}
+
+<div class="row g-4">
+
+    <!-- LEFT: FORM FIELDS -->
+    <div class="col-lg-7">
+
+        <!-- PREP / VOLUME -->
+        <div class="card mb-3">
+            <div class="card-header"><i class="fas fa-flask"></i> Prep &amp; Volume Calculation</div>
+            <div class="card-body p-4">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label-lims" for="concentrationInput">Concentration Input (ng/µL)</label>
+                        <input type="number" step="0.01" id="concentrationInput" name="concentrationInput"
+                               class="form-control form-control-lims"
+                               value="{{ sample.concentrationInput|default_if_none:'' }}">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label-lims" for="actual_Input_ng">Actual Input (ng)</label>
+                        <input type="number" step="0.01" id="actual_Input_ng" name="actual_Input_ng"
+                               class="form-control form-control-lims"
+                               value="{{ sample.actual_Input_ng|default_if_none:'' }}">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label-lims" for="volumeSample_ul">Volume Sample (µL)</label>
+                        <input type="number" step="0.01" id="volumeSample_ul" name="volumeSample_ul"
+                               class="form-control form-control-lims"
+                               value="{{ sample.volumeSample_ul|default_if_none:'' }}">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label-lims" for="volumeDiluent_ul">Volume Diluent (µL)</label>
+                        <input type="number" step="0.01" id="volumeDiluent_ul" name="volumeDiluent_ul"
+                               class="form-control form-control-lims"
+                               value="{{ sample.volumeDiluent_ul|default_if_none:'' }}">
+                    </div>
+
+                    {% if workflow.requires_pcr %}
+                    <div class="col-md-6">
+                        <label class="form-label-lims" for="PCRCycles">PCR Cycles</label>
+                        <input type="number" step="1" id="PCRCycles" name="PCRCycles"
+                               class="form-control form-control-lims"
+                               value="{{ sample.PCRCycles|default_if_none:'' }}">
+                    </div>
+                    {% endif %}
+
+                    <div class="col-md-6 d-flex align-items-end">
+                        <div class="form-check">
+                            <input type="checkbox" class="form-check-input" id="speedVacRequired"
+                                   name="speedVacRequired" {% if sample.speedVacRequired %}checked{% endif %}>
+                            <label class="form-check-label form-label-lims mb-0" for="speedVacRequired" style="text-transform:none;letter-spacing:0;">
+                                SpeedVac Required
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {% if not is_control %}
+        <!-- LIBRARY QC MEASUREMENTS -->
+        <div class="card mb-3">
+            <div class="card-header"><i class="fas fa-dna"></i> Library QC Measurements</div>
+            <div class="card-body p-4">
+                <div class="row g-3">
+                    <div class="col-12">
+                        <label class="form-label-lims" for="qubit_ng_ul">Qubit (ng/µL)</label>
+                        <input type="number" step="0.01" id="qubit_ng_ul" name="qubit_ng_ul"
+                               class="form-control form-control-lims"
+                               value="{{ qc.qubit_ng_ul|default_if_none:'' }}">
+                    </div>
+
+                    {% if workflow.qc_method == 'qubit_tapestation' %}
+                    <div class="col-md-6">
+                        <label class="form-label-lims" for="fragmentSizesAvgBP">Avg Fragment Size (bp)</label>
+                        <input type="number" step="1" id="fragmentSizesAvgBP" name="fragmentSizesAvgBP"
+                               class="form-control form-control-lims"
+                               value="{{ qc.fragmentSizesAvgBP|default_if_none:'' }}">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label-lims" for="dimerPeak_pct">Dimer Peak (%)</label>
+                        <input type="number" step="0.01" id="dimerPeak_pct" name="dimerPeak_pct"
+                               class="form-control form-control-lims"
+                               value="{{ qc.dimerPeak_pct|default_if_none:'' }}">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label-lims" for="region_pct">Region (%)</label>
+                        <input type="number" step="0.01" id="region_pct" name="region_pct"
+                               class="form-control form-control-lims"
+                               value="{{ qc.region_pct|default_if_none:'' }}">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label-lims" for="region_nm">Region (nM)</label>
+                        <input type="number" step="0.01" id="region_nm" name="region_nm"
+                               class="form-control form-control-lims"
+                               value="{{ qc.region_nm|default_if_none:'' }}">
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- NOTES -->
+        <div class="card mb-4">
+            <div class="card-header"><i class="fas fa-sticky-note"></i> Notes</div>
+            <div class="card-body p-4">
+                <textarea id="notes" name="notes" rows="4"
+                          class="form-control form-control-lims"
+                          placeholder="Anything worth flagging about this well…">{{ sample.notes }}</textarea>
+            </div>
+        </div>
+
+        <div class="d-flex gap-2 justify-content-end">
+            <a href="{% url 'libprep-detail' batch.pk %}" class="btn btn-outline-lims px-4">Cancel</a>
+            <button type="submit" class="btn btn-accent px-4">
+                <i class="fas fa-save me-1"></i> Save{% if not is_control %} &amp; Recalculate{% endif %}
+            </button>
+        </div>
+
+    </div>
+
+    <!-- RIGHT: STATUS + CONTEXT -->
+    <div class="col-lg-5">
+        <div class="card" style="position:sticky;top:72px;">
+            <div class="card-header"><i class="fas fa-clipboard-check"></i> Well Overview</div>
+            <div class="card-body p-3">
+
+                <div class="name-preview">
+                    <div class="name-preview-label">Current Status</div>
+                    <div class="name-preview-value {% if is_control %}status-pending{% else %}status-{{ sample.workflow_status }}{% endif %}">
+                        {% if is_control %}Control{% else %}{{ sample.workflow_status_label }}{% endif %}
+                    </div>
+                    {% if not is_control %}
+                    <div class="name-preview-hint">Recalculated automatically on save</div>
+                    {% endif %}
+                </div>
+
+                <div style="height:1px;background:var(--border);margin:1rem 0;"></div>
+
+                <div class="summary-row">
+                    <span class="summary-label">Batch</span>
+                    <span class="summary-val">
+                        <a href="{% url 'libprep-detail' batch.pk %}" style="color:var(--accent);text-decoration:none;">
+                            {{ batch.batch_name }}
+                        </a>
+                    </span>
+                </div>
+                <div class="summary-row">
+                    <span class="summary-label">Well</span>
+                    <span class="summary-val">{{ well_pos|default:"—" }}</span>
+                </div>
+                {% if not is_control %}
+                <div class="summary-row">
+                    <span class="summary-label">Sample</span>
+                    <span class="summary-val">
+                        <a href="{% url 'sample-detail' sample.sampleQC.sample.sample_id %}" style="color:var(--accent);text-decoration:none;">
+                            {{ sample.sampleQC.sample.sample_name }}
+                        </a>
+                    </span>
+                </div>
+                <div class="summary-row">
+                    <span class="summary-label">Case</span>
+                    <span class="summary-val">{{ sample.sampleQC.sample.specimen.case.case_name }}</span>
+                </div>
+                <div class="summary-row">
+                    <span class="summary-label">Specimen</span>
+                    <span class="summary-val">{{ sample.sampleQC.sample.specimen.specimen_type.specimen_type }}</span>
+                </div>
+                {% endif %}
+                <div class="summary-row">
+                    <span class="summary-label">Workflow</span>
+                    <span class="summary-val">{{ workflow.workflowType }}</span>
+                </div>
+                {% if sample.libraryIndex %}
+                <div class="summary-row">
+                    <span class="summary-label">Index (UDI)</span>
+                    <span class="summary-val">{{ sample.libraryIndex.udi_number|default:"—" }}</span>
+                </div>
+                {% endif %}
+                {% if not is_control and qc %}
+                <div class="summary-row">
+                    <span class="summary-label">In nM</span>
+                    <span class="summary-val">{{ qc.nmCalculated|default_if_none:"—" }}</span>
+                </div>
+                <div class="summary-row">
+                    <span class="summary-label">Library QC</span>
+                    <span class="summary-val"><span class="lims-badge badge-{{ qc.QCstatus }}">{{ qc.get_QCstatus_display }}</span></span>
+                </div>
+                {% endif %}
+                <div class="summary-row">
+                    <span class="summary-label">Updated</span>
+                    <span class="summary-val">{{ sample.updated_at|date:"M j, Y H:i" }}</span>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+</div>
+</form>
+{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/library_sample_edit.css' %}">
+{% endblock %}

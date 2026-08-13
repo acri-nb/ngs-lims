@@ -106,6 +106,7 @@
           class="well {% if cell.occupied %}well-occupied well-status-{{ cell.sample.workflow_status }}{% if cell.is_control %} well-control{% endif %}{% else %}well-empty{% endif %}"
           data-pos="{{ cell.position }}"
           {% if cell.occupied %}
+          data-sample-id="{{ cell.sample.pk }}"
           data-sample-name="{{ cell.sample.sampleQC.sample.sample_name|default:'Control' }}"
           data-well-type="{{ cell.sample.plateWell.well_type|default:'' }}"
           data-action="{{ cell.sample.prepAction }}"
@@ -190,6 +191,10 @@
         </div>
         <span class="detail-badge" id="dBadge"></span>
       </div>
+
+      <a href="#" id="dEditLink" class="btn btn-accent btn-sm w-100 mt-2" style="display:none;">
+        <i class="fas fa-pen me-1"></i> Edit Well
+      </a>
 
       <div style="height:1px;background:var(--border);margin:.75rem 0;"></div>
 
@@ -631,6 +636,8 @@
     const IMPORT_URL             = "{% url 'libprep-import-results' batch.pk %}";
     const CSRF_TOKEN            = "{{ csrf_token }}";
     const GATES_SAVE_URL = "{% url 'libprep-qc-gates-save' batch.pk %}";
+    // Placeholder pk (0) swapped for the real sample id in JS.
+    const SAMPLE_EDIT_URL_TEMPLATE = "{% url 'library-sample-edit' 0 %}";
   
     const WORKFLOW_CONFIG = {
         sampleType:        "{{ workflow.sample_type|escapejs }}",

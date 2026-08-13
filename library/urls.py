@@ -4,6 +4,7 @@ from . import views
 urlpatterns = [
     path('',                                views.libprep_list,         name='libprep-list'),
     path('batch/<int:batch_id>/',           views.libprep_detail,       name='libprep-detail'),
+    path('sample/<int:sample_id>/edit/',    views.library_sample_edit,  name='library-sample-edit'),
     path('batch/<int:batch_id>/mastermix/save/', views.libprep_mastermix_save, name='libprep-mastermix-save'),
     path('batch/<int:batch_id>/mastermix/print/', views.libprep_mastermix_print, name='libprep-mastermix-print'),
     path('batch/<int:batch_id>/mastermix/pdf/', views.libprep_mastermix_pdf, name='libprep-mastermix-pdf'),

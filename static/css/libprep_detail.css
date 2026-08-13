@@ -509,3 +509,14 @@
 .lims-badge.badge-fail    { background: rgba(230,57,70,0.12);  color: #b52530; }
 .lims-badge.badge-caution { background: rgba(233,196,106,0.2); color: #8a6a00; }
 .lims-badge.badge-pending { background: rgba(107,122,143,0.12);color: var(--text-muted); }
+
+/* Clickable sample name */
+.sample-link {
+    color: inherit;
+    text-decoration: none;
+    border-bottom: 1px dashed var(--accent);
+    transition: color .15s, border-color .15s;
+}
+.sample-link:hover { color: var(--accent); border-color: var(--accent); }
+
+#dEditLink { text-align: center; }
