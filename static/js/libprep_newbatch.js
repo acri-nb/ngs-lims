@@ -227,9 +227,14 @@ async function updateSlotGrid(rackPk, rackName) {
 
   const grid = document.createElement('div');
   grid.className = 'nb-slot-inner-grid';
+  // Lock the grid to exactly (columns × T/B) so each rack row wraps at the
+  // right point instead of the browser guessing a column count from
+  // container width (which is what was collapsing this to a single column).
+  const numCols = (data.cols || []).length || 1;
+  grid.style.gridTemplateColumns = `repeat(${numCols * 2}, minmax(34px, 1fr))`;
 
   (data.rows || []).forEach(row => {
-    (data.cols || []).forEach(col => {
+    (data.cols || []).forEach((col, colIdx) => {
       ['T', 'B'].forEach(side => {
         const slot = `${row}${col}${side}`;
         const info = occBySlot[slot] || {};
@@ -245,6 +250,10 @@ async function updateSlotGrid(rackPk, rackName) {
           btn.className = 'nb-slot-btn nb-slot-free';
           btn.title     = 'Available';
           btn.addEventListener('click', () => selectSlot(rackPk, rackName, slot, btn));
+        }
+        
+        if (side === 'B' && colIdx < (data.cols || []).length - 1) {
+          btn.classList.add('nb-slot-pair-end');
         }
         grid.appendChild(btn);
       });

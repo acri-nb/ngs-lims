@@ -88,21 +88,33 @@ class WorkflowStepRowOrderModelTests(TestCase):
 class IndexKitModelTests(TestCase):
     def test_str_and_workflow_link(self):
         wf = WorkflowType.objects.create(workflowType="RNA PolyA")
-        kit = IndexKit.objects.create(name="ILLMN-DNA-RNA-V2", workflowType=wf)
+        kit = IndexKit.objects.create(name="ILLMN-DNA-RNA-V2")
+        kit.workflowTypes.add(wf)
         self.assertEqual(str(kit), "ILLMN-DNA-RNA-V2")
+
+    def test_kit_can_be_shared_by_multiple_workflows(self):
+        wf1 = WorkflowType.objects.create(workflowType="TotalRNA")
+        wf2 = WorkflowType.objects.create(workflowType="DNA PCR Free WGS")
+        kit = IndexKit.objects.create(name="ILLMN-DNA-RNA-V2")
+        kit.workflowTypes.add(wf1, wf2)
+        self.assertEqual(kit.workflowTypes.count(), 2)
+        self.assertIn(kit, wf1.indexKits.all())
+        self.assertIn(kit, wf2.indexKits.all())
 
     def test_name_unique(self):
         wf = WorkflowType.objects.create(workflowType="RNA PolyA")
-        IndexKit.objects.create(name="ILLMN-DNA-RNA-V2", workflowType=wf)
+        kit = IndexKit.objects.create(name="ILLMN-DNA-RNA-V2")
+        kit.workflowTypes.add(wf)
         with self.assertRaises(IntegrityError):
             with transaction.atomic():
-                IndexKit.objects.create(name="ILLMN-DNA-RNA-V2", workflowType=wf)
+                IndexKit.objects.create(name="ILLMN-DNA-RNA-V2")
 
 
 class LibraryIndexModelTests(TestCase):
     def setUp(self):
         wf = WorkflowType.objects.create(workflowType="RNA PolyA")
-        self.kit = IndexKit.objects.create(name="ILLMN-DNA-RNA-V2", workflowType=wf)
+        self.kit = IndexKit.objects.create(name="ILLMN-DNA-RNA-V2")
+        self.kit.workflowTypes.add(wf)
 
     def test_str_with_and_without_plate_set(self):
         idx = LibraryIndex.objects.create(
@@ -127,7 +139,8 @@ class LibraryIndexModelTests(TestCase):
 
     def test_udi_number_can_repeat_across_kits(self):
         wf2 = WorkflowType.objects.create(workflowType="DNA PCR-Free")
-        other_kit = IndexKit.objects.create(name="KAPA-UDI", workflowType=wf2)
+        other_kit = IndexKit.objects.create(name="KAPA-UDI")
+        other_kit.workflowTypes.add(wf2)
         LibraryIndex.objects.create(indexKit=self.kit, well="A01", udi_number="UDP0001", i7Sequence="ACGT")
         LibraryIndex.objects.create(indexKit=other_kit, well="A01", udi_number="UDP0001", i7Sequence="TTTT")
 

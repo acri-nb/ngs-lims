@@ -670,15 +670,13 @@ MASTERMIX_DATA = {
 
 
 INDEX_KIT_WORKFLOW_MAP = {
-    "ILLMN-DNA-RNA-V2": "TotalRNA",
-    "ILLMN-DNA-RNA-V3": "TotalRNA",
+    # Illumina DNA/RNA kits are shared: the same physical kit (and its indexes) 
+    "ILLMN-DNA-RNA-V2": ["TotalRNA", "DNA PCR Free WGS"],
+    "ILLMN-DNA-RNA-V3": ["TotalRNA", "DNA PCR Free WGS"],
 
-    "ILLMN-DNA-RNA-V2": "DNA PCR Free WGS",
-    "ILLMN-DNA-RNA-V3": "DNA PCR Free WGS",
+    "KAPA-UDI":         ["KAPA HyperPlus DNA"],
 
-    "KAPA-UDI":         "KAPA HyperPlus DNA",
-    
-    "sRNA-V4":          "Small RNA",
+    "sRNA-V4":          ["Small RNA"],
 }
 
 LIBRARY_INDEX_FIXTURE = Path(__file__).resolve().parent.parent.parent / "fixtures" / "library_index_seed.json"
@@ -982,9 +980,9 @@ class Command(BaseCommand):
 
         for kit_entry in kits_data:
             kit_name = kit_entry["kit_name"]
-            workflow_name = INDEX_KIT_WORKFLOW_MAP.get(kit_name)
+            workflow_names = INDEX_KIT_WORKFLOW_MAP.get(kit_name)
 
-            if not workflow_name:
+            if not workflow_names:
                 self.stdout.write(
                     self.style.WARNING(
                         f"  ⚠  '{kit_name}' has no entry in INDEX_KIT_WORKFLOW_MAP — skipping"
@@ -992,26 +990,36 @@ class Command(BaseCommand):
                 )
                 continue
 
-            try:
-                workflow_type = WorkflowType.objects.get(workflowType=workflow_name)
-            except WorkflowType.DoesNotExist:
+            # Support a bare string for a single-workflow kit as well as a
+            # list for kits shared across several workflows.
+            if isinstance(workflow_names, str):
+                workflow_names = [workflow_names]
+
+            workflow_types = []
+            for workflow_name in workflow_names:
+                try:
+                    workflow_types.append(WorkflowType.objects.get(workflowType=workflow_name))
+                except WorkflowType.DoesNotExist:
+                    self.stdout.write(
+                        self.style.WARNING(
+                            f"  ⚠  WorkflowType '{workflow_name}' not found for kit "
+                            f"'{kit_name}' — create it first (admin or seed script), then re-run. Skipping link."
+                        )
+                    )
+
+            if not workflow_types:
                 self.stdout.write(
                     self.style.WARNING(
-                        f"  ⚠  WorkflowType '{workflow_name}' not found for kit "
-                        f"'{kit_name}' — create it first (admin or seed script), then re-run. Skipping kit."
+                        f"  ⚠  No valid WorkflowTypes resolved for kit '{kit_name}' — skipping kit."
                     )
                 )
                 continue
 
-            kit, created = IndexKit.objects.get_or_create(
-                name=kit_name,
-                defaults={"workflowType": workflow_type},
-            )
-            if not created and kit.workflowType_id != workflow_type.id:
-                kit.workflowType = workflow_type
-                kit.save(update_fields=["workflowType"])
+            kit, created = IndexKit.objects.get_or_create(name=kit_name)
+            kit.workflowTypes.set(workflow_types)
             status = "created" if created else "exists "
-            self._log(status, f"IndexKit: {kit_name}  (→ {workflow_name})")
+            workflow_label = ", ".join(wf.workflowType for wf in workflow_types)
+            self._log(status, f"IndexKit: {kit_name}  (→ {workflow_label})")
 
             new_wells = []
             existing_keys = set(

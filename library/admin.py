@@ -137,10 +137,15 @@ class WorkflowTypeAdmin(admin.ModelAdmin):
 #  Index Kits
 @admin.register(IndexKit)
 class IndexKitAdmin(admin.ModelAdmin):
-    list_display = ("name", "workflowType", "index_count", "notes")
-    list_filter = ("workflowType",)
+    list_display = ("name", "workflow_list", "index_count", "notes")
+    list_filter = ("workflowTypes",)
     search_fields = ("name",)
+    filter_horizontal = ("workflowTypes",)
     ordering = ("name",)
+
+    @admin.display(description="Workflow Types")
+    def workflow_list(self, obj):
+        return ", ".join(obj.workflowTypes.values_list("workflowType", flat=True))
 
     @admin.display(description="# indexes")
     def index_count(self, obj):

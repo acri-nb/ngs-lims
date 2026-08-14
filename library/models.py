@@ -319,12 +319,11 @@ class IndexKit(models.Model):
         verbose_name=_("Index Kit Name"),
         help_text=_("e.g. 'ILLMN-DNA-RNA-V2', 'KAPA-UDI', 'sRNA-V4'."),
     )
-    workflowType = models.ForeignKey(
+    workflowTypes = models.ManyToManyField(
         WorkflowType,
-        on_delete=models.PROTECT,
         related_name='indexKits',
-        verbose_name=_("Workflow Type"),
-        help_text=_("The prep workflow this kit's indexes are used with."),
+        verbose_name=_("Workflow Types"),
+        help_text=_("The prep workflow(s) this kit's indexes can be shared by multiple workflows"),
     )
     notes = models.TextField(blank=True, verbose_name=_("Notes"))
 

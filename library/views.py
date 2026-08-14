@@ -703,7 +703,7 @@ def _lookup_library_index(workflow, plate_set, index_well, udi):
       - True  (TotalRNA, DNA PCR-Free): look up by (plateSet, well).
       - False (KAPA, Small RNA): look up by udi_number directly.
     """
-    kits = IndexKit.objects.filter(workflowType=workflow)
+    kits = IndexKit.objects.filter(workflowTypes=workflow)
     if not kits.exists():
         return None, f'No Index Kit configured for workflow "{workflow.workflowType}".'
 
