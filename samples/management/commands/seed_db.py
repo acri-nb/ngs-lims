@@ -244,10 +244,10 @@ PRODUCTS = [
 #     workflowType MUST exactly match the values used in INDEX_KIT_WORKFLOW_MAP
 #     and in MASTERMIX_DATA below, since those look these up by name.
 # ══════════════════════════════════════════════════════════════════════════════
-from django.utils.translation import gettext_lazy as _
+from library.models import QCMethod
 
-QUBIT_ONLY        = 'qubit',            _('Qubit Only')
-QUBIT_TAPESTATION  = 'qubit_tapestation', _('Qubit + TapeStation')
+QUBIT_ONLY         = QCMethod.QUBIT_ONLY
+QUBIT_TAPESTATION  = QCMethod.QUBIT_TAPESTATION
 
 WORKFLOW_TYPES = [
     {
