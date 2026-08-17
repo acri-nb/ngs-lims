@@ -25,7 +25,7 @@ sudo systemctl status postgresql
 sudo systemctl status nginx
 ```
 
-All three should be `active (running)`. If any is failed, check the journal:
+All three should be `active (running)` (If configured). If any is failed, check the journal:
 
 ```bash
 journalctl -u ngs-lims -n 50
@@ -213,7 +213,24 @@ sudo -u postgres psql -U lims_user -d ngs_lims_db -c "SELECT 1;"
 
 If the connection is refused, PostgreSQL may not be listening on the expected host/port. Check `postgresql.conf` (`listen_addresses`) and `pg_hba.conf` (authentication rules).
 
-### 5.5 Migrations out of sync
+### 5.5 "database has a collation version mismatch" warning
+
+Shows up after an OS-level library upgrade (glibc) changes how the system sorts text, e.g.:
+
+```
+WARNING: database "ngs_lims_db" has a collation version mismatch
+```
+
+This is a Postgres/OS issue, not an app bug, it means indexes and `ORDER BY`/uniqueness on text columns were built under a different sort order than the one currently active. Not urgent, but worth clearing promptly since a stale index could in rare cases miss a real duplicate or return a subtly wrong order. Fix, run as the Postgres superuser:
+
+```sql
+ALTER DATABASE ngs_lims_db REFRESH COLLATION VERSION;
+REINDEX DATABASE ngs_lims_db;
+```
+
+`REINDEX DATABASE` briefly locks tables and can't run inside a transaction block, do it when nobody else is using the system.
+
+### 5.6 Migrations out of sync
 
 If `python manage.py showmigrations` shows unapplied migrations that should already be applied (e.g. after restoring from a backup taken before those migrations existed), you may need to fake the migration state:
 

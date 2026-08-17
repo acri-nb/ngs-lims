@@ -7,12 +7,29 @@
 #    ./restore.sh ngs_lims_2026-01-15_02-00-00.sql.gz   ← restore specific file
 # =============================================================================
 
-# ── CONFIG (must match backup.sh) ────────────────────────────────────────────
-DB_NAME="ngs_lims"
-DB_USER="postgres"
-DB_HOST="localhost"
-DB_PORT="5432"
-BACKUP_DIR="$./ngs-lims-backups"
+# ── CONFIG ───────────────────────────────────────────────────────────────────
+# DB_NAME / DB_USER / DB_HOST / DB_PORT are read from the project's .env —
+# same source backup.sh uses, so the two scripts can never drift out of sync.
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+ENV_FILE="$PROJECT_ROOT/.env"
+
+if [ ! -f "$ENV_FILE" ]; then
+    echo "ERROR: .env not found at $ENV_FILE — cannot read DB credentials." >&2
+    exit 1
+fi
+
+set -a
+# shellcheck disable=SC1090
+source <(grep -E '^(DB_NAME|DB_USER|DB_HOST|DB_PORT)=' "$ENV_FILE")
+set +a
+
+: "${DB_NAME:?DB_NAME missing from .env}"
+: "${DB_USER:?DB_USER missing from .env}"
+: "${DB_HOST:?DB_HOST missing from .env}"
+: "${DB_PORT:?DB_PORT missing from .env}"
+
+BACKUP_DIR="$SCRIPT_DIR/ngs-lims-backups"
 # ─────────────────────────────────────────────────────────────────────────────
 
 RED='\033[0;31m'

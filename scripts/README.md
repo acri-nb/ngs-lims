@@ -1,49 +1,46 @@
-# NGS-LIMS Database Backup & Restore
+# NGS-LIMS Scripts
 
-## First-time setup
+## `setup_dev.sh` / `setup_production.sh`
 
-### 1. Put the scripts somewhere permanent
+One-shot environment bootstrap for development and production respectively. See the root `README.md` for what each one does. Both are safe to re-run.
+
+---
+
+## Database Backup & Restore
+
+`backup.sh` and `restore.sh` read `DB_NAME` / `DB_USER` / `DB_HOST` / `DB_PORT` **directly from the project's `.env` file** there's nothing to configure inside the scripts themselves, and the two scripts can never drift out of sync with each other or with what the app is actually connected to.
+
+### First-time setup
+
+#### 1. Make the scripts executable
 
 ```bash
-mkdir -p ~/ngs-lims-scripts
-cp backup.sh restore.sh ~/ngs-lims-scripts/
-chmod +x ~/ngs-lims-scripts/backup.sh
-chmod +x ~/ngs-lims-scripts/restore.sh
+chmod +x scripts/backup.sh scripts/restore.sh
 ```
 
-### 2. Edit the CONFIG block in both scripts
+They can be run from anywhere — they locate the project root (and `.env`) relative to their own location, not your current directory.
 
-Open each file and set these at the top:
+#### 2. Allow passwordless `pg_dump`/`psql` (so cron can run without a password prompt)
 
-```bash
-DB_NAME="ngs_lims"      # your actual database name
-DB_USER="postgres"      # your PostgreSQL user
-DB_HOST="localhost"
-DB_PORT="5432"
-BACKUP_DIR="./ngs-lims-backups"   # where backups are saved
-```
-
-### 3. Allow passwordless pg_dump (so cron can run without a password prompt)
-
-Create a `.pgpass` file:
+Create a `.pgpass` file for the user that will run the scripts (e.g. the account cron runs as):
 
 ```bash
-echo "localhost:5432:ngs_lims:postgres:YOUR_PASSWORD" >> ~/.pgpass
+echo "localhost:5432:ngs_lims_db:lims_user:YOUR_PASSWORD" >> ~/.pgpass
 chmod 600 ~/.pgpass
 ```
 
-Format is: `host:port:database:user:password`
+Format is `host:port:database:user:password` match whatever's actually in your `.env`.
 
-### 4. Schedule daily automatic backups with cron
+#### 3. Schedule daily automatic backups with cron
+
+`scripts/setup_production.sh` offers to add this for you. To do it manually:
 
 ```bash
 crontab -e
 ```
 
-Add this line (runs every day at 2 AM):
-
 ```
-0 2 * * * /home/mathieu/ngs-lims-scripts/backup.sh
+0 2 * * * /path/to/ngs-lims/scripts/backup.sh   ← runs every day at 2 AM
 ```
 
 Other schedule options:
@@ -53,13 +50,13 @@ Other schedule options:
 0 */6 * * *   every 6 hours
 ```
 
-### 5. Test it manually first
+#### 4. Test it manually first
 
 ```bash
-~/ngs-lims-scripts/backup.sh
+./scripts/backup.sh
 ```
 
-You should see a `.sql.gz` file appear in `~/ngs-lims-backups/`.
+You should see a `.sql.gz` file appear in `scripts/ngs-lims-backups/`.
 
 ---
 
@@ -68,22 +65,21 @@ You should see a `.sql.gz` file appear in `~/ngs-lims-backups/`.
 ### Run a manual backup anytime
 
 ```bash
-~/ngs-lims-scripts/backup.sh
+./scripts/backup.sh
 ```
 
 ### List backups and restore one
 
 ```bash
-~/ngs-lims-scripts/restore.sh
+./scripts/restore.sh
 ```
 
-This shows a numbered list of all backups. Pick a number, type `RESTORE` to confirm.
-Before overwriting, it **automatically saves a safety backup** of the current state.
+Shows a numbered list of all backups. Pick a number, type `RESTORE` to confirm. Before overwriting, it **automatically saves a safety backup** of the current state first.
 
 ### Restore a specific file directly
 
 ```bash
-~/ngs-lims-scripts/restore.sh ngs_lims_2026-01-15_02-00-00.sql.gz
+./scripts/restore.sh ngs_lims_2026-01-15_02-00-00.sql.gz
 ```
 
 ---
@@ -91,21 +87,20 @@ Before overwriting, it **automatically saves a safety backup** of the current st
 ## Backup file naming
 
 ```
-ngs_lims_2026-01-15_02-00-00.sql.gz       ← regular daily backup
-ngs_lims_PRE-RESTORE_2026-01-15_14-32-11.sql.gz  ← auto-saved before a restore
+ngs_lims_2026-01-15_02-00-00.sql.gz               ← regular scheduled backup
+ngs_lims_PRE-RESTORE_2026-01-15_14-32-11.sql.gz   ← auto-saved before a restore
 ```
 
 ---
 
 ## Backup location
 
-All files go to `~/ngs-lims-backups/` by default.
-Old backups are automatically deleted after 30 days (set `KEEP_DAYS` in backup.sh).
+All files go to `scripts/ngs-lims-backups/` by default (gitignored). Old backups are automatically deleted after 30 days, change `KEEP_DAYS` near the top of `backup.sh` if you want a different retention window.
 
 ---
 
 ## Check the backup log
 
 ```bash
-cat ./ngs-lims-backups/backup.log
+cat scripts/ngs-lims-backups/backup.log
 ```

@@ -1,0 +1,19 @@
+[Unit]
+Description=NGS-LIMS Gunicorn daemon
+After=network.target postgresql.service
+
+[Service]
+User=__SERVICE_USER__
+Group=__SERVICE_GROUP__
+WorkingDirectory=__DEPLOY_PATH__
+EnvironmentFile=__DEPLOY_PATH__/.env
+ExecStart=__PYTHON_BIN__ -m gunicorn \
+    ngs_lims.wsgi:application \
+    --workers __GUNICORN_WORKERS__ \
+    --bind 127.0.0.1:8000 \
+    --access-logfile __LOG_DIR__/access.log \
+    --error-logfile __LOG_DIR__/error.log
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
