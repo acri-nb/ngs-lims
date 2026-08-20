@@ -6,17 +6,17 @@ This document describes the standard day-to-day workflows in the LIMS from the p
 
 ## Overview
 
-The LIMS is organized around four functional areas:
+The LIMS is organized around five functional areas:
 
 - **Samples**: clients, projects, cases, specimens, and sample intake
 - **QC**: batching samples and recording QC measurements
+- **Library Prep**: plate boards, master mix sheets, prep sheets, and library QC
 - **Inventory**: reagent receipts, stock levels, and adjustments
 - **Locations**: physical storage units and temperature logging
-
 A typical project follows this path:
 
 ```
-Create Project -> Import Samples -> Assign to QC Batches -> Record QC Results
+Create Project -> Import Samples -> Assign to QC Batches -> Record QC Results -> Create Library Prep Batch -> Master Mix / Prep Sheet -> Record Library QC
 ```
 
 ---
@@ -27,10 +27,11 @@ Before any samples can be entered, a project must exist and be linked to a clien
 
 ### 1.1 Create or confirm the client
 
-Navigate to **Clients** and look whether the submitting researcher. If not, click **New Client** and fill in:
+Navigate to **Clients** and check whether the submitting researcher already exists. If not, click **New Client** and fill in:
 
 - Client name (the researcher)
 - Organisation name
+- Email
 
 ### 1.2 Create the project
 
@@ -110,10 +111,10 @@ On the batch board, click **New Batch** and provide:
 The batch name is auto-generated as:
 
 ```
-ProjectName-BATCH-XXXX
+ProjectName-SampleQC-XXXX
 ```
 
-Where `XXXX` is the batch primary key in four-digit uppercase hex.
+Where `XXXX` is the batch primary key in four-digit uppercase hex (e.g. `CancerTEST-SampleQC-1A4C`).
 
 ### 3.3 Assign samples to batches
 
@@ -159,11 +160,68 @@ If results are exported from an instrument (Qubit reader), they can be imported 
 
 ---
 
-## 5. Inventory Management
+## 5. Library Preparation
+
+Once samples have a passing (or accepted) QC result, they move into library prep, managed under the **Library Prep** tab.
+
+### 5.1 Select a project
+
+Navigate to **Library Prep > Projects**. Each project shows a breakdown of its samples' QC status (Pass / Caution / Fail / Pending) and how many library prep batches already exist for it. Select a project to start a new batch.
+
+### 5.2 Build a batch (plate board)
+
+The new-batch page is a drag-and-drop plate builder:
+
+- The left sidebar lists the project's samples grouped by QC status; samples already used in a previous batch are shown separately so they aren't accidentally reused.
+- Choose a **workflow type** (e.g. TotalRNA, DNA PCR-Free) this determines which master mix steps and reagents apply, and whether controls are required.
+- Assign a physical **rack/slot location** for the plate via the location picker.
+- Drag samples into wells. Positive/negative controls are placed the same way when the workflow requires them.
+
+Before saving, the system checks the batch composition and blocks the save with a clear error if: the batch is all controls, a sample's nucleic acid type doesn't match the workflow, or the workflow's control requirements (both/neither) aren't met.
+
+On save, the batch name is auto-generated as:
+
+```
+ProjectName-Library-XXXX
+```
+
+
+Where `XXXX` is the batch primary key in four-digit uppercase hex.
+
+### 5.3 Batch detail page
+
+Opening a batch shows the plate grid plus several tabs:
+
+- **Master Mix**: reagent volumes for the batch (see 5.4)
+- **Prep Sheet**: per-sample dilution/volume working sheet (see 5.5)
+- **Library QC**: QC results per well (see 5.6)
+- **Audit log**: every change to the batch, with who made it and when
+
+### 5.4 Master Mix tab
+
+Enter the **reaction count** for the batch; the sheet recalculates reagent volumes for every step of the workflow's protocol against that count. Two ways to get a physical copy:
+
+- **Print**: opens a print-friendly sheet; use the browser's print dialog to print or save as PDF.
+- **PDF**: generates a PDF of the same sheet server-side, and appends the workflow's static protocol PDF (if one is configured for that workflow) as extra pages in the same file.
+
+### 5.5 Prep Sheet tab
+
+Shows the dilution/volume math per sample, calculated from the sample's concentration and the workflow's target input mass and volume. If the raw pipetting volume would be too small to measure accurately, the sheet suggests a standard dilution factor (1:2, 1:5, 1:10, ...) instead.
+
+### 5.6 Recording Library QC
+
+Open a well from the plate grid (**Library Prep > well**) to enter its results: concentration, PCR cycles (if the workflow requires PCR), Qubit, and depending on the workflow's QC method, TapeStation metrics (fragment size, dimer peak %, region %/nM). Status is recalculated automatically on save, the same way it is for Sample QC.
+
+Results can also be bulk-imported from an instrument export via **Import Results** on the batch detail page, the same pattern as the Sample QC CSV import in section 4.4.
+
+---
+
+
+## 6. Inventory Management
 
 The inventory module tracks reagents and consumables from receipt to consumption.
 
-### 5.1 Log a new receipt
+### 6.1 Log a new receipt
 
 When a shipment arrives, navigate to **Inventory > Log Receipt** and fill in:
 
@@ -178,23 +236,23 @@ When a shipment arrives, navigate to **Inventory > Log Receipt** and fill in:
 
 Saving the receipt automatically creates an `Inventory` record linking the stock to the receipt (lot), product, and location. This provides full lot traceability.
 
-### 5.2 Adjust stock
+### 6.2 Adjust stock
 
 To update the quantity on hand after consumption or waste, navigate to the inventory dashboard and click **Adjust** next to the relevant stock entry. Enter the new quantity on hand and save.
 
-### 5.3 Inventory dashboard
+### 6.3 Inventory dashboard
 
 The dashboard shows current stock levels for all products, grouped by location. Expired lots are flagged. From here you can drill into a product's receipt history and current stock across all locations.
 
 ---
 
-## 6. Location and Temperature Logging
+## 7. Location and Temperature Logging
 
-### 6.1 Storage locations
+### 7.1 Storage locations
 
 Physical storage units (freezers, fridges, cabinets) are managed under **Locations**. Each location has a name and a storage type (Room-Temperature, Fridge 4C, Freezer -20C, Freezer -80C). Locations are referenced by both the sample and inventory modules.
 
-### 6.2 Temperature logs
+### 7.2 Temperature logs
 
 To record a daily temperature check, navigate to **Locations**, select the unit, and add a temperature log entry with:
 
@@ -207,7 +265,7 @@ The location history page shows a chart of temperature readings over time for a 
 
 ---
 
-## 7. Researcher Portal
+## 8. Researcher Portal
 
 Researchers with a portal account (i.e. users with a `UserProfile` linked to a `Client`) log in and land on a restricted view that shows only their own projects and the samples and QC results within those projects. They cannot access other clients' data, inventory, or location management.
 
